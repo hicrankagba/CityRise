@@ -86,13 +86,20 @@ namespace CityRise.Game
 
             foreach (var v in plotsRoot.GetComponentsInChildren<PlotView>(true)) views[v.plotId] = v;
             ApplyStage(profile.stage, null);
-            foreach (var owned in profile.businesses) ShowBusiness(layout.FindPlot(owned.plotId), owned, animate: false);
+            foreach (var owned in profile.businesses)
+                if (!owned.acquired) ShowBusiness(layout.FindPlot(owned.plotId), owned, animate: false);
 
             Economy.BusinessBuilt += (plot, owned) => ShowBusiness(plot, owned, animate: true);
             Economy.BusinessUpgraded += (plot, owned) =>
             {
                 if (views.TryGetValue(plot.id, out var v) && v.building) StartCoroutine(Bounce(v.building.transform, 0.35f));
-                if (interiorPlotId == plot.id) RebuildInterior(owned);
+                if (interiorPlotId == plot.id) BuildInterior(plot, owned.businessId, owned.level);
+            };
+            Economy.BusinessAcquired += (plot, owned) =>
+            {
+                if (views.TryGetValue(plot.id, out var v)) StartCoroutine(Bounce(v.transform, 0.35f));
+                if (interiorPlotId == plot.id) hud.EnterInterior(plot, owned, owned.businessId, owned.level);
+                hud.Toast(Loc.T("interior.bought", Loc.T("business." + owned.businessId)));
             };
             Economy.StageUnlocked += (stage, blocks) => { town.stage = stage; ApplyStage(stage, blocks); };
 
@@ -175,12 +182,12 @@ namespace CityRise.Game
                     hud.Toast(Loc.T("plot.locked", Loc.Stage(plot.unlockStage), config.LevelForStage(plot.unlockStage)));
                     break;
                 case PlotType.Business:
-                    hud.Toast(Loc.T("plot.neighbor", Loc.T("business." + plot.occupantId)));
+                    OpenInterior(plot);
                     break;
                 case PlotType.House: hud.Toast(Loc.T("plot.house")); break;
                 case PlotType.Park: hud.Toast(Loc.T("plot.park")); break;
                 case PlotType.Plaza: hud.Toast(Loc.T("plot.plaza")); break;
-                case PlotType.Civic: hud.Toast(Loc.T("plot.civic")); break;
+                case PlotType.Civic: OpenInterior(plot); break;
             }
         }
 
@@ -297,18 +304,27 @@ namespace CityRise.Game
 
         // ------------------------------------------------------------ İç görünüm
 
-        /// <summary>Sahip olunan işletmenin içini kesit olarak açar; kamera yumuşak geçişle oraya gider.</summary>
+        /// <summary>
+        /// İşletmenin (oyuncunun ya da komşunun) veya belediyenin içini kesit olarak açar;
+        /// kamera yumuşak geçişle oraya gider.
+        /// </summary>
         public void OpenInterior(Plot plot)
         {
+            if (plot == null || interiorLibrary == null || InInterior) return;
             var owned = Profile.Find(plot.id);
-            if (owned == null || interiorLibrary == null || InInterior) return;
-            StartCoroutine(OpenWhenReady(plot, owned));
+            string id;
+            int level;
+            if (owned != null) { id = owned.businessId; level = owned.level; }
+            else if (plot.type == PlotType.Business && !string.IsNullOrEmpty(plot.occupantId)) { id = plot.occupantId; level = 2; }
+            else if (plot.type == PlotType.Civic) { id = "belediye"; level = 2; }
+            else return;
+            StartCoroutine(OpenWhenReady(plot, owned, id, level));
         }
 
-        IEnumerator OpenWhenReady(Plot plot, OwnedBusiness owned)
+        IEnumerator OpenWhenReady(Plot plot, OwnedBusiness owned, string businessId, int level)
         {
             while (transitioning) yield return null;
-            if (!InInterior) yield return OpenInteriorRoutine(plot, owned);
+            if (!InInterior) yield return OpenInteriorRoutine(plot, owned, businessId, level);
         }
 
         public void CloseInterior()
@@ -317,7 +333,7 @@ namespace CityRise.Game
             StartCoroutine(CloseInteriorRoutine());
         }
 
-        IEnumerator OpenInteriorRoutine(Plot plot, OwnedBusiness owned)
+        IEnumerator OpenInteriorRoutine(Plot plot, OwnedBusiness owned, string businessId, int level)
         {
             transitioning = true;
             yield return ZoomTo(CoinAnchor(plot) - Vector3.up * 10f, 26f, 0.35f);
@@ -332,20 +348,13 @@ namespace CityRise.Game
                 clear = cam.clearFlags, background = cam.backgroundColor, fog = RenderSettings.fog,
             };
             interiorPlotId = plot.id;
-            BuildInterior(owned);
-
-            var size = InteriorBuilder.RoomSize(owned.businessId, owned.level);
-            float d = Mathf.Max(size.x, size.y) * 1.75f + 4f;
             ctrl.orbitMode = true;
-            ctrl.transform.position = InteriorOrigin + Vector3.up * 0.6f;
-            ctrl.minDistance = d * 0.5f;
-            ctrl.maxDistance = d * 1.4f;
-            ctrl.distance = d;
             ctrl.yaw = 42f;
+            BuildInterior(plot, businessId, level);
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.07f, 0.08f, 0.11f);
             RenderSettings.fog = false;
-            hud.EnterInterior(plot, owned);
+            hud.EnterInterior(plot, owned, businessId, level);
             // İlk karede malzemeler hazırlanırken ekran kararık kalsın.
             yield return null;
             yield return null;
@@ -376,16 +385,41 @@ namespace CityRise.Game
             transitioning = false;
         }
 
-        void BuildInterior(OwnedBusiness owned)
+        void BuildInterior(Plot plot, string businessId, int level)
         {
             if (interior != null) Destroy(interior);
-            interior = InteriorBuilder.Build(interiorLibrary, owned.businessId, owned.level, SignMaterial(owned.businessId), InteriorOrigin);
+            interior = InteriorBuilder.Build(interiorLibrary, businessId, level, SignMaterial(plot, businessId), InteriorOrigin);
+            FrameInterior();
         }
 
-        void RebuildInterior(OwnedBusiness owned) => BuildInterior(owned);
-
-        Material SignMaterial(string businessId)
+        /// <summary>
+        /// Kamerayı odanın tamamı (tabela ve toprak dilimi dahil) ekrana sığacak uzaklığa koyar.
+        /// Üst ve alttaki arayüz şeritleri için dikey görüş biraz daraltılarak hesaplanır.
+        /// </summary>
+        void FrameInterior()
         {
+            var renderers = interior.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return;
+            var b = renderers[0].bounds;
+            foreach (var r in renderers) b.Encapsulate(r.bounds);
+            var ctrl = cameraController;
+            var cam = ctrl.cam;
+            float radius = b.extents.magnitude;
+            float vHalf = cam.fieldOfView * 0.5f * Mathf.Deg2Rad * 0.74f;
+            float hHalf = Mathf.Atan(Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * cam.aspect) * 0.92f;
+            float d = radius / Mathf.Sin(Mathf.Min(vHalf, hHalf)) * 0.76f;
+            ctrl.transform.position = b.center;
+            ctrl.distance = d;
+            ctrl.minDistance = d * 0.45f;
+            ctrl.maxDistance = d * 1.3f;
+        }
+
+        /// <summary>Tabela: komşunun binasındaki tabela, yoksa işletme şablonundaki.</summary>
+        Material SignMaterial(Plot plot, string businessId)
+        {
+            if (views.TryGetValue(plot.id, out var view))
+                foreach (var r in view.GetComponentsInChildren<Renderer>(true))
+                    if (r.name == "Yazi" && r.transform.parent != null && r.transform.parent.name == "Tabela") return r.sharedMaterial;
             var template = templates.Find(t => t.businessId == businessId)?.template;
             var face = template != null ? template.transform.Find("Tabela/Yazi") : null;
             return face != null ? face.GetComponent<Renderer>().sharedMaterial : null;

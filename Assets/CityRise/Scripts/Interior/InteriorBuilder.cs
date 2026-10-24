@@ -32,6 +32,7 @@ namespace CityRise.Interior
                 case "kafe": return new Vector2(9f, 7f);
                 case "market": return new Vector2(12f, 9f);
                 case "supermarket": return new Vector2(16f, 12f);
+                case "belediye": return new Vector2(11f, 8f);
                 default: return new Vector2(8f, 6f);
             }
         }
@@ -64,6 +65,7 @@ namespace CityRise.Interior
                 case "kafe": b.Kafe(level); break;
                 case "eczane": b.Eczane(level); break;
                 case "berber": b.Berber(level); break;
+                case "belediye": b.Belediye(level); break;
                 default: b.Bakkal(level); break;
             }
             b.Lights();
@@ -408,6 +410,28 @@ namespace CityRise.Interior
             if (level >= 2) Place("mm/shelf-boxes", -HalfW + 0.8f, -1f, Right);
             Place("furn/pottedPlant", HalfW - 0.5f, -HalfD + 0.5f, Front);
             Customers(1 + level / 2, -HalfW + 1f, HalfW - 1f, -HalfD + 0.8f, -0.5f);
+        }
+
+        /// <summary>Belediye: vezne tezgahı, bekleme sandalyeleri, arkada masalı ofis ve dolaplar.</summary>
+        void Belediye(int level)
+        {
+            for (float x = -HalfW + 1f; x < HalfW - 0.8f; x += 1.0f) Place("furn/bookcaseOpen", x, HalfD - 0.35f, Front);
+            for (float x = -HalfW + 1f; x < HalfW - 0.8f; x += 1.0f)
+                for (int s = 0; s < 3; s++) Produce(x, HalfD - 0.35f, 0.45f + s * 0.55f, new[] { "furn/cardboardBoxClosed" }, 1);
+            for (int i = 0; i < 3; i++)
+            {
+                float x = -HalfW + 2f + i * 2.6f;
+                Place("furn/desk", x, HalfD - 2.2f, Front);
+                Place("furn/chairModernCushion", x, HalfD - 1.5f, Front);
+                Place("mm/employee", x, HalfD - 1.3f, Front);
+            }
+            // Vezne.
+            for (float x = -HalfW + 1.5f; x < HalfW - 2.5f; x += 1.0f) Place("furn/kitchenBar", x, 0f, Front);
+            for (int i = 0; i < 6; i++) Place("furn/chair", -HalfW + 1.4f + i * 0.85f, -HalfD + 1.2f, Back);
+            Place("furn/pottedPlant", HalfW - 0.6f, -HalfD + 0.6f, Front);
+            Place("furn/pottedPlant", -HalfW + 0.6f, HalfD - 1.4f, Front);
+            Place("furn/coatRackStanding", HalfW - 0.6f, HalfD - 1.6f, Left);
+            Customers(3, -HalfW + 1f, HalfW - 2f, -HalfD + 1.8f, -0.8f);
         }
 
         void Berber(int level)

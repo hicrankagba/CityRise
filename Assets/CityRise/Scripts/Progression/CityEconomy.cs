@@ -27,6 +27,8 @@ namespace CityRise.Progression
         /// <summary>Yeni aşama ve açılan bloklar.</summary>
         public event Action<CityStage, List<Vector2Int>> StageUnlocked;
         public event Action<Plot, OwnedBusiness> BusinessBuilt;
+        /// <summary>Komşunun hazır işletmesi satın alındı.</summary>
+        public event Action<Plot, OwnedBusiness> BusinessAcquired;
         public event Action<Plot, OwnedBusiness> BusinessUpgraded;
         public event Action<Plot, double, long> Collected;
 
@@ -81,6 +83,44 @@ namespace CityRise.Progression
             var owned = new OwnedBusiness { plotId = plot.id, businessId = def.id };
             profile.businesses.Add(owned);
             BusinessBuilt?.Invoke(plot, owned);
+            AddXp(Mathf.Max(1, Mathf.RoundToInt(price * config.xpPerBuildDollar)));
+            Changed?.Invoke();
+            return true;
+        }
+
+        // ------------------------------------------------------------ Hazır işletme satın alma
+
+        /// <summary>
+        /// Komşunun (şimdilik NPC) işletmesinin fiyatı: tasarım belgesindeki işletme değeri formülü,
+        /// $50'ye yuvarlanmış. Oyuncular arası satış gelince aynı değer ilan fiyatının tabanı olur.
+        /// </summary>
+        public long AcquirePrice(Plot plot)
+        {
+            var def = plot != null ? catalog.Find(plot.occupantId) : null;
+            if (def == null) return 0;
+            double value = EconomyRules.BusinessValue(def.NetPerHour * 24, config.businessValueK, config.businessValueM, LandPrice(plot));
+            return (long)(Math.Round(value / 50.0) * 50);
+        }
+
+        public BuildCheck CanAcquire(Plot plot)
+        {
+            var def = plot != null ? catalog.Find(plot.occupantId) : null;
+            if (def == null || plot.type != PlotType.Business || profile.Find(plot.id) != null) return BuildCheck.PlotUnavailable;
+            if (def.requiredStage > profile.stage) return BuildCheck.StageLocked;
+            if (profile.level < def.requiredLevel) return BuildCheck.LevelTooLow;
+            if (profile.cash < AcquirePrice(plot)) return BuildCheck.NotEnoughCash;
+            return BuildCheck.Ok;
+        }
+
+        public bool Acquire(Plot plot)
+        {
+            if (CanAcquire(plot) != BuildCheck.Ok) return false;
+            long price = AcquirePrice(plot);
+            profile.cash -= price;
+            // Komşunun işletmesi zaten çalışıyor: seviye 2 olarak devralınır.
+            var owned = new OwnedBusiness { plotId = plot.id, businessId = plot.occupantId, acquired = true, level = 2 };
+            profile.businesses.Add(owned);
+            BusinessAcquired?.Invoke(plot, owned);
             AddXp(Mathf.Max(1, Mathf.RoundToInt(price * config.xpPerBuildDollar)));
             Changed?.Invoke();
             return true;

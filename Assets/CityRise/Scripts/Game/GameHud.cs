@@ -20,7 +20,9 @@ namespace CityRise.Game
         CityEconomy eco;
         RectTransform root, safeArea, modalLayer, coinLayer, interiorBar;
         Text interiorTitle, interiorInfo;
-        Button collectButton, upgradeButton;
+        Button collectButton, upgradeButton, buyButton;
+        string interiorId;
+        int interiorLevel;
         CanvasGroup fade;
         Rect lastSafe;
         OwnedBusiness interiorBusiness;
@@ -151,13 +153,18 @@ namespace CityRise.Game
                     Toast(Loc.T("biz.upgraded", Loc.T("business." + interiorBusiness.businessId), interiorBusiness.level));
             }, 28);
             ((RectTransform)upgradeButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(430, 100));
+            buyButton = UIKit.Button("SatinAl", interiorBar, "", UIKit.Green, () => { if (interiorPlot != null) eco.Acquire(interiorPlot); }, 30);
+            ((RectTransform)buyButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(480, 100));
             interiorBar.gameObject.SetActive(false);
         }
 
-        public void EnterInterior(Plot plot, OwnedBusiness owned)
+        /// <summary>owned boşsa işletme komşunundur (ya da kamu binasıdır).</summary>
+        public void EnterInterior(Plot plot, OwnedBusiness owned, string businessId, int level)
         {
             interiorPlot = plot;
             interiorBusiness = owned;
+            interiorId = businessId;
+            interiorLevel = level;
             interiorBar.gameObject.SetActive(true);
             coinLayer.gameObject.SetActive(false);
             RefreshInterior();
@@ -167,13 +174,38 @@ namespace CityRise.Game
         {
             interiorPlot = null;
             interiorBusiness = null;
+            interiorId = null;
             interiorBar.gameObject.SetActive(false);
             coinLayer.gameObject.SetActive(true);
         }
 
         void RefreshInterior()
         {
-            if (interiorBusiness == null) return;
+            if (interiorPlot == null) return;
+            bool mine = interiorBusiness != null;
+            collectButton.gameObject.SetActive(mine);
+            upgradeButton.gameObject.SetActive(mine);
+            if (!mine)
+            {
+                var neighborDef = eco.catalog.Find(interiorId);
+                interiorTitle.text = Loc.T("biz.title", Loc.T("business." + interiorId), interiorLevel);
+                buyButton.gameObject.SetActive(neighborDef != null);
+                if (neighborDef == null)
+                {
+                    interiorInfo.text = Loc.T("interior.civic");
+                    return;
+                }
+                interiorInfo.text = Loc.T("interior.owner", Loc.Money(neighborDef.NetPerHour));
+                var check = eco.CanAcquire(interiorPlot);
+                long price = eco.AcquirePrice(interiorPlot);
+                buyButton.SetText(check == CityEconomy.BuildCheck.LevelTooLow ? Loc.T("buy.locked", neighborDef.requiredLevel)
+                    : check == CityEconomy.BuildCheck.StageLocked ? Loc.T("buy.stage", Loc.Stage(neighborDef.requiredStage))
+                    : check == CityEconomy.BuildCheck.NotEnoughCash ? Loc.T("buy.nocash", Loc.Money(price))
+                    : Loc.T("interior.buy", Loc.Money(price)));
+                buyButton.interactable = check == CityEconomy.BuildCheck.Ok;
+                return;
+            }
+            buyButton.gameObject.SetActive(false);
             var b = interiorBusiness;
             var def = eco.catalog.Find(b.businessId);
             interiorTitle.text = Loc.T("biz.title", Loc.T("business." + b.businessId), b.level);
@@ -211,7 +243,7 @@ namespace CityRise.Game
         void LateUpdate()
         {
             ApplySafeArea();
-            if (interiorBusiness != null) RefreshInterior();
+            if (interiorPlot != null) RefreshInterior();
             else UpdateCoins();
 #if ENABLE_INPUT_SYSTEM
             // Android geri tuşu / Esc: iç görünümden ya da pencereden çık.
@@ -269,7 +301,7 @@ namespace CityRise.Game
         public void Toast(string message)
         {
             // İç görünümde alttaki düğmelerin üstünde dursun.
-            ((RectTransform)toastGroup.transform).anchoredPosition = new Vector2(0, interiorBusiness != null ? 150 : 40);
+            ((RectTransform)toastGroup.transform).anchoredPosition = new Vector2(0, interiorPlot != null ? 150 : 40);
             toastLabel.text = message;
             if (toastRoutine != null) StopCoroutine(toastRoutine);
             toastRoutine = StartCoroutine(ToastRoutine());

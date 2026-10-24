@@ -47,6 +47,9 @@ namespace CityRise.Progression
         public long landPricePerCell = 250;
         [Tooltip("Seviye atlayınca verilen ödül: yeni seviye × bu değer.")]
         public long levelUpCashPerLevel = 150;
+        [Tooltip("Hazır işletme değeri = günlük net kâr × 120 × K × M + arsa (tasarım belgesi). K ve M burada.")]
+        public float businessValueK = 0.01f;
+        public float businessValueM = 1f;
         [Tooltip("Toplanmayan gelir en fazla bu kadar saatlik birikir.")]
         public double storageHours = EconomyRules.OfflineIncomeCapHours;
 

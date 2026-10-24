@@ -60,6 +60,11 @@ namespace CityRise.Game
                 ["common.close"] = "Kapat",
                 ["interior.back"] = "◀  Şehre Dön",
                 ["interior.collect"] = "Topla  {0}",
+                ["interior.buy"] = "Satın Al  {0}",
+                ["interior.owner"] = "Sahibi: komşu  ·  saatte {0}",
+                ["interior.civic"] = "Kamu binası  ·  satılık değil",
+                ["interior.bought"] = "{0} artık senin!",
+                ["business.belediye"] = "Belediye",
 
                 ["business.simit_bufesi"] = "Simit Büfesi",
                 ["business.bakkal"] = "Bakkal",

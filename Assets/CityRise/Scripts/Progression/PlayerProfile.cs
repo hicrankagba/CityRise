@@ -14,6 +14,8 @@ namespace CityRise.Progression
         public int level = 1;
         /// <summary>Toplanmayı bekleyen gelir ($).</summary>
         public double stored;
+        /// <summary>Komşudan hazır satın alındı (bina sahnede zaten var, yeniden kurulmaz).</summary>
+        public bool acquired;
     }
 
     /// <summary>

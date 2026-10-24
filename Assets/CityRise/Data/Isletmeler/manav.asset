@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 282f4d0f194f448f299a79c2ffb4a7b6, type: 3}
+  m_Name: manav
+  m_EditorClassIdentifier: Assembly-CSharp::CityRise.Core.BusinessDefinition
+  id: manav
+  displayNameKey: business.manav
+  requiredStage: 1
+  requiredLevel: 1
+  buildCost: 3500
+  incomePerHour: 120
+  expensePerHour: 35
+  prefab: {fileID: 919132149155446097, guid: 0fc44f1e753954b3788f3200b59fcdab, type: 3}
+  footprint: {x: 1, y: 1}

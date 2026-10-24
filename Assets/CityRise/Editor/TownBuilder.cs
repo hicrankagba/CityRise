@@ -73,6 +73,10 @@ namespace CityRise.EditorTools
             public List<Material> emissive = new List<Material>();
             public int lightCount;
             public TreeFactory.Set trees;
+            public Material glass, roofTiles, cropWheat, cropCorn, paving;
+            public Material[] bricks, plasters;
+            public readonly Dictionary<string, Mesh> skinned = new Dictionary<string, Mesh>();
+            public readonly Dictionary<string, (Color32[] px, int w, int h)> palettes = new Dictionary<string, (Color32[] px, int w, int h)>();
             public int treeCount;
         }
 
@@ -308,6 +312,9 @@ namespace CityRise.EditorTools
                 {
                     var building = Spawn(c, StylePath(p.styleId), parent, center, YawFor(p.facing), CityScale);
                     building.name = p.occupantId;
+                    var wall = p.type == PlotType.Civic ? c.plasters[0]
+                        : (p.id % 5 < 2 ? c.bricks[p.id % c.bricks.Length] : c.plasters[p.id % c.plasters.Length]);
+                    SkinBuilding(c, building, "CityCommercial", wall, c.roofTiles);
                     if (p.type == PlotType.Civic)
                     {
                         PlanterRow(c, parent, p, 4);
@@ -330,10 +337,11 @@ namespace CityRise.EditorTools
             }
         }
 
+        /// <summary>Arsayı gerçek dokulu taş parkeyle kaplar (kaldırım yüksekliğinde).</summary>
         static void PaveRect(Ctx c, Transform parent, RectInt r)
         {
-            foreach (var cell in r.allPositionsWithin)
-                Spawn(c, $"{KenneyDir}/CityRoads/tile-low.fbx", parent, c.g.CellCenter(cell), 0f, CityScale).name = "Tas";
+            Box("ParkeAlti", parent, c.g.RectCenter(r) + Vector3.up * 0.075f, new Vector3(r.width * c.g.cellSize, 0.15f, r.height * c.g.cellSize), c.stone);
+            Quad("Parke", parent, c.g.RectCenter(r) + Vector3.up * 0.155f, RectSize(c.g, r), c.paving);
         }
 
         static void BuildHouse(Ctx c, Transform parent, Plot p)
@@ -341,6 +349,7 @@ namespace CityRise.EditorTools
             float half = p.cells.width * c.g.cellSize * 0.5f;
             var house = Spawn(c, StylePath(p.styleId), parent, PlotPoint(c, p, 0f, 0.6f), YawFor(p.facing), CityScale);
             house.name = "Ev";
+            SkinBuilding(c, house, "CitySuburban", c.bricks[p.id % c.bricks.Length], c.roofTiles);
 
             // Kapıdan yola taş yol, arka ve yanlarda çit, bahçede ağaçlar.
             Spawn(c, $"{KenneyDir}/CitySuburban/path-stones-long.fbx", parent, PlotPoint(c, p, 0f, half - 1.4f), YawFor(p.facing), CityScale);
@@ -374,8 +383,22 @@ namespace CityRise.EditorTools
             bool big = p.Area >= 16;
             if (big)
             {
-                Disc("Golet", parent, center + new Vector3(3f, 0.06f, -2f), new Vector2(13f, 9f), c.water);
-                Disc("GoletKenari", parent, center + new Vector3(3f, 0.03f, -2f), new Vector2(14.6f, 10.6f), c.stone);
+                var pond = center + new Vector3(3f, 0f, -2f);
+                Disc("Golet", parent, pond + Vector3.up * 0.06f, new Vector2(13f, 9f), c.water).AddComponent<CityRise.Environment.WaterScroll>();
+                Disc("GoletKenari", parent, pond + Vector3.up * 0.03f, new Vector2(14.6f, 10.6f), c.stone);
+                // Kenarda kümeler halinde sazlık ve çiçek.
+                for (int i = 0; i < 16; i++)
+                {
+                    float a = Rand(c, 0f, Mathf.PI * 2f);
+                    if (Mathf.Sin(a * 3f) < -0.2f) continue;
+                    var edge = pond + new Vector3(Mathf.Cos(a) * 7.6f, 0, Mathf.Sin(a) * 5.6f);
+                    SpawnPrefab(c.trees.reeds[c.rng.Next(c.trees.reeds.Count)], parent, edge, Rand(c, 0, 360), Rand(c, 0.8f, 1.2f));
+                }
+                for (int i = 0; i < 10; i++)
+                {
+                    float a = Rand(c, 0f, Mathf.PI * 2f);
+                    Flower(c, parent, pond + new Vector3(Mathf.Cos(a) * 8.3f, 0, Mathf.Sin(a) * 6.3f));
+                }
             }
             for (float x = -hx + 2f; x < hx - 1f; x += 0.4f * CityScale)
                 Spawn(c, $"{KenneyDir}/CitySuburban/path-stones-long.fbx", parent, center + new Vector3(x, 0.05f, big ? 7f : 0f), 90f, CityScale);
@@ -407,11 +430,12 @@ namespace CityRise.EditorTools
 
             // Ortada çeşme.
             Cylinder("CesmeHavuzu", parent, center + Vector3.up * 0.3f, new Vector3(8f, 0.3f, 8f), c.stone);
-            Cylinder("CesmeSuyu", parent, center + Vector3.up * 0.58f, new Vector3(7.2f, 0.04f, 7.2f), c.water);
+            Cylinder("CesmeSuyu", parent, center + Vector3.up * 0.58f, new Vector3(7.2f, 0.04f, 7.2f), c.water).AddComponent<CityRise.Environment.WaterScroll>();
             Cylinder("CesmeOrtasi", parent, center + Vector3.up * 1.3f, new Vector3(0.9f, 1.3f, 0.9f), c.stone);
             Cylinder("CesmeCanagi", parent, center + Vector3.up * 2.5f, new Vector3(3f, 0.15f, 3f), c.stone);
             Cylinder("CesmeCanagiSu", parent, center + Vector3.up * 2.64f, new Vector3(2.6f, 0.02f, 2.6f), c.water);
             Cylinder("CesmeTepesi", parent, center + Vector3.up * 3.1f, new Vector3(0.45f, 0.5f, 0.45f), c.stone);
+            FountainWater(c, parent, center);
 
             // Dört köşede çimli bahçe: ağaç, çalı ve çiçek. Aralarında çeşmeye giden yollar kalır.
             foreach (var sx in new[] { -1f, 1f })
@@ -424,8 +448,10 @@ namespace CityRise.EditorTools
                 Tree(c, parent, garden + new Vector3(sx * gs * 0.22f, 0.24f, sz * gs * 0.22f), 0.9f);
                 for (int i = 0; i < 4; i++)
                     Bush(c, parent, garden + new Vector3(Rand(c, -gs * 0.4f, gs * 0.4f), 0.24f, -sz * gs * 0.35f));
-                for (int i = 0; i < 10; i++)
-                    Flower(c, parent, garden + new Vector3(Rand(c, -gs * 0.42f, gs * 0.42f), 0.24f, Rand(c, -gs * 0.42f, gs * 0.1f) * sz * -1f));
+                // Bahçenin meydana bakan iki kenarında tek renkli çiçek tarhları.
+                int col = (int)((sx + 1) + (sz + 1) / 2);
+                FlowerBed(c, parent, garden + new Vector3(0, 0.24f, -sz * (gs * 0.5f - 0.8f)), new Vector2(gs - 1f, 1.2f), Quaternion.identity, col);
+                FlowerBed(c, parent, garden + new Vector3(-sx * (gs * 0.5f - 0.8f), 0.24f, 0), new Vector2(1.2f, gs - 3f), Quaternion.identity, col + 2);
             }
             // Bahçeler arasındaki yollarda meydan lambaları.
             foreach (var d in new[] { Vector3.forward, Vector3.right, Vector3.back, Vector3.left })
@@ -591,8 +617,21 @@ namespace CityRise.EditorTools
         static void GrassTuft(Ctx c, Transform parent, Vector3 pos) =>
             SpawnPrefab(c.trees.grass[c.rng.Next(c.trees.grass.Count)], parent, pos, Rand(c, 0, 360), Rand(c, 0.8f, 1.4f));
 
-        static void Flower(Ctx c, Transform parent, Vector3 pos) =>
-            Spawn(c, $"{KenneyDir}/Nature/{FlowerModels[c.rng.Next(FlowerModels.Length)]}.fbx", parent, pos, Rand(c, 0, 360), NatureScale * Rand(c, 0.8f, 1.2f));
+        /// <summary>Gerçek fotoğraflı çiçek öbeği; color -1 ise rastgele renk.</summary>
+        static void Flower(Ctx c, Transform parent, Vector3 pos, int color = -1)
+        {
+            var list = c.trees.flowers;
+            var prefab = list[color >= 0 ? color % list.Count : c.rng.Next(list.Count)];
+            SpawnPrefab(prefab, parent, pos, Rand(c, 0, 360), Rand(c, 0.85f, 1.25f));
+        }
+
+        /// <summary>Tek renkli, sık dikilmiş çiçek tarhı.</summary>
+        static void FlowerBed(Ctx c, Transform parent, Vector3 center, Vector2 size, Quaternion rot, int color)
+        {
+            for (float x = -size.x * 0.5f + 0.35f; x < size.x * 0.5f - 0.2f; x += 0.55f)
+            for (float z = -size.y * 0.5f + 0.35f; z < size.y * 0.5f - 0.2f; z += 0.55f)
+                Flower(c, parent, center + rot * new Vector3(x + Rand(c, -0.1f, 0.1f), 0, z + Rand(c, -0.1f, 0.1f)), color);
+        }
 
         static GameObject SpawnPrefab(GameObject prefab, Transform parent, Vector3 pos, float yaw, float scale)
         {
@@ -700,10 +739,13 @@ namespace CityRise.EditorTools
             var field = Group(parent, "Tarla");
             Quad("Toprak", field, center + Vector3.up * 0.05f, size, c.dirt);
             c.keepClear.Add(new Rect(center.x - size.x * 0.5f - 2f, center.z - size.y * 0.5f - 2f, size.x + 4f, size.y + 4f));
-            float spacing = 2.4f;
-            for (float a = -size.x * 0.5f + 1.5f; a < size.x * 0.5f - 1f; a += rowsAlongZ ? spacing * 1.6f : spacing)
-            for (float d = -size.y * 0.5f + 1.5f; d < size.y * 0.5f - 1f; d += rowsAlongZ ? spacing : spacing * 1.6f)
-                Spawn(c, $"{KenneyDir}/Nature/{crop}.fbx", field, center + new Vector3(a, 0.05f, d), (c.rng.Next(4)) * 90f, NatureScale * 0.9f).isStatic = true;
+            bool corn = crop.Contains("corn");
+            var crops = new GameObject("Ekinler");
+            crops.transform.SetParent(field);
+            crops.transform.position = center + Vector3.up * 0.05f;
+            crops.AddComponent<MeshFilter>().sharedMesh = TreeFactory.CropFieldMesh(size, rowsAlongZ, corn, c.rng.Next());
+            crops.AddComponent<MeshRenderer>().sharedMaterials = new[] { corn ? c.cropCorn : c.cropWheat, corn ? c.cropCorn : c.cropWheat, corn ? c.cropCorn : c.cropWheat };
+            crops.isStatic = true;
         }
 
         /// <summary>
@@ -949,6 +991,7 @@ namespace CityRise.EditorTools
             var grassTex = LoadTexture($"{PolyHavenDir}/Textures/leafy_grass_diff_2k.jpg", false);
             var grassNor = LoadTexture($"{PolyHavenDir}/Textures/leafy_grass_nor_gl_2k.jpg", true);
             var signTex = SignTexture();
+            var waterNor = WaterNormalMap();
             NeutralRoadPalette();
             PrepareHdri(SkyPath(c.night));
             if (c.night)
@@ -957,8 +1000,53 @@ namespace CityRise.EditorTools
 
             c.grass = TexturedMat("Cim", grassTex, grassNor, new Color(0.62f, 0.90f, 0.46f), 4f);
             c.meadow = TexturedMat("Cayir", grassTex, grassNor, new Color(0.68f, 0.88f, 0.46f), 4f);
-            c.water = SimpleMat("Su", new Color(0.22f, 0.55f, 0.72f), 0.95f);
-            c.stone = SimpleMat("Tas", new Color(0.78f, 0.75f, 0.7f), 0.25f);
+            c.water = SimpleMat("Su", new Color(0.05f, 0.19f, 0.23f), 0.94f, m =>
+            {
+                m.SetTexture("_BumpMap", waterNor);
+                m.SetFloat("_BumpScale", 0.45f);
+                m.EnableKeyword("_NORMALMAP");
+                m.SetTextureScale("_BaseMap", new Vector2(2.5f, 2.5f));
+                m.SetTexture("_DetailNormalMap", waterNor);
+                m.SetFloat("_DetailNormalMapScale", 0.35f);
+                m.SetTextureScale("_DetailAlbedoMap", new Vector2(7f, 7f));
+                m.EnableKeyword("_DETAIL_MULX2");
+                m.SetFloat("_EnvironmentReflections", 1f);
+                m.SetFloat("_SpecularHighlights", 1f);
+            });
+            var stoneTex = LoadTexture($"{PolyHavenDir}/Textures/large_sandstone_blocks_diff_1k.jpg", false);
+            var stoneNor = LoadTexture($"{PolyHavenDir}/Textures/large_sandstone_blocks_nor_gl_1k.jpg", true);
+            c.stone = TexturedMat("Tas", stoneTex, stoneNor, new Color(1.25f, 1.2f, 1.1f), 1.5f);
+
+            // Bina yüzeyleri: üç tuğla tonu, üç sıva rengi, kiremit ve cam.
+            var brickTex = LoadTexture($"{PolyHavenDir}/Textures/red_brick_03_diff_2k.jpg", false);
+            var brickNor = LoadTexture($"{PolyHavenDir}/Textures/red_brick_03_nor_gl_2k.jpg", true);
+            var plasterTex = LoadTexture($"{PolyHavenDir}/Textures/painted_plaster_wall_diff_2k.jpg", false);
+            var plasterNor = LoadTexture($"{PolyHavenDir}/Textures/painted_plaster_wall_nor_gl_2k.jpg", true);
+            var roofTex = LoadTexture($"{PolyHavenDir}/Textures/clay_roof_tiles_02_diff_1k.jpg", false);
+            var roofNor = LoadTexture($"{PolyHavenDir}/Textures/clay_roof_tiles_02_nor_gl_1k.jpg", true);
+            c.bricks = new[]
+            {
+                TexturedMat("Tugla_Kirmizi", brickTex, brickNor, new Color(1f, 0.97f, 0.95f), 1.3f),
+                TexturedMat("Tugla_Koyu", brickTex, brickNor, new Color(0.78f, 0.66f, 0.6f), 1.3f),
+                TexturedMat("Tugla_Acik", brickTex, brickNor, new Color(1f, 0.9f, 0.78f), 1.3f),
+            };
+            c.plasters = new[]
+            {
+                TexturedMat("Siva_Krem", plasterTex, plasterNor, new Color(1f, 0.94f, 0.82f), 2f),
+                TexturedMat("Siva_Seftali", plasterTex, plasterNor, new Color(1f, 0.85f, 0.73f), 2f),
+                TexturedMat("Siva_Acik", plasterTex, plasterNor, new Color(0.96f, 0.96f, 0.94f), 2f),
+            };
+            c.roofTiles = TexturedMat("Kiremit", roofTex, roofNor, new Color(0.8f, 0.66f, 0.6f), 2.5f);
+            var pavingTex = LoadTexture($"{PolyHavenDir}/Textures/hexagonal_concrete_paving_diff_2k.jpg", false);
+            var pavingNor = LoadTexture($"{PolyHavenDir}/Textures/hexagonal_concrete_paving_nor_gl_2k.jpg", true);
+            c.paving = TexturedMat("Parke", pavingTex, pavingNor, new Color(0.95f, 0.93f, 0.9f), 1.6f);
+            c.glass = SimpleMat(c.night ? "Cam_Gece" : "Cam", new Color(0.2f, 0.27f, 0.32f), 0.95f, m =>
+            {
+                m.SetFloat("_Metallic", 0.1f);
+                if (c.night) SetEmission(c, m, null, new Color(1f, 0.68f, 0.35f) * 1.1f);
+            }, persist: !c.night);
+            c.cropWheat = TreeFactory.CropMaterial(false);
+            c.cropCorn = TreeFactory.CropMaterial(true);
             c.dirt = SimpleMat("Toprak", new Color(0.45f, 0.32f, 0.2f), 0.1f);
             c.signBoard = SimpleMat("TabelaPano", Color.white, 0.3f, m => m.SetTexture("_BaseMap", signTex));
             c.signPost = SimpleMat("TabelaDirek", new Color(0.35f, 0.24f, 0.16f), 0.2f);
@@ -969,6 +1057,155 @@ namespace CityRise.EditorTools
             foreach (var kit in BuildingKits) KenneyMat(c, kit, null);
             KenneyMat(c, "CityRoads", null);
             AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>
+        /// Döşenebilir (kenarları birleşen) su dalgası normal haritası: tam sayı frekanslı sinüs dalgalarının toplamı.
+        /// </summary>
+        static Texture2D WaterNormalMap()
+        {
+            string path = $"{GeneratedDir}/SuDalgasi.png";
+            if (!File.Exists(FullPath(path)))
+            {
+                const int size = 512;
+                var rng = new Random(31);
+                var waves = new List<(int kx, int ky, float amp, float phase)>();
+                for (int i = 0; i < 18; i++)
+                {
+                    int kx = rng.Next(-9, 10), ky = rng.Next(-9, 10);
+                    if (kx == 0 && ky == 0) continue;
+                    float k = Mathf.Sqrt(kx * kx + ky * ky);
+                    waves.Add((kx, ky, 1f / (k * k * 0.6f + 1f), (float)rng.NextDouble() * 6.283f));
+                }
+                var px = new Color32[size * size];
+                for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float u = x / (float)size, v = y / (float)size;
+                    float dx = 0, dy = 0;
+                    foreach (var w in waves)
+                    {
+                        float ph = 2f * Mathf.PI * (w.kx * u + w.ky * v) + w.phase;
+                        float c = Mathf.Cos(ph) * w.amp * 2f * Mathf.PI;
+                        dx += c * w.kx;
+                        dy += c * w.ky;
+                    }
+                    var n = new Vector3(-dx * 0.02f, -dy * 0.02f, 1f).normalized;
+                    px[y * size + x] = new Color32((byte)((n.x * 0.5f + 0.5f) * 255), (byte)((n.y * 0.5f + 0.5f) * 255), (byte)((n.z * 0.5f + 0.5f) * 255), 255);
+                }
+                var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+                tex.SetPixels32(px);
+                tex.Apply();
+                File.WriteAllBytes(FullPath(path), tex.EncodeToPNG());
+                Object.DestroyImmediate(tex);
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+                var imp = (TextureImporter)AssetImporter.GetAtPath(path);
+                imp.textureType = TextureImporterType.NormalMap;
+                imp.wrapMode = TextureWrapMode.Repeat;
+                imp.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        /// <summary>Çeşmeden fışkıran ve üst çanaktan dökülen su (parçacık efektleri, oyun çalışınca oynar).</summary>
+        static void FountainWater(Ctx c, Transform parent, Vector3 center)
+        {
+            var mat = ParticleMaterial();
+
+            ParticleSystem Make(string name, Vector3 pos)
+            {
+                var go = new GameObject(name);
+                go.transform.SetParent(parent);
+                go.transform.position = pos;
+                var ps = go.AddComponent<ParticleSystem>();
+                var r = go.GetComponent<ParticleSystemRenderer>();
+                r.sharedMaterial = mat;
+                r.renderMode = ParticleSystemRenderMode.Billboard;
+                r.shadowCastingMode = ShadowCastingMode.Off;
+                return ps;
+            }
+
+            // Ortadan yukarı fışkıran su.
+            var jet = Make("CesmeFiskiye", center + Vector3.up * 3.35f);
+            jet.transform.rotation = Quaternion.Euler(-90f, 0, 0);
+            var main = jet.main;
+            main.loop = true;
+            main.playOnAwake = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.75f, 0.95f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(4.2f, 5f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.28f);
+            main.startColor = new Color(0.86f, 0.93f, 1f, 0.55f);
+            main.gravityModifier = 1f;
+            main.maxParticles = 600;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            var em = jet.emission;
+            em.rateOverTime = 220f;
+            var sh = jet.shape;
+            sh.shapeType = ParticleSystemShapeType.Cone;
+            sh.angle = 7f;
+            sh.radius = 0.05f;
+
+            // Üst çanağın kenarından dökülen su perdesi.
+            var fall = Make("CesmeDokulen", center + Vector3.up * 2.55f);
+            fall.transform.rotation = Quaternion.Euler(90f, 0, 0);
+            var fm = fall.main;
+            fm.startLifetime = new ParticleSystem.MinMaxCurve(0.45f, 0.6f);
+            fm.startSpeed = new ParticleSystem.MinMaxCurve(0.2f, 0.5f);
+            fm.startSize = new ParticleSystem.MinMaxCurve(0.1f, 0.22f);
+            fm.startColor = new Color(0.86f, 0.93f, 1f, 0.45f);
+            fm.gravityModifier = 1f;
+            fm.maxParticles = 800;
+            fm.simulationSpace = ParticleSystemSimulationSpace.World;
+            var fe = fall.emission;
+            fe.rateOverTime = 320f;
+            var fs = fall.shape;
+            fs.shapeType = ParticleSystemShapeType.Circle;
+            fs.radius = 1.45f;
+            fs.radiusThickness = 0f;
+        }
+
+        static Material ParticleMaterial()
+        {
+            string texPath = $"{GeneratedDir}/SuDamlasi.png";
+            if (!File.Exists(FullPath(texPath)))
+            {
+                const int size = 64;
+                var px = new Color32[size * size];
+                for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(size * 0.5f, size * 0.5f)) / (size * 0.5f);
+                    byte a = (byte)(Mathf.Clamp01(1f - d) * Mathf.Clamp01(1f - d) * 255);
+                    px[y * size + x] = new Color32(255, 255, 255, a);
+                }
+                var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+                tex.SetPixels32(px);
+                tex.Apply();
+                File.WriteAllBytes(FullPath(texPath), tex.EncodeToPNG());
+                Object.DestroyImmediate(tex);
+                AssetDatabase.ImportAsset(texPath, ImportAssetOptions.ForceSynchronousImport);
+                var imp = (TextureImporter)AssetImporter.GetAtPath(texPath);
+                imp.alphaIsTransparency = true;
+                imp.SaveAndReimport();
+            }
+            var dot = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+            string path = $"{GeneratedDir}/SuParcacigi.mat";
+            if (AssetDatabase.LoadAssetAtPath<Material>(path) != null) AssetDatabase.DeleteAsset(path);
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")) { name = "SuParcacigi" };
+            AssetDatabase.CreateAsset(mat, path);
+            mat.SetTexture("_BaseMap", dot);
+            mat.SetColor("_BaseColor", Color.white);
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 0f);
+            mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)RenderQueue.Transparent;
+            mat.SetOverrideTag("RenderType", "Transparent");
+            EditorUtility.SetDirty(mat);
+            AssetDatabase.SaveAssets();
+            return mat;
         }
 
         /// <summary>"SATILIK" yazılı tabela dokusu (yazı tipi gerektirmeyen basit piksel harflerle).</summary>
@@ -1245,6 +1482,118 @@ namespace CityRise.EditorTools
                 imp.SaveAndReimport();
             }
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        // ---------------------------------------------------------------- Bina yüzeyleri
+
+        /// <summary>Üretilen bina ağlarının sürümü; sınıflandırma değişirse artır.</summary>
+        const string SkinVersion = "v1";
+
+        /// <summary>
+        /// Kenney binasının şeklini değiştirmeden yüzeylerini gerçek dokulara geçirir.
+        /// Paletteki renge göre üçgenler ayrılır: beyaz/bej duvarlar tuğla ya da sıva, yeşil çatılar
+        /// kiremit, açık mavi pencereler cam olur; geri kalan (çerçeve, tente, kapı) palet renginde kalır.
+        /// Duvar ve çatı üçgenlerine metre cinsinden kutu izdüşümü UV verilir, böylece doku gerçek ölçekte görünür.
+        /// </summary>
+        static void SkinBuilding(Ctx c, GameObject go, string kit, Material wall, Material roof)
+        {
+            var root = go.transform;
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
+            {
+                var src = mf.sharedMesh;
+                var r = mf.GetComponent<MeshRenderer>();
+                if (src == null || r == null) continue;
+                var toMeters = Matrix4x4.Scale(Vector3.one * CityScale) * root.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                string key = $"{kit}_{src.name}_{SkinVersion}";
+                if (!c.skinned.TryGetValue(key, out var mesh))
+                {
+                    string path = $"{GeneratedDir}/Binalar/{key}.asset";
+                    mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+                    if (mesh == null)
+                    {
+                        EnsureFolder($"{GeneratedDir}/Binalar");
+                        mesh = Skin(c, src, toMeters, kit);
+                        AssetDatabase.CreateAsset(mesh, path);
+                    }
+                    c.skinned[key] = mesh;
+                }
+                var palette = r.sharedMaterials.Length > 0 ? r.sharedMaterials[0] : KenneyMat(c, kit, null);
+                mf.sharedMesh = mesh;
+                r.sharedMaterials = new[] { palette, wall, roof, c.glass };
+            }
+        }
+
+        static Mesh Skin(Ctx c, Mesh src, Matrix4x4 toMeters, string kit)
+        {
+            var (pal, pw, ph) = Palette(c, kit);
+            var verts = src.vertices;
+            var normals = src.normals;
+            var uvs = src.uv;
+            var nv = new List<Vector3>();
+            var nn = new List<Vector3>();
+            var nuv = new List<Vector2>();
+            var tris = new[] { new List<int>(), new List<int>(), new List<int>(), new List<int>() };
+            for (int sub = 0; sub < src.subMeshCount; sub++)
+            {
+                var t = src.GetTriangles(sub);
+                for (int i = 0; i < t.Length; i += 3)
+                {
+                    int a = t[i], b = t[i + 1], d = t[i + 2];
+                    var uc = (uvs[a] + uvs[b] + uvs[d]) / 3f;
+                    int px = Mathf.Clamp((int)(Mathf.Repeat(uc.x, 1f) * pw), 0, pw - 1);
+                    int py = Mathf.Clamp((int)(Mathf.Repeat(uc.y, 1f) * ph), 0, ph - 1);
+                    int cls = Classify(pal[py * pw + px], kit);
+                    Vector2 ua = uvs[a], ub = uvs[b], ud = uvs[d];
+                    if (cls == 1 || cls == 2)
+                    {
+                        var pa = toMeters.MultiplyPoint3x4(verts[a]);
+                        var pb = toMeters.MultiplyPoint3x4(verts[b]);
+                        var pd = toMeters.MultiplyPoint3x4(verts[d]);
+                        var fn = Vector3.Cross(pb - pa, pd - pa);
+                        var ax = new Vector3(Mathf.Abs(fn.x), Mathf.Abs(fn.y), Mathf.Abs(fn.z));
+                        Vector2 Proj(Vector3 p) => ax.y >= ax.x && ax.y >= ax.z ? new Vector2(p.x, p.z)
+                            : ax.x >= ax.z ? new Vector2(p.z, p.y) : new Vector2(p.x, p.y);
+                        ua = Proj(pa); ub = Proj(pb); ud = Proj(pd);
+                    }
+                    int start = nv.Count;
+                    nv.Add(verts[a]); nv.Add(verts[b]); nv.Add(verts[d]);
+                    if (normals.Length > 0) { nn.Add(normals[a]); nn.Add(normals[b]); nn.Add(normals[d]); }
+                    nuv.Add(ua); nuv.Add(ub); nuv.Add(ud);
+                    tris[cls].Add(start); tris[cls].Add(start + 1); tris[cls].Add(start + 2);
+                }
+            }
+            var m = new Mesh { name = src.name + "_Gercekci" };
+            if (nv.Count > 65000) m.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            m.SetVertices(nv);
+            if (nn.Count == nv.Count) m.SetNormals(nn); else m.RecalculateNormals();
+            m.SetUVs(0, nuv);
+            m.subMeshCount = 4;
+            for (int i = 0; i < 4; i++) m.SetTriangles(tris[i], i);
+            m.RecalculateTangents();
+            m.RecalculateBounds();
+            return m;
+        }
+
+        /// <summary>0: palet, 1: duvar, 2: çatı, 3: cam.</summary>
+        static int Classify(Color32 p, string kit)
+        {
+            int mx = Math.Max(p.r, Math.Max(p.g, p.b)), mn = Math.Min(p.r, Math.Min(p.g, p.b));
+            if (p.b > 175 && p.g > p.r + 8 && p.b > p.r + 25) return 3;
+            if (mn > 195 && mx - mn < 45) return 1;
+            if (p.r > 235 && p.g > 195 && p.b > 150 && p.r >= p.g && p.g >= p.b) return 1;
+            if (kit == "CitySuburban" && p.g > p.r + 35 && p.g > p.b + 5) return 2;
+            return 0;
+        }
+
+        static (Color32[] px, int w, int h) Palette(Ctx c, string kit)
+        {
+            if (c.palettes.TryGetValue(kit, out var cached)) return cached;
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            tex.LoadImage(File.ReadAllBytes(FullPath($"{KenneyDir}/{kit}/Textures/colormap.png")));
+            var result = (tex.GetPixels32(), tex.width, tex.height);
+            Object.DestroyImmediate(tex);
+            c.palettes[kit] = result;
+            return result;
         }
 
         // ---------------------------------------------------------------- Yardımcılar

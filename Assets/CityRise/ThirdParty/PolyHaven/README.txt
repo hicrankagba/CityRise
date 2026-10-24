@@ -25,3 +25,12 @@ Ağaçlar için yaprak ve kabuk dokuları (Foliage/, 1k jpg) - CityRise > Ağaç
 - bark_brown_02 diff/nor              (Rob Tuytel)                 https://polyhaven.com/a/bark_brown_02
 - pine_bark diff/nor                  (Dimitrios Savva)            https://polyhaven.com/a/pine_bark
 Gündüz gökyüzü (güncel): kloofendal_43d_clear_puresky (Greg Zaal)  https://polyhaven.com/a/kloofendal_43d_clear_puresky
+
+Çiçekler (Flowers/, 1k jpg diff + alpha) - TreeFactory bunlardan gerçek fotoğraflı çiçek öbekleri üretir
+- flower_gazania    (James Ray Cock, Jenelle van Heerden)  https://polyhaven.com/a/flower_gazania
+- flower_ursinia    (Jenelle van Heerden, Rico Cilliers)   https://polyhaven.com/a/flower_ursinia
+- flower_stinkkruid (Jenelle van Heerden, Rico Cilliers)   https://polyhaven.com/a/flower_stinkkruid
+- flower_empodium   (Jenelle van Heerden, Rico Cilliers)   https://polyhaven.com/a/flower_empodium
+Bina ve çeşme yüzeyleri (Textures/, 1k jpg)
+- clay_roof_tiles_02     (Amal Kumar)  https://polyhaven.com/a/clay_roof_tiles_02  -> kiremit
+- large_sandstone_blocks (Rob Tuytel)  https://polyhaven.com/a/large_sandstone_blocks -> çeşme, gölet kenarı

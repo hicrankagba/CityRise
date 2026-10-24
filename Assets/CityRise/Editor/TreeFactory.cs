@@ -21,7 +21,7 @@ namespace CityRise.EditorTools
         const string FoliageDir = "Assets/CityRise/ThirdParty/PolyHaven/Foliage";
         const string OutDir = "Assets/CityRise/Generated/Agaclar";
         /// <summary>Üretim değişirse artır; eski prefablar yerine yenileri üretilir.</summary>
-        const string Version = "v2";
+        const string Version = "v3";
 
         public const int BroadleafCount = 4;
         public const int PineCount = 2;
@@ -34,6 +34,8 @@ namespace CityRise.EditorTools
             public List<GameObject> pine = new List<GameObject>();
             public List<GameObject> bush = new List<GameObject>();
             public List<GameObject> grass = new List<GameObject>();
+            public List<GameObject> flowers = new List<GameObject>();
+            public List<GameObject> reeds = new List<GameObject>();
             public readonly Dictionary<string, int> lod0Triangles = new Dictionary<string, int>();
             public readonly Dictionary<string, int> lod1Triangles = new Dictionary<string, int>();
         }
@@ -54,13 +56,16 @@ namespace CityRise.EditorTools
             EnsureFolder(OutDir);
             var set = new Set();
             bool missing = !File.Exists(FullPath(PrefabPath("Agac", BroadleafCount - 1))) || !File.Exists(FullPath(PrefabPath("Cam", PineCount - 1)))
-                           || !File.Exists(FullPath(PrefabPath("Cali", BushCount - 1))) || !File.Exists(FullPath(PrefabPath("Cim", GrassCount - 1)));
+                           || !File.Exists(FullPath(PrefabPath("Cali", BushCount - 1))) || !File.Exists(FullPath(PrefabPath("Cim", GrassCount - 1)))
+                           || !File.Exists(FullPath(PrefabPath("Cicek", FlowerColors.Length - 1))) || !File.Exists(FullPath(PrefabPath("Sazlik", ReedCount - 1)));
             if (missing) Generate();
 
             for (int i = 0; i < BroadleafCount; i++) set.broadleaf.Add(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath("Agac", i)));
             for (int i = 0; i < PineCount; i++) set.pine.Add(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath("Cam", i)));
             for (int i = 0; i < BushCount; i++) set.bush.Add(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath("Cali", i)));
             for (int i = 0; i < GrassCount; i++) set.grass.Add(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath("Cim", i)));
+            for (int i = 0; i < FlowerColors.Length; i++) set.flowers.Add(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath("Cicek", i)));
+            for (int i = 0; i < ReedCount; i++) set.reeds.Add(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath("Sazlik", i)));
             foreach (var p in set.broadleaf) CountTriangles(set, p);
             foreach (var p in set.pine) CountTriangles(set, p);
             foreach (var p in set.bush) CountTriangles(set, p);
@@ -141,6 +146,8 @@ namespace CityRise.EditorTools
                 var lod0 = GrassClump(new Random(400 + i));
                 SavePrefab("Cim", i, lod0, null, new[] { grassMat, grassMat, grassMat }, 0.02f, 0f, 0f);
             }
+            GenerateFlowers();
+            GenerateReedsAndCrops();
             AssetDatabase.SaveAssets();
         }
 
@@ -244,12 +251,12 @@ namespace CityRise.EditorTools
                 }
                 float shade = Mathf.Lerp(0.62f, 1.08f, t) * Mathf.Lerp(0.88f, 1.08f, (float)rng.NextDouble());
                 var hue = new Color(Mathf.Lerp(0.92f, 1.06f, (float)rng.NextDouble()), 1f, Mathf.Lerp(0.88f, 1.04f, (float)rng.NextDouble()));
-                DrawSprite(canvas, size, s, pos, angle, scale, new Color(tint.r * hue.r * shade, tint.g * shade, tint.b * hue.b * shade));
+                DrawSprite(canvas, size, size, s, pos, angle, scale, new Color(tint.r * hue.r * shade, tint.g * shade, tint.b * hue.b * shade));
             }
             return canvas;
         }
 
-        static void DrawSprite(Color[] canvas, int size, Sprite s, Vector2 pos, float angle, float scale, Color mul)
+        static void DrawSprite(Color[] canvas, int cw, int ch, Sprite s, Vector2 pos, float angle, float scale, Color mul, float squashY = 1f)
         {
             float cos = Mathf.Cos(angle), sin = Mathf.Sin(angle);
             float hw = s.w * 0.5f * scale, hh = s.h * 0.5f * scale;
@@ -257,18 +264,18 @@ namespace CityRise.EditorTools
             // Sprite'ın tabanı (sap) pos noktasında olsun diye merkez yukarı kaydırılır.
             var up = new Vector2(-sin, cos);
             var c = pos + up * hh;
-            int x0 = Mathf.Max(0, (int)(c.x - ext)), x1 = Mathf.Min(size - 1, (int)(c.x + ext));
-            int y0 = Mathf.Max(0, (int)(c.y - ext)), y1 = Mathf.Min(size - 1, (int)(c.y + ext));
+            int x0 = Mathf.Max(0, (int)(c.x - ext)), x1 = Mathf.Min(cw - 1, (int)(c.x + ext));
+            int y0 = Mathf.Max(0, (int)(c.y - ext)), y1 = Mathf.Min(ch - 1, (int)(c.y + ext));
             for (int y = y0; y <= y1; y++)
             for (int x = x0; x <= x1; x++)
             {
-                float dx = x + 0.5f - c.x, dy = y + 0.5f - c.y;
+                float dx = x + 0.5f - c.x, dy = (y + 0.5f - c.y) / squashY;
                 float lx = (dx * cos + dy * sin) / scale + s.w * 0.5f;
                 float ly = (-dx * sin + dy * cos) / scale + s.h * 0.5f;
                 if (lx < 0 || ly < 0 || lx >= s.w - 1 || ly >= s.h - 1) continue;
                 var src = Bilinear(s, lx, ly);
                 if (src.a <= 0.01f) continue;
-                int i = y * size + x;
+                int i = y * cw + x;
                 var dst = canvas[i];
                 float a = src.a;
                 var col = new Color(src.r * mul.r, src.g * mul.g, src.b * mul.b);
@@ -323,9 +330,11 @@ namespace CityRise.EditorTools
             return canvas;
         }
 
-        static Texture2D SaveTexture(string path, Color[] pixels, bool alphaTest)
+        static Texture2D SaveTexture(string path, Color[] pixels, bool alphaTest) =>
+            SaveTexture(path, pixels, (int)Mathf.Sqrt(pixels.Length), (int)Mathf.Sqrt(pixels.Length), alphaTest);
+
+        static Texture2D SaveTexture(string path, Color[] pixels, int width, int height, bool alphaTest)
         {
-            int size = (int)Mathf.Sqrt(pixels.Length);
             // Saydam piksellerin rengini yaprak ortalamasıyla doldur (mipmap'lerde koyu kenar olmasın).
             Color avg = Color.black;
             float n = 0;
@@ -335,7 +344,7 @@ namespace CityRise.EditorTools
                 if (pixels[i].a < 0.02f) pixels[i] = new Color(avg.r, avg.g, avg.b, 0f);
                 else if (pixels[i].a < 1f) pixels[i] = new Color(pixels[i].r / Mathf.Max(pixels[i].a, 0.2f), pixels[i].g / Mathf.Max(pixels[i].a, 0.2f), pixels[i].b / Mathf.Max(pixels[i].a, 0.2f), pixels[i].a);
 
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
             tex.SetPixels(pixels);
             tex.Apply();
             File.WriteAllBytes(FullPath(path), tex.EncodeToPNG());
@@ -587,6 +596,277 @@ namespace CityRise.EditorTools
             }
             return md.ToMesh("LOD0");
         }
+
+        // ------------------------------------------------------------------ Çiçek, sazlık, ekin
+
+        const string FlowersDir = "Assets/CityRise/ThirdParty/PolyHaven/Flowers";
+        public static readonly string[] FlowerColors = { "Kirmizi", "Sari", "Mor", "Beyaz", "Turuncu", "Pembe" };
+
+        static void GenerateFlowers()
+        {
+            var heads = new List<Sprite>();
+            var leaves = new List<Sprite>();
+            foreach (var n in new[] { "flower_gazania", "flower_ursinia", "flower_stinkkruid", "flower_empodium" })
+            {
+                var d = Read($"{FlowersDir}/{n}_diff_1k.jpg");
+                var a = Read($"{FlowersDir}/{n}_alpha_1k.jpg");
+                foreach (var sp in ExtractSprites(d, a, 250))
+                {
+                    var avg = Average(sp);
+                    Color.RGBToHSV(avg, out float hue, out float sat, out _);
+                    bool green = avg.g > avg.r * 1.05f && avg.g > avg.b * 1.1f;
+                    float aspect = sp.w / (float)sp.h;
+                    if (green && sp.w * sp.h > 2500) leaves.Add(sp);
+                    else if (!green && sat > 0.35f && aspect > 0.6f && aspect < 1.65f && sp.w > 40) heads.Add(sp);
+                }
+                Object.DestroyImmediate(d);
+                Object.DestroyImmediate(a);
+            }
+            if (heads.Count == 0 || leaves.Count == 0)
+                throw new Exception("CityRise: Çiçek dokularından parça çıkarılamadı.");
+
+            var hues = new Dictionary<string, float>
+            {
+                { "Kirmizi", 0.995f }, { "Sari", 0.14f }, { "Mor", 0.78f }, { "Beyaz", -1f }, { "Turuncu", 0.075f }, { "Pembe", 0.93f },
+            };
+            for (int i = 0; i < FlowerColors.Length; i++)
+            {
+                string color = FlowerColors[i];
+                var colored = heads.ConvertAll(h => Recolor(h, hues[color]));
+                var rng = new Random(500 + i);
+                var tex = SaveTexture($"{OutDir}/Cicek_{color}.png", FlowerAtlas(colored, leaves, rng), 512, 256, alphaTest: true);
+                var mat = Mat("Cicek_" + color, m => Foliage(m, tex, Color.white));
+                SavePrefab("Cicek", i, FlowerClump(new Random(600 + i)), null, new[] { mat, mat, mat }, 0.012f, 0f, 0f);
+            }
+        }
+
+        static Color Average(Sprite s)
+        {
+            Color sum = Color.clear;
+            float n = 0;
+            foreach (var p in s.px) if (p.a > 0.5f) { sum += p; n++; }
+            return n > 0 ? sum / n : Color.clear;
+        }
+
+        /// <summary>Taç yaprakların rengini değiştirir (hue &lt; 0: beyaz). Göbek ve yeşil kısımlar korunur.</summary>
+        static Sprite Recolor(Sprite s, float hue)
+        {
+            var o = new Sprite { w = s.w, h = s.h, px = new Color[s.px.Length] };
+            for (int i = 0; i < s.px.Length; i++)
+            {
+                var p = s.px[i];
+                Color.RGBToHSV(p, out float h, out float sat, out float v);
+                bool petal = sat > 0.35f && v > 0.4f && (h < 0.2f || h > 0.95f);
+                Color c = p;
+                if (petal)
+                {
+                    c = hue < 0f
+                        ? Color.HSVToRGB(h, sat * 0.08f, Mathf.Min(1f, v * 1.15f))
+                        : Color.HSVToRGB(Mathf.Repeat(hue + (h - 0.1f) * 0.3f, 1f), Mathf.Min(1f, sat * 1.05f), v);
+                }
+                c.a = p.a;
+                o.px[i] = c;
+            }
+            return o;
+        }
+
+        /// <summary>
+        /// 512×256 atlas: sol yarı yandan görünüş (yapraklar, saplar, çiçek başları), sağ yarı üstten görünüş.
+        /// </summary>
+        static Color[] FlowerAtlas(List<Sprite> heads, List<Sprite> leaves, Random rng)
+        {
+            const int w = 512, h = 256;
+            var canvas = new Color[w * h];
+            var stem = new Color(0.22f, 0.36f, 0.12f);
+
+            // Yandan: dipte yapraklar, saplar ve tepede çiçekler.
+            for (int i = 0; i < 12; i++)
+            {
+                var leaf = leaves[rng.Next(leaves.Count)];
+                float target = R(rng, 55f, 105f);
+                DrawSprite(canvas, w, h, leaf, new Vector2(R(rng, 40f, 216f), R(rng, 0f, 8f)), R(rng, -0.7f, 0.7f), target / leaf.h, new Color(0.9f, 1f, 0.9f));
+            }
+            int stems = 7;
+            for (int i = 0; i < stems; i++)
+            {
+                float x = Mathf.Lerp(50f, 206f, (i + R(rng, 0.2f, 0.8f)) / stems);
+                var top = new Vector2(x + R(rng, -14f, 14f), R(rng, 120f, 210f));
+                DrawLine(canvas, w, h, new Vector2(x, 0f), top, 2.2f, stem);
+                var head = heads[rng.Next(heads.Count)];
+                float size = R(rng, 38f, 54f);
+                DrawSprite(canvas, w, h, head, top - new Vector2(0, size * 0.35f), R(rng, -0.3f, 0.3f), size / Mathf.Max(head.w, head.h), Color.white, 0.72f);
+            }
+
+            // Üstten: yaprak rozeti ve dağınık çiçek başları.
+            var c = new Vector2(384f, 128f);
+            for (int i = 0; i < 18; i++)
+            {
+                var leaf = leaves[rng.Next(leaves.Count)];
+                float a = R(rng, 0f, Mathf.PI * 2f);
+                var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+                float target = R(rng, 60f, 95f);
+                DrawSprite(canvas, w, h, leaf, c + dir * R(rng, 0f, 30f), Mathf.Atan2(dir.y, dir.x) - Mathf.PI * 0.5f, target / leaf.h, new Color(0.85f, 0.95f, 0.85f));
+            }
+            for (int i = 0; i < 9; i++)
+            {
+                var head = heads[rng.Next(heads.Count)];
+                float r = Mathf.Sqrt((float)rng.NextDouble()) * 80f;
+                float a = R(rng, 0f, Mathf.PI * 2f);
+                float size = R(rng, 40f, 56f);
+                DrawSprite(canvas, w, h, head, c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r - new Vector2(0, size * 0.5f), R(rng, 0f, 6.28f), size / Mathf.Max(head.w, head.h), Color.white);
+            }
+            return canvas;
+        }
+
+        static void DrawLine(Color[] canvas, int cw, int ch, Vector2 a, Vector2 b, float width, Color col)
+        {
+            int steps = Mathf.CeilToInt(Vector2.Distance(a, b));
+            for (int i = 0; i <= steps; i++)
+            {
+                var p = Vector2.Lerp(a, b, i / (float)Mathf.Max(1, steps));
+                float half = width * 0.5f;
+                for (int x = (int)(p.x - half - 1); x <= (int)(p.x + half + 1); x++)
+                for (int y = (int)(p.y - 1); y <= (int)(p.y + 1); y++)
+                {
+                    if (x < 0 || y < 0 || x >= cw || y >= ch) continue;
+                    float cover = Mathf.Clamp01(half + 0.5f - Mathf.Abs(x + 0.5f - p.x));
+                    int idx = y * cw + x;
+                    var dst = canvas[idx];
+                    canvas[idx] = new Color(col.r * cover + dst.r * (1 - cover), col.g * cover + dst.g * (1 - cover), col.b * cover + dst.b * (1 - cover), Mathf.Max(dst.a, cover));
+                }
+            }
+        }
+
+        static void CardUV(MeshData md, int sub, Vector3 baseCenter, Vector3 right, Vector3 up, float w, float h, Rect uv, Vector3 light)
+        {
+            int i = md.v.Count;
+            var r = right.normalized * w * 0.5f;
+            var u = up.normalized * h;
+            md.v.Add(baseCenter - r); md.uv.Add(new Vector2(uv.xMin, uv.yMin));
+            md.v.Add(baseCenter + r); md.uv.Add(new Vector2(uv.xMax, uv.yMin));
+            md.v.Add(baseCenter + r + u); md.uv.Add(new Vector2(uv.xMax, uv.yMax));
+            md.v.Add(baseCenter - r + u); md.uv.Add(new Vector2(uv.xMin, uv.yMax));
+            for (int k = 0; k < 4; k++) md.n.Add(light);
+            md.tris[sub].AddRange(new[] { i, i + 2, i + 1, i, i + 3, i + 2 });
+        }
+
+        /// <summary>Çiçek öbeği: iki çapraz dikey kart (yandan) ve bir yatay kart (üstten).</summary>
+        static Mesh FlowerClump(Random rng)
+        {
+            var md = new MeshData();
+            var light = (Vector3.up * 0.9f + Vector3.forward * 0.3f).normalized;
+            float w = R(rng, 0.65f, 0.8f), h = R(rng, 0.5f, 0.62f);
+            for (int k = 0; k < 2; k++)
+            {
+                float a = k * Mathf.PI * 0.5f + R(rng, -0.2f, 0.2f);
+                CardUV(md, 1, Vector3.zero, new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)), Vector3.up, w, h, new Rect(0f, 0f, 0.5f, 1f), light);
+            }
+            CardUV(md, 1, new Vector3(0, h * 0.55f, -w * 0.5f), Vector3.right, Vector3.forward, w, w, new Rect(0.5f, 0f, 0.5f, 1f), Vector3.up);
+            return md.ToMesh("LOD0");
+        }
+
+        /// <summary>Sazlık (gölet kenarı) ve tarla ekinleri için prosedürel dokular.</summary>
+        static void GenerateReedsAndCrops()
+        {
+            var reedTex = SaveTexture($"{OutDir}/Sazlik.png", Stalks(256, new Random(21), 34, new Color(0.18f, 0.28f, 0.1f), new Color(0.5f, 0.55f, 0.25f), 0.7f, 1f, 2.5f, cattails: true, ears: false), alphaTest: true);
+            var reedMat = Mat("Sazlik", m => Foliage(m, reedTex, Color.white));
+            for (int i = 0; i < ReedCount; i++)
+            {
+                var md = new MeshData();
+                var rng = new Random(700 + i);
+                for (int k = 0; k < 3; k++)
+                {
+                    float a = k / 3f * Mathf.PI + R(rng, -0.2f, 0.2f);
+                    CardUV(md, 1, Vector3.zero, new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)), Vector3.up, R(rng, 1.1f, 1.5f), R(rng, 1.4f, 1.9f), new Rect(0, 0, 1, 1), (Vector3.up + Vector3.forward * 0.3f).normalized);
+                }
+                SavePrefab("Sazlik", i, md.ToMesh("LOD0"), null, new[] { reedMat, reedMat, reedMat }, 0.015f, 0f, 0f);
+            }
+
+            var wheatTex = SaveTexture($"{OutDir}/Bugday.png", Stalks(256, new Random(22), 60, new Color(0.55f, 0.45f, 0.18f), new Color(0.93f, 0.78f, 0.38f), 0.6f, 0.95f, 1.6f, cattails: false, ears: true), alphaTest: true);
+            Mat("Bugday", m => Foliage(m, wheatTex, Color.white));
+            var cornTex = SaveTexture($"{OutDir}/Misir.png", Stalks(256, new Random(23), 16, new Color(0.15f, 0.32f, 0.08f), new Color(0.45f, 0.65f, 0.22f), 0.75f, 1f, 7f, cattails: false, ears: false, tassels: true), alphaTest: true);
+            Mat("Misir", m => Foliage(m, cornTex, Color.white));
+        }
+
+        public const int ReedCount = 2;
+
+        /// <summary>Dik saplar: dipte koyu, uçta açık; isteğe bağlı başak, püskül ya da kedikuyruğu başı.</summary>
+        static Color[] Stalks(int size, Random rng, int count, Color root, Color tip, float minH, float maxH, float width,
+            bool cattails, bool ears, bool tassels = false)
+        {
+            var canvas = new Color[size * size];
+            for (int b = 0; b < count; b++)
+            {
+                float baseX = size * R(rng, 0.08f, 0.92f);
+                float height = size * R(rng, minH, maxH) * 0.97f;
+                float lean = R(rng, -0.18f, 0.18f) * size;
+                float wdt = width * R(rng, 0.8f, 1.3f);
+                Vector2 top = new Vector2(baseX + lean, height);
+                for (int y = 0; y < (int)height; y++)
+                {
+                    float t = y / height;
+                    float cx = baseX + lean * t * t;
+                    float half = (tassels ? wdt * Mathf.Sin(t * Mathf.PI) : wdt * (1f - t * 0.7f)) * 0.5f + 0.4f;
+                    var col = Color.Lerp(root, tip, Mathf.Pow(t, 0.8f)) * R(rng, 0.97f, 1.03f);
+                    for (int x = (int)(cx - half - 1); x <= (int)(cx + half + 1); x++)
+                    {
+                        if (x < 0 || x >= size) continue;
+                        float cover = Mathf.Clamp01(half + 0.5f - Mathf.Abs(x + 0.5f - cx));
+                        int i = y * size + x;
+                        var dst = canvas[i];
+                        canvas[i] = new Color(col.r * cover + dst.r * (1 - cover), col.g * cover + dst.g * (1 - cover), col.b * cover + dst.b * (1 - cover), Mathf.Max(dst.a, cover));
+                    }
+                }
+                if (ears || cattails || tassels)
+                {
+                    var headCol = cattails ? new Color(0.36f, 0.22f, 0.1f) : tassels ? new Color(0.92f, 0.8f, 0.4f) : new Color(0.95f, 0.8f, 0.42f);
+                    float rx = cattails ? 3.2f : tassels ? 2f : 3.6f, ry = cattails ? 12f : tassels ? 14f : 14f;
+                    var center = top - new Vector2(0, ry * (cattails ? 1.6f : 0.8f));
+                    if (cattails && rng.NextDouble() < 0.55) continue;
+                    for (int y = (int)(center.y - ry); y <= (int)(center.y + ry); y++)
+                    for (int x = (int)(center.x - rx - 1); x <= (int)(center.x + rx + 1); x++)
+                    {
+                        if (x < 0 || y < 0 || x >= size || y >= size) continue;
+                        float e = Mathf.Pow((x + 0.5f - center.x) / rx, 2) + Mathf.Pow((y + 0.5f - center.y) / ry, 2);
+                        if (e > 1f) continue;
+                        float grain = ears ? 0.85f + 0.15f * Mathf.Sin(y * 1.7f) : 1f;
+                        canvas[y * size + x] = new Color(headCol.r * grain, headCol.g * grain, headCol.b * grain, 1f);
+                    }
+                }
+            }
+            return canvas;
+        }
+
+        /// <summary>
+        /// Bir tarlanın ekinlerini tek bir ağ olarak üretir (binlerce ayrı nesne yerine).
+        /// tall: mısır, değilse buğday.
+        /// </summary>
+        public static Mesh CropFieldMesh(Vector2 size, bool rowsAlongZ, bool tall, int seed)
+        {
+            var md = new MeshData();
+            var rng = new Random(seed);
+            float rowGap = tall ? 1.5f : 1.1f, step = tall ? 1.1f : 0.9f;
+            float h = tall ? 2.1f : 0.95f, w = tall ? 1.3f : 1.1f;
+            var light = (Vector3.up * 0.8f + Vector3.forward * 0.4f).normalized;
+            float aLen = rowsAlongZ ? size.x : size.y, bLen = rowsAlongZ ? size.y : size.x;
+            for (float a = -aLen * 0.5f + 1f; a < aLen * 0.5f - 0.5f; a += rowGap)
+            for (float b = -bLen * 0.5f + 1f; b < bLen * 0.5f - 0.5f; b += step)
+            {
+                var p = rowsAlongZ ? new Vector3(a, 0, b) : new Vector3(b, 0, a);
+                p += new Vector3(R(rng, -0.15f, 0.15f), 0, R(rng, -0.15f, 0.15f));
+                float yaw = R(rng, 0f, Mathf.PI);
+                float hh = h * R(rng, 0.85f, 1.1f);
+                for (int k = 0; k < 2; k++)
+                {
+                    float ang = yaw + k * Mathf.PI * 0.5f;
+                    CardUV(md, 1, p, new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)), Vector3.up, w, hh, new Rect(0, 0, 1, 1), light);
+                }
+            }
+            var mesh = md.ToMesh("Tarla");
+            return mesh;
+        }
+
+        public static Material CropMaterial(bool tall) => AssetDatabase.LoadAssetAtPath<Material>($"{OutDir}/{(tall ? "Misir" : "Bugday")}.mat");
 
         // ------------------------------------------------------------------ Prefab, LOD ve billboard
 

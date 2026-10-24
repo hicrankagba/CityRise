@@ -73,3 +73,11 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# CityRise: menüden yeniden üretilebilen dosyalar (CityRise > Başlangıç Kasabasını Oluştur)
+/[Aa]ssets/CityRise/Generated/
+/[Aa]ssets/CityRise/Generated.meta
+/[Aa]ssets/CityRise/Scenes/BaslangicKasabasi.unity
+/[Aa]ssets/CityRise/Scenes/BaslangicKasabasi.unity.meta
+/[Aa]ssets/CityRise/Scenes/TestSokak.unity
+/[Aa]ssets/CityRise/Scenes/TestSokak.unity.meta

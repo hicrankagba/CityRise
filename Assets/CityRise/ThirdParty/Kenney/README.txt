@@ -16,3 +16,4 @@ Ticari kullanım serbest, atıf zorunlu değil (isteğe bağlı: "Kenney.nl").
 - Characters  : Mini Characters    - müşteriler (seçilmiş 8 karakter)
 - Food        : Food Kit (seçilmiş) - meyve, sebze, et, ekmek, içecek
 - Furniture   : Furniture Kit (seçilmiş) - tezgah, fırın, buzdolabı, masa, sandalye, ayna, saksı
+- Cars        : Car Kit (seçilmiş 10 araç) - yollarda giden arabalar

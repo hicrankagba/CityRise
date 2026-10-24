@@ -69,6 +69,7 @@ namespace CityRise.Interior
                 default: b.Bakkal(level); break;
             }
             b.Lights();
+            b.Animate();
             return go;
         }
 
@@ -76,16 +77,99 @@ namespace CityRise.Interior
 
         float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
 
+        readonly List<GameObject> furniture = new List<GameObject>();
+        readonly List<GameObject> customers = new List<GameObject>();
+        readonly List<GameObject> staff = new List<GameObject>();
+        Vector3? registerSpot;
+
         GameObject Place(string key, float x, float z, Vector3 facing, float y = 0f, float extraScale = 1f)
         {
             var e = lib.Get(key);
             if (e == null) return null;
-            var go = Object.Instantiate(e.prefab, root);
-            go.transform.localPosition = new Vector3(x, y, z);
-            go.transform.localRotation = Quaternion.Euler(0, Quaternion.LookRotation(facing).eulerAngles.y + (key.StartsWith("ch/") ? 0f : ModelFrontYaw), 0);
+            bool person = key.StartsWith("ch/") || key == "mm/employee";
+            float yaw = Quaternion.LookRotation(facing).eulerAngles.y + (key.StartsWith("ch/") ? 0f : ModelFrontYaw);
+            // Kişiler bir taşıyıcı nesnenin içinde: taşıyıcı yürür, model hafifçe sallanır.
+            var holder = person ? new GameObject(key.StartsWith("ch/") ? "Musteri" : "Calisan").transform : null;
+            if (holder != null)
+            {
+                holder.SetParent(root, false);
+                holder.localPosition = new Vector3(x, y, z);
+                holder.localRotation = Quaternion.Euler(0, yaw, 0);
+            }
+            var go = Object.Instantiate(e.prefab, holder != null ? holder : root);
+            if (holder != null)
+            {
+                go.transform.localPosition = Vector3.zero;
+                go.transform.localRotation = Quaternion.Euler(0, key.StartsWith("ch/") ? 0f : ModelFrontYaw, 0);
+            }
+            else
+            {
+                go.transform.localPosition = new Vector3(x, y, z);
+                go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+            }
             go.transform.localScale = Vector3.one * e.scale * extraScale;
             foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.On;
+            if (holder != null)
+            {
+                (key.StartsWith("ch/") ? customers : staff).Add(holder.gameObject);
+                return holder.gameObject;
+            }
+            if (y < 0.3f) furniture.Add(go);
+            if (key == "mm/cash-register" && registerSpot == null) registerSpot = new Vector3(x, 0, z);
             return go;
+        }
+
+        /// <summary>
+        /// Müşterileri canlandırır: odada mobilyaya çarpmayan noktalar bulunur, müşteriler bunlar arasında dolaşır.
+        /// </summary>
+        void Animate()
+        {
+            var blocked = new List<Bounds>();
+            foreach (var f in furniture)
+            {
+                var rs = f.GetComponentsInChildren<Renderer>();
+                if (rs.Length == 0) continue;
+                var b = rs[0].bounds;
+                foreach (var r in rs) b.Encapsulate(r.bounds);
+                b.Expand(new Vector3(0.7f, 10f, 0.7f));
+                blocked.Add(b);
+            }
+            var spots = new List<Vector3>();
+            for (float x = -HalfW + 0.7f; x <= HalfW - 0.7f; x += 0.6f)
+            for (float z = -HalfD + 0.7f; z <= HalfD - 0.7f; z += 0.6f)
+            {
+                var world = root.TransformPoint(new Vector3(x, 0.5f, z));
+                bool free = true;
+                foreach (var b in blocked) if (b.Contains(world)) { free = false; break; }
+                if (free) spots.Add(new Vector3(x, 0, z));
+            }
+            // Kasa önündeki en yakın boş nokta.
+            Vector3 reg = spots.Count > 0 ? spots[0] : Vector3.zero;
+            if (registerSpot.HasValue)
+            {
+                float best = float.MaxValue;
+                foreach (var sp in spots)
+                {
+                    float d = Vector3.Distance(sp, registerSpot.Value);
+                    if (d < best) { best = d; reg = sp; }
+                }
+            }
+            foreach (var c in customers)
+            {
+                var w = c.AddComponent<CityRise.Life.InteriorWanderer>();
+                w.spots = spots;
+                w.register = reg;
+                w.speed = R(0.8f, 1.2f);
+                // Başlangıçta mobilyanın içinde kalan müşteriyi boş bir noktaya al.
+                if (spots.Count > 0)
+                {
+                    var lp = c.transform.localPosition;
+                    var world = root.TransformPoint(lp + Vector3.up * 0.5f);
+                    foreach (var b in blocked)
+                        if (b.Contains(world)) { c.transform.localPosition = spots[rng.Next(spots.Count)]; break; }
+                }
+            }
+            foreach (var s in staff) s.AddComponent<CityRise.Life.InteriorWanderer>().idleOnly = true;
         }
 
         /// <summary>

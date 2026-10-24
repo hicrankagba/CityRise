@@ -1699,6 +1699,7 @@ namespace CityRise.EditorTools
             AddFolder("Characters", "ch/", 2.2f, n => n.Replace("character-", ""));
             AddFolder("Food", "food/", 0.45f);
             AddFolder("Furniture", "furn/", 0.22f);
+            AddFolder("Cars", "car/", 1.15f);
 
             var tileTex = LoadTexture($"{PolyHavenDir}/Textures/floor_tiles_06_diff_1k.jpg", false);
             var tileNor = LoadTexture($"{PolyHavenDir}/Textures/floor_tiles_06_nor_gl_1k.jpg", true);

@@ -10,3 +10,9 @@ Ticari kullanım serbest, atıf zorunlu değil (isteğe bağlı: "Kenney.nl").
 
 Ölçek: şehir kitlerinde 1 birim = 1 yol karesi = 8 m (TownBuilder.CityScale).
 İndirme tarihi: 2026-10-24
+
+İç görünüm (işletmelerin içi) için, hepsi CC0:
+- MiniMarket  : Mini Market        - raflar, soğutucular, kasa, meyve/ekmek tezgahları, sepet, araba, çalışan
+- Characters  : Mini Characters    - müşteriler (seçilmiş 8 karakter)
+- Food        : Food Kit (seçilmiş) - meyve, sebze, et, ekmek, içecek
+- Furniture   : Furniture Kit (seçilmiş) - tezgah, fırın, buzdolabı, masa, sandalye, ayna, saksı

@@ -14,10 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CityRise.Core.BusinessDefinition
   id: berber
   displayNameKey: business.berber
-  requiredStage: 1
-  requiredLevel: 1
-  buildCost: 3000
-  incomePerHour: 100
-  expensePerHour: 25
+  requiredStage: 2
+  requiredLevel: 6
+  buildCost: 6000
+  incomePerHour: 1400
+  expensePerHour: 400
+  upgradeIncomeBonus: 0.25
+  upgradeCostFactor: 0.6
+  maxLevel: 5
   prefab: {fileID: 919132149155446097, guid: 605126e6147274a0dba58d968e9ebbcd, type: 3}
   footprint: {x: 1, y: 1}
+  styleId: commercial/building-g
+  signText: BERBER
+  dataVersion: 2

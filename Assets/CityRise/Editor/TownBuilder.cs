@@ -104,6 +104,7 @@ namespace CityRise.EditorTools
                 c.g = c.layout.grid;
                 c.openArea = OpenArea(c.g);
                 SetupRendering();
+                LandscapeSetup.Apply(selectGameView: false);
 
                 // Malzemeler yeni sahneden sonra: sahnede tutulan gece malzemeleri sahne değişince silinir.
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -1673,6 +1674,46 @@ namespace CityRise.EditorTools
                 gm.templates.Add(new GameManager.BusinessTemplate { businessId = def.id, template = root });
             }
             templatesRoot.gameObject.SetActive(true);
+            gm.interiorLibrary = BuildInteriorLibrary(c, gm.gameObject);
+        }
+
+        /// <summary>İç görünüm modelleri (Kenney CC0) ve malzemeleri (Poly Haven CC0).</summary>
+        static CityRise.Interior.InteriorLibrary BuildInteriorLibrary(Ctx c, GameObject host)
+        {
+            var lib = host.AddComponent<CityRise.Interior.InteriorLibrary>();
+            void AddFolder(string folder, string prefix, float scale, Func<string, string> rename = null)
+            {
+                foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { $"{KenneyDir}/{folder}" }))
+                {
+                    string path = AssetDatabase.GUIDToAssetPath(guid);
+                    string name = Path.GetFileNameWithoutExtension(path);
+                    lib.models.Add(new CityRise.Interior.InteriorLibrary.Entry
+                    {
+                        key = prefix + (rename != null ? rename(name) : name),
+                        prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path),
+                        scale = scale,
+                    });
+                }
+            }
+            AddFolder("MiniMarket", "mm/", 2.0f, n => n == "character-employee" ? "employee" : n);
+            AddFolder("Characters", "ch/", 2.2f, n => n.Replace("character-", ""));
+            AddFolder("Food", "food/", 0.45f);
+            AddFolder("Furniture", "furn/", 0.22f);
+
+            var tileTex = LoadTexture($"{PolyHavenDir}/Textures/floor_tiles_06_diff_1k.jpg", false);
+            var tileNor = LoadTexture($"{PolyHavenDir}/Textures/floor_tiles_06_nor_gl_1k.jpg", true);
+            var soilTex = LoadTexture($"{PolyHavenDir}/Textures/excavated_soil_wall_diff_1k.jpg", false);
+            var soilNor = LoadTexture($"{PolyHavenDir}/Textures/excavated_soil_wall_nor_gl_1k.jpg", true);
+            var plasterTex = LoadTexture($"{PolyHavenDir}/Textures/painted_plaster_wall_diff_2k.jpg", false);
+            var plasterNor = LoadTexture($"{PolyHavenDir}/Textures/painted_plaster_wall_nor_gl_2k.jpg", true);
+            lib.floorTiles = TexturedMat("Ic_Karo", tileTex, tileNor, new Color(1f, 0.98f, 0.95f), 4f);
+            lib.wallInside = TexturedMat("Ic_Duvar", plasterTex, plasterNor, new Color(1f, 0.95f, 0.86f), 2f);
+            lib.wallBrick = c.bricks[0];
+            lib.wallCap = SimpleMat("Ic_KesitCizgisi", new Color(0.08f, 0.08f, 0.1f), 0.1f);
+            lib.concrete = TexturedMat("Ic_Temel", plasterTex, plasterNor, new Color(0.62f, 0.62f, 0.63f), 2f);
+            lib.soil = TexturedMat("Ic_Toprak", soilTex, soilNor, new Color(0.9f, 0.85f, 0.8f), 2f);
+            lib.glass = SimpleMat("Ic_Pencere", new Color(0.62f, 0.78f, 0.92f), 0.95f);
+            return lib;
         }
 
         /// <summary>Binanın ön yüzüne, kapının üstüne isim tabelası.</summary>

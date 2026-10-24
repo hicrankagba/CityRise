@@ -58,6 +58,8 @@ namespace CityRise.Game
                 ["offline.title"] = "Hoş geldin!",
                 ["offline.body"] = "Yokken işletmelerin {0} kazandı. Toplamak için binaların üstündeki paralara dokun.",
                 ["common.close"] = "Kapat",
+                ["interior.back"] = "◀  Şehre Dön",
+                ["interior.collect"] = "Topla  {0}",
 
                 ["business.simit_bufesi"] = "Simit Büfesi",
                 ["business.bakkal"] = "Bakkal",

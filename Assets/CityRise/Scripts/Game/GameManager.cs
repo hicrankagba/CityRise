@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using CityRise.CameraRig;
 using CityRise.City;
 using CityRise.Core;
+using CityRise.Interior;
 using CityRise.Progression;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -39,6 +40,10 @@ namespace CityRise.Game
         public Transform wildernessRoot;
         public GameObject forSaleSignTemplate;
         public List<BusinessTemplate> templates = new List<BusinessTemplate>();
+        public InteriorLibrary interiorLibrary;
+
+        /// <summary>İç görünümün kurulduğu yer: şehirden uzakta, kamera şehri görmesin.</summary>
+        static readonly Vector3 InteriorOrigin = new Vector3(6000f, 0f, 6000f);
 
         public CityEconomy Economy { get; private set; }
         public PlayerProfile Profile => Economy.profile;
@@ -46,6 +51,22 @@ namespace CityRise.Game
 
         readonly Dictionary<int, PlotView> views = new Dictionary<int, PlotView>();
         GameHud hud;
+        GameObject interior;
+        int interiorPlotId = -1;
+        bool transitioning;
+        CameraState savedCamera;
+
+        struct CameraState
+        {
+            public Vector3 position;
+            public float distance, yaw, minDistance, maxDistance;
+            public CameraClearFlags clear;
+            public Color background;
+            public bool fog;
+        }
+
+        public bool InInterior => interior != null;
+        public int InteriorPlotId => interiorPlotId;
         float saveTimer;
         Vector2 pressPos;
         float pressTime;
@@ -68,7 +89,11 @@ namespace CityRise.Game
             foreach (var owned in profile.businesses) ShowBusiness(layout.FindPlot(owned.plotId), owned, animate: false);
 
             Economy.BusinessBuilt += (plot, owned) => ShowBusiness(plot, owned, animate: true);
-            Economy.BusinessUpgraded += (plot, owned) => { if (views.TryGetValue(plot.id, out var v) && v.building) StartCoroutine(Bounce(v.building.transform, 0.35f)); };
+            Economy.BusinessUpgraded += (plot, owned) =>
+            {
+                if (views.TryGetValue(plot.id, out var v) && v.building) StartCoroutine(Bounce(v.building.transform, 0.35f));
+                if (interiorPlotId == plot.id) RebuildInterior(owned);
+            };
             Economy.StageUnlocked += (stage, blocks) => { town.stage = stage; ApplyStage(stage, blocks); };
 
             hud = gameObject.AddComponent<GameHud>();
@@ -117,7 +142,7 @@ namespace CityRise.Game
             if (pointer.press.wasReleasedThisFrame && !pressOverUI)
             {
                 bool tap = Vector2.Distance(pos, pressPos) < Screen.height * 0.02f && Time.unscaledTime - pressTime < 0.5f;
-                if (tap && !hud.IsModalOpen) OnTap(pos);
+                if (tap && !hud.IsModalOpen && !InInterior && !transitioning) OnTap(pos);
             }
 #endif
         }
@@ -137,8 +162,7 @@ namespace CityRise.Game
             var owned = Profile.Find(plot.id);
             if (owned != null)
             {
-                if (owned.stored >= 1) Economy.Collect(plot.id);
-                else hud.ShowBusinessPanel(plot, owned);
+                OpenInterior(plot);
                 return;
             }
             switch (plot.type)
@@ -269,6 +293,117 @@ namespace CityRise.Game
                 yield return null;
             }
             t.localScale = baseScale;
+        }
+
+        // ------------------------------------------------------------ İç görünüm
+
+        /// <summary>Sahip olunan işletmenin içini kesit olarak açar; kamera yumuşak geçişle oraya gider.</summary>
+        public void OpenInterior(Plot plot)
+        {
+            var owned = Profile.Find(plot.id);
+            if (owned == null || interiorLibrary == null || InInterior) return;
+            StartCoroutine(OpenWhenReady(plot, owned));
+        }
+
+        IEnumerator OpenWhenReady(Plot plot, OwnedBusiness owned)
+        {
+            while (transitioning) yield return null;
+            if (!InInterior) yield return OpenInteriorRoutine(plot, owned);
+        }
+
+        public void CloseInterior()
+        {
+            if (!InInterior || transitioning) return;
+            StartCoroutine(CloseInteriorRoutine());
+        }
+
+        IEnumerator OpenInteriorRoutine(Plot plot, OwnedBusiness owned)
+        {
+            transitioning = true;
+            yield return ZoomTo(CoinAnchor(plot) - Vector3.up * 10f, 26f, 0.35f);
+            yield return hud.Fade(1f, 0.2f);
+
+            var ctrl = cameraController;
+            var cam = ctrl.cam;
+            savedCamera = new CameraState
+            {
+                position = ctrl.transform.position, distance = ctrl.distance, yaw = ctrl.yaw,
+                minDistance = ctrl.minDistance, maxDistance = ctrl.maxDistance,
+                clear = cam.clearFlags, background = cam.backgroundColor, fog = RenderSettings.fog,
+            };
+            interiorPlotId = plot.id;
+            BuildInterior(owned);
+
+            var size = InteriorBuilder.RoomSize(owned.businessId, owned.level);
+            float d = Mathf.Max(size.x, size.y) * 1.75f + 4f;
+            ctrl.orbitMode = true;
+            ctrl.transform.position = InteriorOrigin + Vector3.up * 0.6f;
+            ctrl.minDistance = d * 0.5f;
+            ctrl.maxDistance = d * 1.4f;
+            ctrl.distance = d;
+            ctrl.yaw = 42f;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.07f, 0.08f, 0.11f);
+            RenderSettings.fog = false;
+            hud.EnterInterior(plot, owned);
+            // İlk karede malzemeler hazırlanırken ekran kararık kalsın.
+            yield return null;
+            yield return null;
+            yield return hud.Fade(0f, 0.3f);
+            transitioning = false;
+        }
+
+        IEnumerator CloseInteriorRoutine()
+        {
+            transitioning = true;
+            yield return hud.Fade(1f, 0.2f);
+            if (interior != null) Destroy(interior);
+            interior = null;
+            interiorPlotId = -1;
+            var ctrl = cameraController;
+            var cam = ctrl.cam;
+            ctrl.orbitMode = false;
+            ctrl.transform.position = savedCamera.position;
+            ctrl.minDistance = savedCamera.minDistance;
+            ctrl.maxDistance = savedCamera.maxDistance;
+            ctrl.distance = savedCamera.distance;
+            ctrl.yaw = savedCamera.yaw;
+            cam.clearFlags = savedCamera.clear;
+            cam.backgroundColor = savedCamera.background;
+            RenderSettings.fog = savedCamera.fog;
+            hud.ExitInterior();
+            yield return hud.Fade(0f, 0.3f);
+            transitioning = false;
+        }
+
+        void BuildInterior(OwnedBusiness owned)
+        {
+            if (interior != null) Destroy(interior);
+            interior = InteriorBuilder.Build(interiorLibrary, owned.businessId, owned.level, SignMaterial(owned.businessId), InteriorOrigin);
+        }
+
+        void RebuildInterior(OwnedBusiness owned) => BuildInterior(owned);
+
+        Material SignMaterial(string businessId)
+        {
+            var template = templates.Find(t => t.businessId == businessId)?.template;
+            var face = template != null ? template.transform.Find("Tabela/Yazi") : null;
+            return face != null ? face.GetComponent<Renderer>().sharedMaterial : null;
+        }
+
+        /// <summary>Kamerayı yumuşakça bir noktaya ve mesafeye götürür.</summary>
+        IEnumerator ZoomTo(Vector3 target, float distance, float duration)
+        {
+            var ctrl = cameraController;
+            var startPos = ctrl.transform.position;
+            float startDist = ctrl.distance;
+            for (float t = 0; t < duration; t += Time.deltaTime)
+            {
+                float k = Mathf.SmoothStep(0, 1, t / duration);
+                ctrl.transform.position = Vector3.Lerp(startPos, new Vector3(target.x, 0, target.z), k);
+                ctrl.distance = Mathf.Lerp(startDist, Mathf.Clamp(distance, ctrl.minDistance, ctrl.maxDistance), k);
+                yield return null;
+            }
         }
 
         /// <summary>Bir işletmenin ekrandaki para simgesinin dünya konumu (binanın üstü).</summary>

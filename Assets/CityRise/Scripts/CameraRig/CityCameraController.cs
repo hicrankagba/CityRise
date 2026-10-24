@@ -35,7 +35,15 @@ namespace CityRise.CameraRig
         [Range(10, 80)] public float pitchNear = 22f;
         [Range(10, 80)] public float pitchFar = 52f;
 
+        [Header("Yörünge (iç görünüm)")]
+        [Tooltip("Açıkken sürüklemek haritayı kaydırmaz, kamerayı merkez etrafında (sınırlı açıyla) döndürür.")]
+        public bool orbitMode;
+        public float orbitPitch = 38f;
+        public float orbitYawMin = 0f;
+        public float orbitYawMax = 90f;
+
         Vector3 lastGroundPoint;
+        Vector2 lastScreen;
         bool dragging;
         bool pressStartedOnUI;
         Plane ground = new Plane(Vector3.up, Vector3.zero);
@@ -133,6 +141,13 @@ namespace CityRise.CameraRig
 
         void Drag(Vector2 screenPos, bool began)
         {
+            if (orbitMode)
+            {
+                if (!began && dragging) yaw = Mathf.Clamp(yaw + (screenPos.x - lastScreen.x) * 0.25f, orbitYawMin, orbitYawMax);
+                lastScreen = screenPos;
+                dragging = true;
+                return;
+            }
             if (!TryGroundPoint(screenPos, out var point)) return;
             if (began || !dragging)
             {
@@ -174,7 +189,8 @@ namespace CityRise.CameraRig
         void ApplyTransform()
         {
             if (cam == null) return;
-            float p = tiltWithZoom ? Mathf.Lerp(pitchNear, pitchFar, Mathf.InverseLerp(minDistance, maxDistance, distance)) : pitch;
+            float p = orbitMode ? orbitPitch
+                : tiltWithZoom ? Mathf.Lerp(pitchNear, pitchFar, Mathf.InverseLerp(minDistance, maxDistance, distance)) : pitch;
             var rot = Quaternion.Euler(p, yaw, 0);
             cam.transform.position = transform.position - rot * Vector3.forward * distance;
             cam.transform.rotation = rot;

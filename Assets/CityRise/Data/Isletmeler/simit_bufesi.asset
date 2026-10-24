@@ -17,7 +17,13 @@ MonoBehaviour:
   requiredStage: 1
   requiredLevel: 1
   buildCost: 1500
-  incomePerHour: 60
-  expensePerHour: 15
+  incomePerHour: 420
+  expensePerHour: 120
+  upgradeIncomeBonus: 0.25
+  upgradeCostFactor: 0.6
+  maxLevel: 5
   prefab: {fileID: 919132149155446097, guid: 3989af1bcb5654fd5a144f5a92951238, type: 3}
   footprint: {x: 1, y: 1}
+  styleId: commercial/building-c
+  signText: "S\u0130M\u0130T"
+  dataVersion: 2

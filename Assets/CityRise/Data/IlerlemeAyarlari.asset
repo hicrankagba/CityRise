@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9afc4a8e9a4ef4349a30d3c0a2aca990, type: 3}
+  m_Name: IlerlemeAyarlari
+  m_EditorClassIdentifier: Assembly-CSharp::CityRise.Progression.ProgressionConfig
+  stages:
+  - stage: 1
+    minLevel: 1
+  - stage: 2
+    minLevel: 5
+  - stage: 3
+    minLevel: 10
+  - stage: 4
+    minLevel: 20
+  - stage: 5
+    minLevel: 35
+  startingCash: 3250
+  xpPerBuildDollar: 0.05
+  xpPerCollectDollar: 0.1
+  minCollectXp: 2
+  xpPerUpgradeDollar: 0.04
+  landPricePerCell: 250
+  levelUpCashPerLevel: 150
+  storageHours: 8

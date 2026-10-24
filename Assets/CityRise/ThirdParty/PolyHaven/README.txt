@@ -34,3 +34,7 @@ Gündüz gökyüzü (güncel): kloofendal_43d_clear_puresky (Greg Zaal)  https:/
 Bina ve çeşme yüzeyleri (Textures/, 1k jpg)
 - clay_roof_tiles_02     (Amal Kumar)  https://polyhaven.com/a/clay_roof_tiles_02  -> kiremit
 - large_sandstone_blocks (Rob Tuytel)  https://polyhaven.com/a/large_sandstone_blocks -> çeşme, gölet kenarı
+
+İç görünüm dokuları (Textures/, 1k jpg)
+- floor_tiles_06      (Rob Tuytel)  https://polyhaven.com/a/floor_tiles_06      -> dükkan zemini
+- excavated_soil_wall (Amal Kumar)  https://polyhaven.com/a/excavated_soil_wall -> kesitteki toprak dilimi

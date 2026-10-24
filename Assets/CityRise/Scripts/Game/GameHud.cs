@@ -18,7 +18,13 @@ namespace CityRise.Game
     {
         GameManager game;
         CityEconomy eco;
-        RectTransform root, modalLayer, coinLayer;
+        RectTransform root, safeArea, modalLayer, coinLayer, interiorBar;
+        Text interiorTitle, interiorInfo;
+        Button collectButton, upgradeButton;
+        CanvasGroup fade;
+        Rect lastSafe;
+        OwnedBusiness interiorBusiness;
+        Plot interiorPlot;
         Text levelNumber, levelLabel, xpLabel, cashLabel, toastLabel;
         Image xpFill;
         CanvasGroup toastGroup;
@@ -64,9 +70,13 @@ namespace CityRise.Game
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
-            root = (RectTransform)canvasGo.transform;
+            var canvasRoot = (RectTransform)canvasGo.transform;
+            // Çentikli ekranlarda arayüz güvenli alanın içinde kalır.
+            safeArea = UIKit.Rect("GuvenliAlan", canvasRoot).Stretch();
+            root = safeArea;
 
-            coinLayer = UIKit.Rect("Paralar", root).Stretch();
+            coinLayer = UIKit.Rect("Paralar", canvasRoot).Stretch();
+            coinLayer.SetAsFirstSibling();
 
             // Sol üst: seviye rozeti, seviye/aşama yazısı ve XP çubuğu.
             var levelPanel = UIKit.Box("SeviyePaneli", root, UIKit.Panel).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(28, -24), new Vector2(470, 118));
@@ -99,7 +109,92 @@ namespace CityRise.Game
             toastLabel = UIKit.Label("Yazi", toast, "", 30, Color.white, TextAnchor.MiddleCenter);
             toastLabel.rectTransform.Stretch(12);
 
+            BuildInteriorBar();
             modalLayer = UIKit.Rect("Pencereler", root).Stretch();
+
+            var fadeImg = UIKit.Box("Gecis", canvasRoot, Color.black, UIKit.Rounded);
+            fadeImg.rectTransform.Stretch(-40);
+            fadeImg.raycastTarget = false;
+            fade = fadeImg.gameObject.AddComponent<CanvasGroup>();
+            fade.alpha = 0;
+            fade.blocksRaycasts = false;
+            ApplySafeArea();
+        }
+
+        void ApplySafeArea()
+        {
+            var sa = Screen.safeArea;
+            if (sa == lastSafe || Screen.width <= 0 || Screen.height <= 0) return;
+            lastSafe = sa;
+            safeArea.anchorMin = new Vector2(sa.xMin / Screen.width, sa.yMin / Screen.height);
+            safeArea.anchorMax = new Vector2(sa.xMax / Screen.width, sa.yMax / Screen.height);
+            safeArea.offsetMin = safeArea.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>İç görünümde: üstte işletme adı, altta Şehre Dön / Topla / Yükselt.</summary>
+        void BuildInteriorBar()
+        {
+            interiorBar = UIKit.Rect("IcGorunum", root).Stretch();
+            var title = UIKit.Box("Baslik", interiorBar, UIKit.Panel).rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -24), new Vector2(640, 118));
+            interiorTitle = UIKit.Label("Ad", title, "", 40, Color.white, TextAnchor.UpperCenter, FontStyle.Bold);
+            interiorTitle.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -10), new Vector2(600, 54));
+            interiorInfo = UIKit.Label("Bilgi", title, "", 26, new Color(1, 1, 1, 0.8f), TextAnchor.UpperCenter);
+            interiorInfo.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -66), new Vector2(600, 40));
+
+            var back = UIKit.Button("SehreDon", interiorBar, Loc.T("interior.back"), UIKit.Panel, () => game.CloseInterior(), 32);
+            ((RectTransform)back.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 28), new Vector2(320, 100));
+            collectButton = UIKit.Button("Topla", interiorBar, "", UIKit.Accent, () => { if (interiorPlot != null) eco.Collect(interiorPlot.id); }, 30);
+            ((RectTransform)collectButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-480, 28), new Vector2(300, 100));
+            upgradeButton = UIKit.Button("Yukselt", interiorBar, "", UIKit.Green, () =>
+            {
+                if (interiorPlot != null && eco.Upgrade(interiorPlot.id))
+                    Toast(Loc.T("biz.upgraded", Loc.T("business." + interiorBusiness.businessId), interiorBusiness.level));
+            }, 28);
+            ((RectTransform)upgradeButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(430, 100));
+            interiorBar.gameObject.SetActive(false);
+        }
+
+        public void EnterInterior(Plot plot, OwnedBusiness owned)
+        {
+            interiorPlot = plot;
+            interiorBusiness = owned;
+            interiorBar.gameObject.SetActive(true);
+            coinLayer.gameObject.SetActive(false);
+            RefreshInterior();
+        }
+
+        public void ExitInterior()
+        {
+            interiorPlot = null;
+            interiorBusiness = null;
+            interiorBar.gameObject.SetActive(false);
+            coinLayer.gameObject.SetActive(true);
+        }
+
+        void RefreshInterior()
+        {
+            if (interiorBusiness == null) return;
+            var b = interiorBusiness;
+            var def = eco.catalog.Find(b.businessId);
+            interiorTitle.text = Loc.T("biz.title", Loc.T("business." + b.businessId), b.level);
+            interiorInfo.text = Loc.T("biz.income", Loc.Money(eco.NetPerHour(b)));
+            collectButton.SetText(Loc.T("interior.collect", Loc.Money(b.stored)));
+            collectButton.interactable = b.stored >= 1;
+            bool max = def == null || b.level >= def.maxLevel;
+            upgradeButton.SetText(max ? Loc.T("biz.max") : Loc.T("biz.upgrade", Loc.Money(eco.UpgradeCost(b))));
+            upgradeButton.interactable = !max && eco.CanUpgrade(b);
+        }
+
+        public IEnumerator Fade(float target, float duration)
+        {
+            float start = fade.alpha;
+            for (float t = 0; t < duration; t += Time.unscaledDeltaTime)
+            {
+                fade.alpha = Mathf.Lerp(start, target, t / duration);
+                yield return null;
+            }
+            fade.alpha = target;
+            fade.blocksRaycasts = target > 0.5f;
         }
 
         void Refresh()
@@ -113,7 +208,21 @@ namespace CityRise.Game
             cashLabel.text = Loc.Money(p.cash).Substring(1);
         }
 
-        void LateUpdate() => UpdateCoins();
+        void LateUpdate()
+        {
+            ApplySafeArea();
+            if (interiorBusiness != null) RefreshInterior();
+            else UpdateCoins();
+#if ENABLE_INPUT_SYSTEM
+            // Android geri tuşu / Esc: iç görünümden ya da pencereden çık.
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame)
+            {
+                if (IsModalOpen) CloseModal();
+                else if (game.InInterior) game.CloseInterior();
+            }
+#endif
+        }
 
         /// <summary>Geliri biriken işletmelerin üstünde dokunulabilir para simgesi.</summary>
         void UpdateCoins()
@@ -159,6 +268,8 @@ namespace CityRise.Game
 
         public void Toast(string message)
         {
+            // İç görünümde alttaki düğmelerin üstünde dursun.
+            ((RectTransform)toastGroup.transform).anchoredPosition = new Vector2(0, interiorBusiness != null ? 150 : 40);
             toastLabel.text = message;
             if (toastRoutine != null) StopCoroutine(toastRoutine);
             toastRoutine = StartCoroutine(ToastRoutine());

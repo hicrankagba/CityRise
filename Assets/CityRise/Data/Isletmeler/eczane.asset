@@ -14,10 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CityRise.Core.BusinessDefinition
   id: eczane
   displayNameKey: business.eczane
-  requiredStage: 1
-  requiredLevel: 1
-  buildCost: 9000
-  incomePerHour: 260
-  expensePerHour: 80
-  prefab: {fileID: 919132149155446097, guid: d5740d6d205c047d3a04f4c2a6425a7e, type: 3}
+  requiredStage: 3
+  requiredLevel: 10
+  buildCost: 25000
+  incomePerHour: 4760
+  expensePerHour: 1360
+  upgradeIncomeBonus: 0.25
+  upgradeCostFactor: 0.6
+  maxLevel: 5
+  prefab: {fileID: 919132149155446097, guid: ff3afa5f23cf44544943b47037e75c5c, type: 3}
   footprint: {x: 1, y: 1}
+  styleId: commercial/building-a
+  signText: ECZANE
+  dataVersion: 2

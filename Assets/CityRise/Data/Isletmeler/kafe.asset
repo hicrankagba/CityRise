@@ -14,10 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CityRise.Core.BusinessDefinition
   id: kafe
   displayNameKey: business.kafe
-  requiredStage: 1
-  requiredLevel: 1
-  buildCost: 6000
-  incomePerHour: 200
-  expensePerHour: 60
-  prefab: {fileID: 919132149155446097, guid: 0851e69ebf2ec4a69a12ad8cc25fd0e0, type: 3}
+  requiredStage: 2
+  requiredLevel: 8
+  buildCost: 14000
+  incomePerHour: 2940
+  expensePerHour: 840
+  upgradeIncomeBonus: 0.25
+  upgradeCostFactor: 0.6
+  maxLevel: 5
+  prefab: {fileID: 919132149155446097, guid: 3989af1bcb5654fd5a144f5a92951238, type: 3}
   footprint: {x: 1, y: 1}
+  styleId: commercial/building-c
+  signText: KAFE
+  dataVersion: 2

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d6686fb78523449aa007bcfe7030910, type: 3}
+  m_Name: IsletmeKatalogu
+  m_EditorClassIdentifier: Assembly-CSharp::CityRise.Progression.BusinessCatalog
+  businesses:
+  - {fileID: 11400000, guid: b9068ee78965b4ae4b44c377795238a8, type: 2}
+  - {fileID: 11400000, guid: 336cc0f01f9c343388af8312327b7653, type: 2}
+  - {fileID: 11400000, guid: f40f971abd7b647658ea114cba5797f8, type: 2}
+  - {fileID: 11400000, guid: 4f2741c9662e940068340bb73294c62a, type: 2}
+  - {fileID: 11400000, guid: 2fc5fbd57b8aa491d8eb3d82309d0c1d, type: 2}
+  - {fileID: 11400000, guid: 26b7db6a3098544dab7bc458c884212c, type: 2}
+  - {fileID: 11400000, guid: f4d4f4203861c40a1ac8511d78f5cb1e, type: 2}
+  - {fileID: 11400000, guid: 8e1873adabcec4b479967593549257f1, type: 2}
+  - {fileID: 11400000, guid: f190644bc443f4f99a3b2f8c27d70b36, type: 2}
+  - {fileID: 11400000, guid: 5a0fd9055a17043de81bd1da0ac288e4, type: 2}

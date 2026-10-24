@@ -15,9 +15,15 @@ MonoBehaviour:
   id: bakkal
   displayNameKey: business.bakkal
   requiredStage: 1
-  requiredLevel: 1
+  requiredLevel: 3
   buildCost: 4000
-  incomePerHour: 140
-  expensePerHour: 40
+  incomePerHour: 980
+  expensePerHour: 280
+  upgradeIncomeBonus: 0.25
+  upgradeCostFactor: 0.6
+  maxLevel: 5
   prefab: {fileID: 919132149155446097, guid: ff3afa5f23cf44544943b47037e75c5c, type: 3}
   footprint: {x: 1, y: 1}
+  styleId: commercial/building-a
+  signText: BAKKAL
+  dataVersion: 2

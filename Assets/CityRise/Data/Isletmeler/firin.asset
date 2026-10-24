@@ -14,10 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CityRise.Core.BusinessDefinition
   id: firin
   displayNameKey: business.firin
-  requiredStage: 1
-  requiredLevel: 1
-  buildCost: 5000
-  incomePerHour: 170
-  expensePerHour: 50
-  prefab: {fileID: 919132149155446097, guid: 2f97981a08bfe4486a95e076e449833d, type: 3}
+  requiredStage: 2
+  requiredLevel: 5
+  buildCost: 7500
+  incomePerHour: 1680
+  expensePerHour: 480
+  upgradeIncomeBonus: 0.25
+  upgradeCostFactor: 0.6
+  maxLevel: 5
+  prefab: {fileID: 919132149155446097, guid: 0851e69ebf2ec4a69a12ad8cc25fd0e0, type: 3}
   footprint: {x: 1, y: 1}
+  styleId: commercial/building-h
+  signText: FIRIN
+  dataVersion: 2

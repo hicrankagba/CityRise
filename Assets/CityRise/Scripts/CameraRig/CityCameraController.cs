@@ -37,6 +37,7 @@ namespace CityRise.CameraRig
 
         Vector3 lastGroundPoint;
         bool dragging;
+        bool pressStartedOnUI;
         Plane ground = new Plane(Vector3.up, Vector3.zero);
 
         void OnEnable()
@@ -58,9 +59,24 @@ namespace CityRise.CameraRig
             ApplyTransform();
         }
 
+        /// <summary>Basış arayüzün (düğme, pencere) üstünde başladıysa harita kaydırılmaz.</summary>
+        static bool PointerOverUI() =>
+            UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+
         void HandleInput()
         {
 #if ENABLE_INPUT_SYSTEM
+            var anyPointer = Pointer.current;
+            if (anyPointer != null)
+            {
+                if (anyPointer.press.wasPressedThisFrame) pressStartedOnUI = PointerOverUI();
+                if (!anyPointer.press.isPressed && !anyPointer.press.wasReleasedThisFrame) pressStartedOnUI = false;
+            }
+            if (pressStartedOnUI)
+            {
+                dragging = false;
+                return;
+            }
             var touches = Touch.activeTouches;
             if (touches.Count == 2)
             {

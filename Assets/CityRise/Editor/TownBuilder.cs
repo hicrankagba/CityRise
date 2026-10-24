@@ -4,6 +4,8 @@ using System.IO;
 using CityRise.CameraRig;
 using CityRise.City;
 using CityRise.Core;
+using CityRise.Game;
+using CityRise.Progression;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -65,6 +67,7 @@ namespace CityRise.EditorTools
             public Random rng = new Random(7);
             public Transform root, roads, plots, nature, lights;
             public HashSet<Vector2Int> drawnRoads = new HashSet<Vector2Int>();
+            public HashSet<Vector2Int> allRoads = new HashSet<Vector2Int>();
             public RectInt openArea;
             public Material grass, meadow, water, stone, dirt, signBoard, signPost, lampGlow;
             public readonly Dictionary<string, Material> kenneyMats = new Dictionary<string, Material>();
@@ -73,6 +76,12 @@ namespace CityRise.EditorTools
             public List<Material> emissive = new List<Material>();
             public int lightCount;
             public TreeFactory.Set trees;
+            public BusinessCatalog catalog;
+            public ProgressionConfig config;
+            public CityCameraController cameraCtrl;
+            public Transform wilderness;
+            public GameObject signTemplate;
+            public readonly Dictionary<string, Material> signMats = new Dictionary<string, Material>();
             public Material glass, roofTiles, cropWheat, cropCorn, paving;
             public Material[] bricks, plasters;
             public readonly Dictionary<string, Mesh> skinned = new Dictionary<string, Mesh>();
@@ -94,13 +103,14 @@ namespace CityRise.EditorTools
                 c.layout = LoadOrCreateLayout();
                 c.g = c.layout.grid;
                 c.openArea = OpenArea(c.g);
-                EnsureBusinessDefinitions();
                 SetupRendering();
 
                 // Malzemeler yeni sahneden sonra: sahnede tutulan gece malzemeleri sahne değişince silinir.
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 EditorUtility.DisplayProgressBar("CityRise", "Ağaçlar hazırlanıyor (ilk seferde biraz sürer)...", 0.1f);
                 c.trees = TreeFactory.Ensure();
+                // Yeni sahne kullanılmayan varlıkları bellekten attığı için oyun verisi sahneden sonra yüklenir.
+                (c.catalog, c.config) = EnsureGameData();
                 CreateMaterials(c);
                 c.root = new GameObject("Sehir").transform;
                 var town = c.root.gameObject.AddComponent<CityTown>();
@@ -124,6 +134,7 @@ namespace CityRise.EditorTools
                 BuildSkyAndLight(c);
                 BuildCamera(c);
                 BuildPostProcessing(c);
+                BuildGame(c, town);
 
                 // Doku içe aktarmaları sırasında URP malzeme anahtar kelimelerini sıfırlayabiliyor; parlayanları yeniden aç.
                 foreach (var m in c.emissive)
@@ -160,44 +171,100 @@ namespace CityRise.EditorTools
             return layout;
         }
 
-        static RectInt OpenArea(CityGrid g)
+        static RectInt OpenArea(CityGrid g) => OpenArea(g, StartingTownGenerator.OpenRings);
+
+        static RectInt OpenArea(CityGrid g, int r)
         {
-            int r = StartingTownGenerator.OpenRings;
+            r = Mathf.Min(r, g.radiusBlocks);
             var min = g.BlockRect(new Vector2Int(-r, -r)).min - Vector2Int.one;
             var max = g.BlockRect(new Vector2Int(r, r)).max + Vector2Int.one;
             return new RectInt(min, max - min);
         }
 
-        /// <summary>Başlangıç işletmelerinin veri dosyaları (yoksa oluşturulur, varsa dokunulmaz).</summary>
-        static void EnsureBusinessDefinitions()
+        /// <summary>İşletme verisinin sürümü; değerler değişirse artır (eski dosyalar güncellenir).</summary>
+        const int BusinessDataVersion = 2;
+        const string CatalogPath = DataDir + "/IsletmeKatalogu.asset";
+        const string ConfigPath = DataDir + "/IlerlemeAyarlari.asset";
+
+        /// <summary>
+        /// Satın alınabilir işletmeler. Net gelir saatlik $; gelir = net × 1,4, gider = net × 0,4.
+        /// Başlangıç nakdi $3.250 ile ilk alım simit büfesidir.
+        /// </summary>
+        static readonly (string id, string style, string sign, int level, long cost, double net, int size, bool brick)[] BusinessTable =
+        {
+            ("simit_bufesi", "commercial/building-c", "SİMİT", 1, 1_500, 300, 1, false),
+            ("bakkal", "commercial/building-a", "BAKKAL", 3, 4_000, 700, 1, true),
+            ("manav", "commercial/building-b", "MANAV", 4, 3_500, 620, 1, false),
+            ("kasap", "commercial/building-d", "KASAP", 5, 9_000, 1_400, 1, true),
+            ("firin", "commercial/building-h", "FIRIN", 5, 7_500, 1_200, 1, true),
+            ("berber", "commercial/building-g", "BERBER", 6, 6_000, 1_000, 1, false),
+            ("market", "commercial/building-f", "MARKET", 8, 18_000, 2_600, 1, false),
+            ("kafe", "commercial/building-c", "KAFE", 8, 14_000, 2_100, 1, true),
+            ("eczane", "commercial/building-a", "ECZANE", 10, 25_000, 3_400, 1, false),
+            ("supermarket", "commercial/building-i", "SÜPERMARKET", 14, 60_000, 7_500, 2, false),
+        };
+
+        /// <summary>İşletme dosyaları, katalog ve ilerleme ayarları (yoksa oluşturulur; eski sürümse güncellenir).</summary>
+        static (BusinessCatalog catalog, ProgressionConfig config) EnsureGameData()
         {
             string dir = DataDir + "/Isletmeler";
             EnsureFolder(dir);
-            var defs = new (string id, string style, long cost, double income, double expense)[]
+            var config = AssetDatabase.LoadAssetAtPath<ProgressionConfig>(ConfigPath);
+            if (config == null)
             {
-                ("simit_bufesi", "commercial/building-c", 1_500, 60, 15),
-                ("bakkal", "commercial/building-a", 4_000, 140, 40),
-                ("manav", "commercial/building-b", 3_500, 120, 35),
-                ("berber", "commercial/building-g", 3_000, 100, 25),
-                ("firin", "commercial/building-d", 5_000, 170, 50),
-                ("kafe", "commercial/building-h", 6_000, 200, 60),
-                ("eczane", "commercial/building-f", 9_000, 260, 80),
-            };
-            foreach (var d in defs)
+                config = ProgressionConfig.CreateDefault();
+                AssetDatabase.CreateAsset(config, ConfigPath);
+            }
+            var catalog = AssetDatabase.LoadAssetAtPath<BusinessCatalog>(CatalogPath);
+            if (catalog == null)
+            {
+                catalog = ScriptableObject.CreateInstance<BusinessCatalog>();
+                AssetDatabase.CreateAsset(catalog, CatalogPath);
+            }
+
+            foreach (var d in BusinessTable)
             {
                 string path = $"{dir}/{d.id}.asset";
-                if (AssetDatabase.LoadAssetAtPath<BusinessDefinition>(path) != null) continue;
-                var def = ScriptableObject.CreateInstance<BusinessDefinition>();
-                def.id = d.id;
-                def.displayNameKey = "business." + d.id;
-                def.requiredStage = CityStage.Seyyar;
-                def.buildCost = d.cost;
-                def.incomePerHour = d.income;
-                def.expensePerHour = d.expense;
-                def.footprint = Vector2Int.one;
-                def.prefab = AssetDatabase.LoadAssetAtPath<GameObject>(StylePath(d.style));
-                AssetDatabase.CreateAsset(def, path);
+                var def = AssetDatabase.LoadAssetAtPath<BusinessDefinition>(path);
+                bool created = def == null;
+                if (created) def = ScriptableObject.CreateInstance<BusinessDefinition>();
+                if (created || def.dataVersion < BusinessDataVersion)
+                {
+                    def.id = d.id;
+                    def.displayNameKey = "business." + d.id;
+                    def.requiredLevel = d.level;
+                    def.requiredStage = config.StageForLevel(d.level);
+                    def.buildCost = d.cost;
+                    def.incomePerHour = Math.Round(d.net * 1.4);
+                    def.expensePerHour = Math.Round(d.net * 0.4);
+                    def.footprint = new Vector2Int(d.size, d.size);
+                    def.styleId = d.style;
+                    def.signText = d.sign;
+                    def.prefab = AssetDatabase.LoadAssetAtPath<GameObject>(StylePath(d.style));
+                    def.dataVersion = BusinessDataVersion;
+                    if (created) AssetDatabase.CreateAsset(def, path);
+                    EditorUtility.SetDirty(def);
+                }
+                if (!catalog.businesses.Contains(def))
+                {
+                    catalog.businesses.Add(def);
+                    EditorUtility.SetDirty(catalog);
+                }
             }
+            AssetDatabase.SaveAssets();
+            return (catalog, config);
+        }
+
+        static bool BrickFor(string businessId)
+        {
+            foreach (var d in BusinessTable) if (d.id == businessId) return d.brick;
+            return false;
+        }
+
+        static string SignFor(string businessId)
+        {
+            foreach (var d in BusinessTable) if (d.id == businessId) return d.sign;
+            return "";
         }
 
         // ---------------------------------------------------------------- Zemin ve yollar
@@ -210,16 +277,33 @@ namespace CityRise.EditorTools
             // Kilitli halkalar: soluk çayır. Açık kasaba alanı normal çim.
             var b = c.g.Bounds;
             Quad("KilitliAlan", c.root, RectCenter(c.g, b) + Vector3.up * 0.02f, RectSize(c.g, b), c.meadow);
-            Quad("KasabaZemini", c.root, RectCenter(c.g, c.openArea) + Vector3.up * 0.04f, RectSize(c.g, c.openArea), c.grass);
+            foreach (var stage in Stages)
+            {
+                var area = OpenArea(c.g, CityEconomy.MaxRingFor(stage));
+                var q = Quad("KasabaZemini_" + stage, c.root, RectCenter(c.g, area) + Vector3.up * 0.04f, RectSize(c.g, area), c.grass);
+                Gate(q, stage, stage);
+            }
         }
 
-        static void BuildRoads(Ctx c)
+        static readonly CityStage[] Stages = { CityStage.Seyyar, CityStage.Esnaf, CityStage.Sirket, CityStage.Holding, CityStage.Metropol };
+
+        static T Gate<T>(T obj, CityStage min, CityStage max) where T : UnityEngine.Object
         {
+            var go = obj is GameObject g ? g : (obj as Component).gameObject;
+            var gate = go.AddComponent<StageGated>();
+            gate.minStage = min;
+            gate.maxStage = max;
+            go.SetActive(min <= CityStage.Seyyar && max >= CityStage.Seyyar);
+            return obj;
+        }
+
+        /// <summary>Bir aşamada çizilen yollar: o aşamaya kadar açılmış yollar ve şehir dışına uzanan ana caddeler.</summary>
+        static HashSet<Vector2Int> RoadSet(Ctx c, CityStage stage)
+        {
+            var set = new HashSet<Vector2Int>();
             var b = c.g.Bounds;
             foreach (var r in c.layout.roads)
-                if (r.unlockStage <= CityStage.Seyyar || r.main) c.drawnRoads.Add(r.cell);
-
-            // Ana caddeler şehir sınırından kırsala doğru devam eder.
+                if (r.unlockStage <= stage || r.main) set.Add(r.cell);
             int extend = Mathf.CeilToInt(CountryRadius / c.g.cellSize);
             foreach (var r in c.layout.roads)
             {
@@ -229,37 +313,66 @@ namespace CityRise.EditorTools
                 bool edgeY = cell.y == b.yMin || cell.y == b.yMax - 1;
                 if (!(edgeX ^ edgeY)) continue;
                 var dir = edgeX ? new Vector2Int(cell.x == b.xMin ? -1 : 1, 0) : new Vector2Int(0, cell.y == b.yMin ? -1 : 1);
-                if (c.g.IsRoadColumn(edgeX ? cell.y : cell.x) == false) continue;
-                for (int i = 1; i <= extend; i++) c.drawnRoads.Add(cell + dir * i);
+                if (!c.g.IsRoadColumn(edgeX ? cell.y : cell.x)) continue;
+                for (int i = 1; i <= extend; i++) set.Add(cell + dir * i);
             }
+            return set;
+        }
 
-            foreach (var cell in c.drawnRoads)
+        /// <summary>
+        /// Yollar her aşama için ayrı hesaplanır (yeni halka açılınca kavşaklar değişir).
+        /// Aynı parça art arda aşamalarda aynıysa tek nesne olur; StageGated hangi aşamalarda görüneceğini söyler.
+        /// </summary>
+        static void BuildRoads(Ctx c)
+        {
+            var sets = new Dictionary<CityStage, HashSet<Vector2Int>>();
+            foreach (var st in Stages) sets[st] = RoadSet(c, st);
+            c.drawnRoads = sets[CityStage.Seyyar];
+            c.allRoads = sets[CityStage.Metropol];
+
+            foreach (var cell in c.allRoads)
             {
-                int mask = 0;
-                if (c.drawnRoads.Contains(cell + Vector2Int.up)) mask |= 1;
-                if (c.drawnRoads.Contains(cell + Vector2Int.right)) mask |= 2;
-                if (c.drawnRoads.Contains(cell + Vector2Int.down)) mask |= 4;
-                if (c.drawnRoads.Contains(cell + Vector2Int.left)) mask |= 8;
-                var (model, yaw) = RoadTile(mask);
-
-                // Kasaba içinde kavşağa bitişik düz yollarda yaya geçidi.
-                if (model == "road-straight" && c.openArea.Contains(cell))
+                (string model, float yaw)? prev = null;
+                CityStage runStart = CityStage.Seyyar;
+                for (int i = 0; i <= Stages.Length; i++)
                 {
-                    var along = yaw == 0f ? Vector2Int.right : Vector2Int.up;
-                    if (IsJunction(c, cell + along) || IsJunction(c, cell - along)) model = "road-crossing";
+                    (string model, float yaw)? tile = null;
+                    if (i < Stages.Length && sets[Stages[i]].Contains(cell))
+                    {
+                        var set = sets[Stages[i]];
+                        int mask = 0;
+                        if (set.Contains(cell + Vector2Int.up)) mask |= 1;
+                        if (set.Contains(cell + Vector2Int.right)) mask |= 2;
+                        if (set.Contains(cell + Vector2Int.down)) mask |= 4;
+                        if (set.Contains(cell + Vector2Int.left)) mask |= 8;
+                        var t = RoadTile(mask);
+                        // Açık alan içinde kavşağa bitişik düz yollarda yaya geçidi.
+                        if (t.model == "road-straight" && OpenArea(c.g, CityEconomy.MaxRingFor(Stages[i])).Contains(cell))
+                        {
+                            var along = t.yaw == 0f ? Vector2Int.right : Vector2Int.up;
+                            if (IsJunction(set, cell + along) || IsJunction(set, cell - along)) t.model = "road-crossing";
+                        }
+                        tile = t;
+                    }
+                    if (prev.HasValue && (!tile.HasValue || tile.Value != prev.Value))
+                    {
+                        var go = Spawn(c, $"{KenneyDir}/CityRoads/{prev.Value.model}.fbx", c.roads, c.g.CellCenter(cell), prev.Value.yaw, CityScale);
+                        go.name = "Yol";
+                        Gate(go, runStart, Stages[i - 1]);
+                    }
+                    if (tile.HasValue && (!prev.HasValue || tile.Value != prev.Value)) runStart = Stages[Mathf.Min(i, Stages.Length - 1)];
+                    prev = tile;
                 }
-                var go = Spawn(c, $"{KenneyDir}/CityRoads/{model}.fbx", c.roads, c.g.CellCenter(cell), yaw, CityScale);
-                go.name = "Yol";
-                c.keepClear.Add(CellRect(c.g, cell, 1f));
+                if (c.drawnRoads.Contains(cell)) c.keepClear.Add(CellRect(c.g, cell, 1f));
             }
         }
 
-        static bool IsJunction(Ctx c, Vector2Int cell)
+        static bool IsJunction(HashSet<Vector2Int> set, Vector2Int cell)
         {
-            if (!c.drawnRoads.Contains(cell)) return false;
+            if (!set.Contains(cell)) return false;
             int n = 0;
             foreach (var d in new[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left })
-                if (c.drawnRoads.Contains(cell + d)) n++;
+                if (set.Contains(cell + d)) n++;
             return n >= 3;
         }
 
@@ -300,6 +413,7 @@ namespace CityRise.EditorTools
         {
             if (p.type == PlotType.Locked) return;
             var parent = Group(c.plots, $"Arsa_{p.id}_{p.type}");
+            parent.gameObject.AddComponent<PlotView>().plotId = p.id;
             var center = c.g.RectCenter(p.cells);
             bool paved = p.type == PlotType.Business || p.type == PlotType.Plaza || p.type == PlotType.Civic;
             if (paved) PaveRect(c, parent, p.cells);
@@ -315,6 +429,8 @@ namespace CityRise.EditorTools
                     var wall = p.type == PlotType.Civic ? c.plasters[0]
                         : (p.id % 5 < 2 ? c.bricks[p.id % c.bricks.Length] : c.plasters[p.id % c.plasters.Length]);
                     SkinBuilding(c, building, "CityCommercial", wall, c.roofTiles);
+                    var f = Plot.FacingDirection(p.facing);
+                    ShopSign(c, building.transform, parent, new Vector3(f.x, 0, f.y), p.type == PlotType.Civic ? "BELEDİYE" : SignFor(p.occupantId));
                     if (p.type == PlotType.Civic)
                     {
                         PlanterRow(c, parent, p, 4);
@@ -472,32 +588,42 @@ namespace CityRise.EditorTools
             }
         }
 
-        static void ForSaleSign(Ctx c, Transform parent, Plot p)
+        /// <summary>SATILIK tabelası şablonu (oyun sırasında yeni açılan arsalarda da kullanılır).</summary>
+        static GameObject MakeSignTemplate(Ctx c)
         {
-            float half = Mathf.Min(p.cells.width, p.cells.height) * c.g.cellSize * 0.5f;
-            var pos = PlotPoint(c, p, 0f, half - 1.6f);
-            var sign = new GameObject("SatilikTabela").transform;
-            sign.SetParent(parent);
-            sign.position = pos;
-            sign.rotation = Quaternion.Euler(0, YawFor(p.facing) + 180f, 0);
+            var sign = new GameObject("SatilikTabela");
             foreach (var x in new[] { -0.9f, 0.9f })
-                Box("Direk", sign, new Vector3(x, 0.9f, 0), new Vector3(0.12f, 1.8f, 0.12f), c.signPost);
-            Box("Pano", sign, new Vector3(0, 1.75f, 0.03f), new Vector3(2.4f, 1.1f, 0.06f), c.signPost);
+                Box("Direk", sign.transform, new Vector3(x, 0.9f, 0), new Vector3(0.12f, 1.8f, 0.12f), c.signPost);
+            Box("Pano", sign.transform, new Vector3(0, 1.75f, 0.03f), new Vector3(2.4f, 1.1f, 0.06f), c.signPost);
             var face = GameObject.CreatePrimitive(PrimitiveType.Quad);
             Object.DestroyImmediate(face.GetComponent<Collider>());
             face.name = "Yazi";
-            face.transform.SetParent(sign, false);
+            face.transform.SetParent(sign.transform, false);
             face.transform.localPosition = new Vector3(0, 1.75f, -0.005f);
             face.transform.localScale = new Vector3(2.3f, 1.0f, 1f);
             face.GetComponent<Renderer>().sharedMaterial = c.signBoard;
-            face.isStatic = true;
+            sign.SetActive(false);
+            return sign;
+        }
+
+        /// <summary>Satılık arsa: tabela, çiçek ve çimler "Susler" altında (bina kurulunca kaldırılır), kaldırım ağaçları kalır.</summary>
+        static void ForSaleSign(Ctx c, Transform parent, Plot p)
+        {
+            if (c.signTemplate == null) c.signTemplate = MakeSignTemplate(c);
+            var decor = Group(parent, "Susler");
+            float half = Mathf.Min(p.cells.width, p.cells.height) * c.g.cellSize * 0.5f;
+            var sign = Object.Instantiate(c.signTemplate, decor);
+            sign.name = "SatilikTabela";
+            sign.SetActive(true);
+            sign.transform.SetPositionAndRotation(PlotPoint(c, p, 0f, half - 1.6f), Quaternion.Euler(0, Plot.FacingYaw(p.facing), 0));
+            foreach (var t in sign.GetComponentsInChildren<Transform>()) t.gameObject.isStatic = true;
             if (p.Area > 1)
             {
                 for (int i = 0; i < 6; i++)
-                    Flower(c, parent, c.g.RectCenter(p.cells) + new Vector3(Rand(c, -half + 2, half - 2), 0, Rand(c, -half + 2, half - 2)));
+                    Flower(c, decor, c.g.RectCenter(p.cells) + new Vector3(Rand(c, -half + 2, half - 2), 0, Rand(c, -half + 2, half - 2)));
                 StreetTrees(c, parent, p, 8f);
                 for (int i = 0; i < 4; i++)
-                    GrassTuft(c, parent, c.g.RectCenter(p.cells) + new Vector3(Rand(c, -half + 2, half - 2), 0, Rand(c, -half + 2, half - 2)));
+                    GrassTuft(c, decor, c.g.RectCenter(p.cells) + new Vector3(Rand(c, -half + 2, half - 2), 0, Rand(c, -half + 2, half - 2)));
             }
         }
 
@@ -520,37 +646,49 @@ namespace CityRise.EditorTools
         }
 
         /// <summary>Açık kasabayı kilitli halkalardan ayıran alçak çit (ana caddelerde açıklık bırakılır).</summary>
+        /// <summary>
+        /// Açık alanı kilitli halkalardan ayıran alçak çit (ana caddelerde açıklık bırakılır).
+        /// Her aşama için ayrı çit; o aşamada açık alanın sınırında durur.
+        /// </summary>
         static void BuildBoundaryFence(Ctx c)
         {
-            var parent = Group(c.root, "SinirCiti");
+            var root = Group(c.root, "SinirCiti");
             float cs = c.g.cellSize;
-            var r = c.openArea;
-            float minX = r.xMin * cs - 1.2f, maxX = r.xMax * cs + 1.2f;
-            float minZ = r.yMin * cs - 1.2f, maxZ = r.yMax * cs + 1.2f;
             float step = 0.48f * CityScale;
-            void Line(Vector3 a, Vector3 b, float yaw)
+            foreach (var stage in Stages)
             {
-                float len = Vector3.Distance(a, b);
-                int n = Mathf.FloorToInt(len / step);
-                for (int i = 0; i < n; i++)
+                int ring = CityEconomy.MaxRingFor(stage);
+                if (ring >= c.g.radiusBlocks) continue;
+                var parent = Group(root, "Cit_" + stage);
+                Gate(parent.gameObject, stage, stage);
+                var r = OpenArea(c.g, ring);
+                var roads = RoadSet(c, stage);
+                float minX = r.xMin * cs - 1.2f, maxX = r.xMax * cs + 1.2f;
+                float minZ = r.yMin * cs - 1.2f, maxZ = r.yMax * cs + 1.2f;
+                void Line(Vector3 a, Vector3 b, float yaw)
                 {
-                    var pos = Vector3.Lerp(a, b, (i + 0.5f) / n);
-                    var cell = c.g.WorldToCell(pos);
-                    bool nearRoad = false;
-                    for (int dx = -1; dx <= 1 && !nearRoad; dx++)
-                    for (int dy = -1; dy <= 1 && !nearRoad; dy++)
+                    float len = Vector3.Distance(a, b);
+                    int n = Mathf.FloorToInt(len / step);
+                    for (int i = 0; i < n; i++)
                     {
-                        var n2 = cell + new Vector2Int(dx, dy);
-                        if (!c.openArea.Contains(n2) && c.drawnRoads.Contains(n2)) nearRoad = true;
+                        var pos = Vector3.Lerp(a, b, (i + 0.5f) / n);
+                        var cell = c.g.WorldToCell(pos);
+                        bool nearRoad = false;
+                        for (int dx = -1; dx <= 1 && !nearRoad; dx++)
+                        for (int dy = -1; dy <= 1 && !nearRoad; dy++)
+                        {
+                            var n2 = cell + new Vector2Int(dx, dy);
+                            if (!r.Contains(n2) && roads.Contains(n2)) nearRoad = true;
+                        }
+                        if (nearRoad) continue;
+                        Spawn(c, $"{KenneyDir}/CitySuburban/fence.fbx", parent, pos, yaw, CityScale);
                     }
-                    if (nearRoad) continue;
-                    Spawn(c, $"{KenneyDir}/CitySuburban/fence.fbx", parent, pos, yaw, CityScale);
                 }
+                Line(new Vector3(minX, 0, minZ), new Vector3(maxX, 0, minZ), 0f);
+                Line(new Vector3(minX, 0, maxZ), new Vector3(maxX, 0, maxZ), 0f);
+                Line(new Vector3(minX, 0, minZ), new Vector3(minX, 0, maxZ), 90f);
+                Line(new Vector3(maxX, 0, minZ), new Vector3(maxX, 0, maxZ), 90f);
             }
-            Line(new Vector3(minX, 0, minZ), new Vector3(maxX, 0, minZ), 0f);
-            Line(new Vector3(minX, 0, maxZ), new Vector3(maxX, 0, maxZ), 0f);
-            Line(new Vector3(minX, 0, minZ), new Vector3(minX, 0, maxZ), 90f);
-            Line(new Vector3(maxX, 0, minZ), new Vector3(maxX, 0, maxZ), 90f);
         }
 
         // ---------------------------------------------------------------- Sokak lambaları
@@ -673,6 +811,7 @@ namespace CityRise.EditorTools
         static void BuildWilderness(Ctx c)
         {
             var parent = Group(c.nature, "KilitliHalkalar");
+            c.wilderness = parent;
             var b = c.g.Bounds;
             float cs = c.g.cellSize;
             var area = new Rect(b.xMin * cs, b.yMin * cs, b.width * cs, b.height * cs);
@@ -819,7 +958,7 @@ namespace CityRise.EditorTools
             for (int dy = -1; dy <= 1; dy++)
             {
                 var n = cell + new Vector2Int(dx, dy);
-                if (!c.drawnRoads.Contains(n)) continue;
+                if (!c.allRoads.Contains(n)) continue;
                 var r = CellRect(c.g, n, 2.5f);
                 if (r.Contains(p)) return true;
             }
@@ -885,6 +1024,7 @@ namespace CityRise.EditorTools
             data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             data.antialiasingQuality = AntialiasingQuality.High;
             var ctrl = rig.AddComponent<CityCameraController>();
+            c.cameraCtrl = ctrl;
             ctrl.cam = cam;
             ctrl.minDistance = 30f;
             ctrl.maxDistance = 220f;
@@ -1482,6 +1622,161 @@ namespace CityRise.EditorTools
                 imp.SaveAndReimport();
             }
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        // ---------------------------------------------------------------- Oyun bağlantısı
+
+        /// <summary>
+        /// Satın alınabilir her işletme için sahnede gizli bir bina şablonu (zemin + bina + tabela) ve
+        /// SATILIK tabelası şablonu kurar; oyun yöneticisini bunlara bağlar.
+        /// </summary>
+        static void BuildGame(Ctx c, CityTown town)
+        {
+            var templatesRoot = Group(c.root, "Sablonlar");
+            var gm = new GameObject("Oyun").AddComponent<GameManager>();
+            gm.layoutAsset = c.layout;
+            gm.config = c.config;
+            gm.catalog = c.catalog;
+            gm.town = town;
+            gm.cameraController = c.cameraCtrl;
+            gm.plotsRoot = c.plots;
+            gm.wildernessRoot = c.wilderness;
+            if (c.signTemplate == null) c.signTemplate = MakeSignTemplate(c);
+            gm.forSaleSignTemplate = c.signTemplate;
+            c.signTemplate.transform.SetParent(templatesRoot, true);
+
+            foreach (var def in c.catalog.Sorted())
+            {
+                var root = new GameObject("Sablon_" + def.id);
+                root.transform.SetParent(templatesRoot, false);
+
+                // Zemin 1×1 m; oyun sırasında arsanın boyutuna ölçeklenir.
+                var ground = Group(root.transform, "Zemin");
+                Box("ParkeAlti", ground, new Vector3(0, 0.075f, 0), new Vector3(1f, 0.15f, 1f), c.stone);
+                var pave = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Object.DestroyImmediate(pave.GetComponent<Collider>());
+                pave.name = "Parke";
+                pave.transform.SetParent(ground, false);
+                pave.transform.localPosition = new Vector3(0, 0.155f, 0);
+                pave.transform.localRotation = Quaternion.Euler(90f, 0, 0);
+                pave.GetComponent<Renderer>().sharedMaterial = c.paving;
+
+                // Bina önü +Z'ye baksın (oyunda arsanın yönüne çevrilir).
+                var building = Spawn(c, StylePath(def.styleId), root.transform, Vector3.zero, 180f, CityScale * (def.footprint.x > 1 ? 1.15f : 1f));
+                building.name = "Bina";
+                int hash = Mathf.Abs(def.id.GetHashCode());
+                var wall = BrickFor(def.id) ? c.bricks[hash % c.bricks.Length] : c.plasters[hash % c.plasters.Length];
+                SkinBuilding(c, building, "CityCommercial", wall, c.roofTiles);
+                ShopSign(c, building.transform, root.transform, Vector3.forward, def.signText);
+                foreach (var t in root.GetComponentsInChildren<Transform>(true)) t.gameObject.isStatic = false;
+                root.SetActive(false);
+                gm.templates.Add(new GameManager.BusinessTemplate { businessId = def.id, template = root });
+            }
+            templatesRoot.gameObject.SetActive(true);
+        }
+
+        /// <summary>Binanın ön yüzüne, kapının üstüne isim tabelası.</summary>
+        static void ShopSign(Ctx c, Transform building, Transform parent, Vector3 front, string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            var bounds = new Bounds(building.position, Vector3.zero);
+            foreach (var r in building.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(r.bounds);
+            float depth = Mathf.Abs(Vector3.Dot(bounds.extents, new Vector3(Mathf.Abs(front.x), 0, Mathf.Abs(front.z))));
+            var center = new Vector3(bounds.center.x, 0, bounds.center.z) + front * (depth + 0.12f) + Vector3.up * 3.3f;
+            var sign = new GameObject("Tabela").transform;
+            sign.SetParent(parent, false);
+            sign.position = center;
+            sign.rotation = Quaternion.LookRotation(-front);
+            float width = Mathf.Clamp(text.Length * 0.42f + 0.8f, 2.4f, 5.2f);
+            Box("Cerceve", sign, new Vector3(0, 0, 0.04f), new Vector3(width + 0.2f, 1.05f, 0.08f), c.signPost);
+            var face = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Object.DestroyImmediate(face.GetComponent<Collider>());
+            face.name = "Yazi";
+            face.transform.SetParent(sign, false);
+            face.transform.localPosition = new Vector3(0, 0, -0.005f);
+            face.transform.localScale = new Vector3(width, 0.85f, 1f);
+            face.GetComponent<Renderer>().sharedMaterial = SignMaterial(c, text, width / 0.85f);
+        }
+
+        /// <summary>Tabela malzemesi: yazı kamerayla dokuya çekilir (yazı tipi her yerde aynı görünür).</summary>
+        static Material SignMaterial(Ctx c, string text, float aspect)
+        {
+            if (c.signMats.TryGetValue(text, out var cached)) return cached;
+            string key = Mathf.Abs(text.GetHashCode()).ToString();
+            string path = $"{GeneratedDir}/Tabelalar/Tabela_{key}.png";
+            if (!File.Exists(FullPath(path)))
+            {
+                EnsureFolder($"{GeneratedDir}/Tabelalar");
+                int h = 128, w = Mathf.Clamp(Mathf.RoundToInt(h * aspect / 4f) * 4, 256, 1024);
+                var bg = new Color(0.12f, 0.2f, 0.32f);
+                var px = RenderText(text, w, h, bg, new Color(1f, 0.93f, 0.75f));
+                var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+                tex.SetPixels(px);
+                tex.Apply();
+                File.WriteAllBytes(FullPath(path), tex.EncodeToPNG());
+                Object.DestroyImmediate(tex);
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            }
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            var mat = SimpleMat("Tabela_" + key, Color.white, 0.3f, m => m.SetTexture("_BaseMap", texture));
+            c.signMats[text] = mat;
+            return mat;
+        }
+
+        static Color[] RenderText(string text, int w, int h, Color bg, Color fg)
+        {
+            var far = new Vector3(-9000f, 0f, -9000f);
+            var go = new GameObject("TabelaYazisi");
+            go.transform.position = far;
+            var tm = go.AddComponent<TextMesh>();
+            tm.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            tm.fontSize = 120;
+            tm.characterSize = 0.05f;
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.alignment = TextAlignment.Center;
+            tm.fontStyle = FontStyle.Bold;
+            tm.color = fg;
+            tm.text = text;
+            var mr = go.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = tm.font.material;
+            var b = mr.bounds;
+
+            var camGo = new GameObject("TabelaKamera");
+            var cam = camGo.AddComponent<Camera>();
+            cam.orthographic = true;
+            cam.aspect = w / (float)h;
+            cam.orthographicSize = Mathf.Max(b.extents.y * 1.35f, b.extents.x * 1.12f / cam.aspect);
+            cam.transform.position = b.center - Vector3.forward * 10f;
+            cam.transform.rotation = Quaternion.identity;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = bg;
+            cam.nearClipPlane = 1f;
+            cam.farClipPlane = 50f;
+            var data = camGo.AddComponent<UniversalAdditionalCameraData>();
+            data.renderPostProcessing = false;
+
+            var rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
+            var req = new RenderPipeline.StandardRequest { destination = rt };
+            if (RenderPipeline.SupportsRenderRequest(cam, req)) RenderPipeline.SubmitRenderRequest(cam, req);
+            else { cam.targetTexture = rt; cam.Render(); cam.targetTexture = null; }
+            var prev = RenderTexture.active;
+            RenderTexture.active = rt;
+            var read = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            read.ReadPixels(new Rect(0, 0, w, h), 0, 0);
+            read.Apply();
+            RenderTexture.active = prev;
+            rt.Release();
+            var px = read.GetPixels();
+            Object.DestroyImmediate(read);
+            Object.DestroyImmediate(camGo);
+            Object.DestroyImmediate(go);
+
+            // Kenarda ince çerçeve.
+            var frame = new Color(0.85f, 0.72f, 0.35f);
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (x < 5 || y < 5 || x >= w - 5 || y >= h - 5) px[y * w + x] = frame;
+            return px;
         }
 
         // ---------------------------------------------------------------- Bina yüzeyleri

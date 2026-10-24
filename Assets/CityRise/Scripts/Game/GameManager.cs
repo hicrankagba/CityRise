@@ -1,0 +1,287 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using CityRise.CameraRig;
+using CityRise.City;
+using CityRise.Core;
+using CityRise.Progression;
+using UnityEngine;
+using UnityEngine.EventSystems;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
+namespace CityRise.Game
+{
+    /// <summary>
+    /// Oyunu sahneye bağlar: kaydı yükler, kuralları (CityEconomy) çalıştırır, dokunmaları arsalara çevirir,
+    /// kurulan işletmeleri sahnede gösterir, aşama değişince yeni halkayı açar ve düzenli kaydeder.
+    /// Sahnedeki referansları TownBuilder doldurur.
+    /// </summary>
+    public class GameManager : MonoBehaviour
+    {
+        [Serializable]
+        public class BusinessTemplate
+        {
+            public string businessId;
+            public GameObject template;
+        }
+
+        [Header("Veri")]
+        public CityLayout layoutAsset;
+        public ProgressionConfig config;
+        public BusinessCatalog catalog;
+
+        [Header("Sahne")]
+        public CityTown town;
+        public CityCameraController cameraController;
+        public Transform plotsRoot;
+        public Transform wildernessRoot;
+        public GameObject forSaleSignTemplate;
+        public List<BusinessTemplate> templates = new List<BusinessTemplate>();
+
+        public CityEconomy Economy { get; private set; }
+        public PlayerProfile Profile => Economy.profile;
+        public static GameManager Instance { get; private set; }
+
+        readonly Dictionary<int, PlotView> views = new Dictionary<int, PlotView>();
+        GameHud hud;
+        float saveTimer;
+        Vector2 pressPos;
+        float pressTime;
+        bool pressOverUI;
+
+        void Awake()
+        {
+            Instance = this;
+            if (config == null) config = ProgressionConfig.CreateDefault();
+            var layout = Instantiate(layoutAsset); // Oyun sırasında asıl düzen dosyası değişmesin.
+            town.layout = layout;
+
+            var profile = PlayerProfile.LoadOrNew(config);
+            Economy = new CityEconomy(profile, config, catalog, layout);
+            Economy.Restore();
+            town.stage = profile.stage;
+
+            foreach (var v in plotsRoot.GetComponentsInChildren<PlotView>(true)) views[v.plotId] = v;
+            ApplyStage(profile.stage, null);
+            foreach (var owned in profile.businesses) ShowBusiness(layout.FindPlot(owned.plotId), owned, animate: false);
+
+            Economy.BusinessBuilt += (plot, owned) => ShowBusiness(plot, owned, animate: true);
+            Economy.BusinessUpgraded += (plot, owned) => { if (views.TryGetValue(plot.id, out var v) && v.building) StartCoroutine(Bounce(v.building.transform, 0.35f)); };
+            Economy.StageUnlocked += (stage, blocks) => { town.stage = stage; ApplyStage(stage, blocks); };
+
+            hud = gameObject.AddComponent<GameHud>();
+            hud.Init(this);
+
+            double hoursAway = (DateTime.UtcNow - new DateTime(profile.lastSaveUtcTicks, DateTimeKind.Utc)).TotalHours;
+            if (profile.businesses.Count > 0 && hoursAway > 0.02)
+            {
+                double earned = Economy.ApplyOffline(hoursAway);
+                if (earned >= 1) hud.ShowWelcome(earned);
+            }
+        }
+
+        void Update()
+        {
+            Economy.Tick(Time.deltaTime);
+            HandlePointer();
+            saveTimer += Time.deltaTime;
+            if (saveTimer > 15f) Save();
+        }
+
+        void OnApplicationPause(bool paused) { if (paused) Save(); }
+        void OnApplicationQuit() => Save();
+        void OnDestroy() { if (Instance == this) Instance = null; }
+
+        public void Save()
+        {
+            saveTimer = 0;
+            Economy?.profile.Save();
+        }
+
+        // ------------------------------------------------------------ Dokunma
+
+        void HandlePointer()
+        {
+#if ENABLE_INPUT_SYSTEM
+            var pointer = Pointer.current;
+            if (pointer == null) return;
+            var pos = pointer.position.ReadValue();
+            if (pointer.press.wasPressedThisFrame)
+            {
+                pressPos = pos;
+                pressTime = Time.unscaledTime;
+                pressOverUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            }
+            if (pointer.press.wasReleasedThisFrame && !pressOverUI)
+            {
+                bool tap = Vector2.Distance(pos, pressPos) < Screen.height * 0.02f && Time.unscaledTime - pressTime < 0.5f;
+                if (tap && !hud.IsModalOpen) OnTap(pos);
+            }
+#endif
+        }
+
+        void OnTap(Vector2 screenPos)
+        {
+            var cam = cameraController != null ? cameraController.cam : Camera.main;
+            var ray = cam.ScreenPointToRay(screenPos);
+            if (!new Plane(Vector3.up, Vector3.zero).Raycast(ray, out float enter)) return;
+            var plot = town.PlotAt(ray.GetPoint(enter));
+            if (plot == null) return;
+            OnPlotTapped(plot);
+        }
+
+        public void OnPlotTapped(Plot plot)
+        {
+            var owned = Profile.Find(plot.id);
+            if (owned != null)
+            {
+                if (owned.stored >= 1) Economy.Collect(plot.id);
+                else hud.ShowBusinessPanel(plot, owned);
+                return;
+            }
+            switch (plot.type)
+            {
+                case PlotType.ForSale:
+                    if (Economy.IsOpen(plot)) hud.ShowBuyPanel(plot);
+                    else hud.Toast(Loc.T("plot.locked", Loc.Stage(plot.unlockStage), config.LevelForStage(plot.unlockStage)));
+                    break;
+                case PlotType.Locked:
+                    hud.Toast(Loc.T("plot.locked", Loc.Stage(plot.unlockStage), config.LevelForStage(plot.unlockStage)));
+                    break;
+                case PlotType.Business:
+                    hud.Toast(Loc.T("plot.neighbor", Loc.T("business." + plot.occupantId)));
+                    break;
+                case PlotType.House: hud.Toast(Loc.T("plot.house")); break;
+                case PlotType.Park: hud.Toast(Loc.T("plot.park")); break;
+                case PlotType.Plaza: hud.Toast(Loc.T("plot.plaza")); break;
+                case PlotType.Civic: hud.Toast(Loc.T("plot.civic")); break;
+            }
+        }
+
+        // ------------------------------------------------------------ Sahne
+
+        /// <summary>Aşamaya göre yolları, çitleri, zemini gösterir; açılan blokların doğasını temizler.</summary>
+        void ApplyStage(CityStage stage, List<Vector2Int> newBlocks)
+        {
+            foreach (var g in FindObjectsByType<StageGated>(FindObjectsInactive.Include)) g.Apply(stage);
+
+            var grid = town.Grid;
+            int maxRing = CityEconomy.MaxRingFor(stage);
+            if (wildernessRoot != null)
+            {
+                foreach (Transform t in wildernessRoot)
+                {
+                    var block = grid.BlockOf(grid.WorldToCell(t.position));
+                    if (CityGrid.Ring(block) <= maxRing) t.gameObject.SetActive(false);
+                }
+            }
+
+            // Yeni açılan arsalar için sahne nesnesi ve SATILIK tabelası.
+            foreach (var plot in town.layout.plots)
+            {
+                if (plot.type != PlotType.ForSale || views.ContainsKey(plot.id)) continue;
+                var go = new GameObject($"Arsa_{plot.id}_{plot.type}");
+                go.transform.SetParent(plotsRoot, false);
+                var view = go.AddComponent<PlotView>();
+                view.plotId = plot.id;
+                views[plot.id] = view;
+                if (forSaleSignTemplate != null)
+                {
+                    var decor = new GameObject("Susler").transform;
+                    decor.SetParent(go.transform, false);
+                    var sign = Instantiate(forSaleSignTemplate, decor);
+                    sign.SetActive(true);
+                    sign.transform.SetPositionAndRotation(SignPosition(plot), Quaternion.Euler(0, Plot.FacingYaw(plot.facing), 0));
+                }
+            }
+
+            if (cameraController != null)
+            {
+                float reach = (grid.BlockRect(new Vector2Int(maxRing, maxRing)).xMax + 6) * grid.cellSize;
+                cameraController.boundsMin = new Vector2(-reach, -reach);
+                cameraController.boundsMax = new Vector2(reach, reach);
+            }
+        }
+
+        Vector3 SignPosition(Plot plot)
+        {
+            var g = town.Grid;
+            float half = Mathf.Min(plot.cells.width, plot.cells.height) * g.cellSize * 0.5f;
+            var f = Plot.FacingDirection(plot.facing);
+            return g.RectCenter(plot.cells) + new Vector3(f.x, 0, f.y) * (half - 1.6f);
+        }
+
+        void ShowBusiness(Plot plot, OwnedBusiness owned, bool animate)
+        {
+            if (plot == null) return;
+            var template = templates.Find(t => t.businessId == owned.businessId)?.template;
+            if (template == null)
+            {
+                Debug.LogWarning($"CityRise: '{owned.businessId}' için bina şablonu yok. Kasabayı menüden yeniden kurun.");
+                return;
+            }
+            if (!views.TryGetValue(plot.id, out var view))
+            {
+                var go = new GameObject($"Arsa_{plot.id}");
+                go.transform.SetParent(plotsRoot, false);
+                view = go.AddComponent<PlotView>();
+                view.plotId = plot.id;
+                views[plot.id] = view;
+            }
+            view.ClearDecor();
+            var g = town.Grid;
+            var b = Instantiate(template, view.transform);
+            b.name = owned.businessId;
+            b.SetActive(true);
+            b.transform.SetPositionAndRotation(g.RectCenter(plot.cells), Quaternion.Euler(0, Plot.FacingYaw(plot.facing), 0));
+            var ground = b.transform.Find("Zemin");
+            // Parke yalnızca binanın kapladığı alanda; büyük arsanın geri kalanı çimen kalır.
+            var fp = catalog.Find(owned.businessId)?.footprint ?? Vector2Int.one;
+            if (ground != null) ground.localScale = new Vector3(Mathf.Min(fp.x, plot.cells.width) * g.cellSize, 1f, Mathf.Min(fp.y, plot.cells.height) * g.cellSize);
+            view.building = b;
+            if (animate) StartCoroutine(Construct(b.transform.Find("Bina") ?? b.transform));
+        }
+
+        /// <summary>Basit inşaat animasyonu: bina yerden yükselir ve hafifçe sekerek yerine oturur.</summary>
+        IEnumerator Construct(Transform t)
+        {
+            var target = t.localScale;
+            float d = 1.1f;
+            for (float time = 0; time < d; time += Time.deltaTime)
+            {
+                float k = time / d;
+                float y = 1f + 2.2f * Mathf.Pow(k - 1f, 3) + 1.2f * Mathf.Pow(k - 1f, 2);
+                t.localScale = new Vector3(target.x * Mathf.Min(1f, 0.6f + k), target.y * Mathf.Max(0.02f, y), target.z * Mathf.Min(1f, 0.6f + k));
+                yield return null;
+            }
+            t.localScale = target;
+        }
+
+        IEnumerator Bounce(Transform t, float duration)
+        {
+            var baseScale = t.localScale;
+            for (float time = 0; time < duration; time += Time.deltaTime)
+            {
+                float s = 1f + 0.08f * Mathf.Sin(time / duration * Mathf.PI);
+                t.localScale = baseScale * s;
+                yield return null;
+            }
+            t.localScale = baseScale;
+        }
+
+        /// <summary>Bir işletmenin ekrandaki para simgesinin dünya konumu (binanın üstü).</summary>
+        public Vector3 CoinAnchor(Plot plot)
+        {
+            var g = town.Grid;
+            return g.RectCenter(plot.cells) + Vector3.up * 13f;
+        }
+
+        public Camera ActiveCamera => cameraController != null ? cameraController.cam : Camera.main;
+
+        /// <summary>Geliştirme için: kaydı silip oyunu baştan başlatır.</summary>
+        [ContextMenu("Kaydı Sil")]
+        public void ResetSave() => PlayerProfile.Delete();
+    }
+}

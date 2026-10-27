@@ -1700,6 +1700,8 @@ namespace CityRise.EditorTools
             AddFolder("Food", "food/", 0.45f);
             AddFolder("Furniture", "furn/", 0.22f);
             AddFolder("Cars", "car/", 1.15f);
+            foreach (var kv in PolyHavenModels.Ensure())
+                lib.models.Add(new CityRise.Interior.InteriorLibrary.Entry { key = "ph/" + kv.Key, prefab = kv.Value, scale = 1f });
 
             var tileTex = LoadTexture($"{PolyHavenDir}/Textures/floor_tiles_06_diff_1k.jpg", false);
             var tileNor = LoadTexture($"{PolyHavenDir}/Textures/floor_tiles_06_nor_gl_1k.jpg", true);

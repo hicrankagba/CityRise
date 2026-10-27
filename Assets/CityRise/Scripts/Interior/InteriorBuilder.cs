@@ -115,7 +115,7 @@ namespace CityRise.Interior
                 return holder.gameObject;
             }
             if (y < 0.3f) furniture.Add(go);
-            if (key == "mm/cash-register" && registerSpot == null) registerSpot = new Vector3(x, 0, z);
+
             return go;
         }
 
@@ -299,74 +299,172 @@ namespace CityRise.Interior
             }
         }
 
-        /// <summary>Teşhir tezgahının üstüne karışık meyve-sebze.</summary>
+        // ------------------------------------------------------------ Gerçekçi eşya yardımcıları (Poly Haven, CC0)
+
+        static readonly string[] Fruits = { "ph/food_apple_01", "ph/food_pears_asian_01", "ph/lemon", "ph/food_lime_01", "ph/food_pomegranate_01", "ph/food_kiwi_01", "ph/food_avocado_01" };
+        static readonly string[] Vegetables = { "ph/yellow_onion", "ph/sweet_potato", "ph/food_avocado_01", "ph/lemon" };
+        static readonly string[] Breads = { "ph/croissant", "ph/hamburger_buns", "ph/carrot_cake" };
+        static readonly string[] Groceries = { "ph/long_life_food", "ph/russian_food_cans_01", "ph/multi_cleaner_bottle", "ph/plastic_bottle_gallon", "ph/jug_01", "ph/cardboard_box_01" };
+        static readonly string[] Pharmacy = { "ph/medical_box", "ph/multi_cleaner_bottle", "ph/russian_food_cans_01" };
+        static readonly string[] Meats = { "food/meat-raw", "food/meat-ribs", "food/meat-sausage", "food/whole-ham" };
+
+        /// <summary>Raf katlarını bulur (yukarıdan aşağı ışın) ve her kata ürünleri dizer.</summary>
+        void FillShelf(GameObject shelf, string[] items, float fill = 0.8f)
+        {
+            if (shelf == null) return;
+            var rs = shelf.GetComponentsInChildren<Renderer>();
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            var right = shelf.transform.right;
+            var fwd = shelf.transform.forward;
+            float halfW = Mathf.Abs(Vector3.Dot(b.extents, new Vector3(Mathf.Abs(right.x), 0, Mathf.Abs(right.z)))) - 0.08f;
+            // Raf katları: yukarı bakan yüzeylerin yükseklikleri (ağ köşelerinden, fizik gerektirmez).
+            var counts = new Dictionary<int, int>();
+            foreach (var mf in shelf.GetComponentsInChildren<MeshFilter>())
+            {
+                var mesh = mf.sharedMesh;
+                if (mesh == null || !mesh.isReadable) continue;
+                var v = mesh.vertices;
+                var n = mesh.normals;
+                var m = mf.transform.localToWorldMatrix;
+                for (int i = 0; i < v.Length && i < n.Length; i++)
+                {
+                    if (m.MultiplyVector(n[i]).normalized.y < 0.95f) continue;
+                    var wp = m.MultiplyPoint3x4(v[i]);
+                    int key = Mathf.RoundToInt(wp.y * 20f);
+                    counts[key] = counts.TryGetValue(key, out var c) ? c + 1 : 1;
+                }
+            }
+            var levels = new List<float>();
+            foreach (var kv in counts)
+            {
+                float y = kv.Key / 20f;
+                if (kv.Value >= 4 && y < b.max.y - 0.15f && y > root.position.y + 0.03f) levels.Add(y);
+            }
+            levels.Sort();
+            float prev = -10f;
+            foreach (float y in levels)
+            {
+                if (y - prev < 0.18f) continue;
+                prev = y;
+                for (float t = -halfW + 0.08f; t < halfW - 0.05f; t += 0f)
+                {
+                    if (rng.NextDouble() > fill) { t += 0.15f; continue; }
+                    var key = items[rng.Next(items.Length)];
+                    var e = lib.Get(key);
+                    if (e == null) break;
+                    var p = new Vector3(b.center.x, y, b.center.z) + right * t + fwd * R(-0.05f, 0.05f);
+                    var lp = root.InverseTransformPoint(p);
+                    var item = Place(key, lp.x, lp.z, -fwd, lp.y);
+                    float w = ItemWidth(item);
+                    if (t + w > halfW) { Object.Destroy(item); break; }
+                    item.transform.position += right * (w * 0.5f);
+                    t += w + 0.02f;
+                }
+            }
+        }
+
+        static float ItemWidth(GameObject go)
+        {
+            if (go == null) return 0.2f;
+            var rs = go.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return 0.2f;
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            return Mathf.Max(0.05f, Mathf.Max(b.size.x, b.size.z) * 0.8f);
+        }
+
+        /// <summary>Kasa içi yığın: tepede gerçek meyveler, altı meyve dokulu dolgu (az üçgenle dolu görünüm).</summary>
+        void ProduceCrate(float x, float z, float baseY, string fruit, Vector3 facing)
+        {
+            var crate = Place("ph/plastic_crate_02", x, z, facing, baseY);
+            if (crate == null) return;
+            var e = lib.Get(fruit);
+            float top = baseY + 0.2f;
+            if (e != null)
+            {
+                var src = e.prefab.GetComponentInChildren<Renderer>();
+                if (src != null)
+                {
+                    var fill = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Object.Destroy(fill.GetComponent<Collider>());
+                    fill.name = "Yigin";
+                    fill.transform.SetParent(crate.transform, false);
+                    fill.transform.localPosition = new Vector3(0, 0.1f, 0);
+                    fill.transform.localScale = new Vector3(0.46f, 0.18f, 0.36f);
+                    var m = new Material(src.sharedMaterial);
+                    m.SetTextureScale("_BaseMap", new Vector2(4f, 3f));
+                    fill.GetComponent<Renderer>().sharedMaterial = m;
+                }
+                var right = Vector3.Cross(Vector3.up, facing).normalized;
+                for (int i = 0; i < 7; i++)
+                {
+                    var off = right * R(-0.18f, 0.18f) + facing.normalized * R(-0.13f, 0.13f);
+                    var it = Place(fruit, x + off.x, z + off.z, Quaternion.Euler(0, R(0, 360), 0) * Vector3.forward, top + R(-0.02f, 0.03f));
+                }
+            }
+        }
+
+        /// <summary>Kasa: tezgah (çelik masa) üstünde yazar kasa, arkasında çalışan.</summary>
+        void Register(float x, float z, Vector3 facingCustomer)
+        {
+            Place("ph/metal_office_desk", x, z, facingCustomer, 0f, 0.75f);
+            Place("ph/CashRegister_01", x, z + 0.05f * facingCustomer.z, facingCustomer, 0.6f);
+            Place("mm/employee", x - facingCustomer.x * 0.9f, z - facingCustomer.z * 0.9f, facingCustomer);
+            registerSpot = new Vector3(x, 0, z);
+        }
+
         void Produce(float x, float z, float topY, string[] items, int count = 7)
         {
             for (int i = 0; i < count; i++)
-                Place(items[rng.Next(items.Length)], x + R(-0.45f, 0.45f), z + R(-0.4f, 0.4f), Vector3.forward * (rng.Next(2) == 0 ? 1 : -1), topY + R(0f, 0.08f));
+                Place(items[rng.Next(items.Length)], x + R(-0.35f, 0.35f), z + R(-0.3f, 0.3f), Quaternion.Euler(0, R(0, 360), 0) * Vector3.forward, topY);
         }
 
-        void Register(float x, float z, Vector3 facingCustomer)
+        void Plants()
         {
-            Place("mm/cash-register", x, z, facingCustomer);
-            Place("mm/employee", x - facingCustomer.x * 1.2f, z - facingCustomer.z * 1.2f, facingCustomer);
+            Place("ph/planter_pot_clay", HalfW - 0.4f, -HalfD + 0.4f, Front, 0f, 1.6f);
+            Place("furn/pottedPlant", -HalfW + 0.5f, -HalfD + 0.5f, Front);
         }
-
-        static readonly string[] Fruits = { "food/apple", "food/orange", "food/banana", "food/pear", "food/lemon", "food/grapes", "food/pineapple", "food/watermelon" };
-        static readonly string[] Vegetables = { "food/tomato", "food/paprika", "food/eggplant", "food/carrot", "food/cabbage", "food/broccoli", "food/onion", "food/corn", "food/pumpkin-basic" };
-        static readonly string[] Breads = { "food/loaf", "food/loaf-round", "food/loaf-baguette", "food/croissant", "food/muffin", "food/donut" };
-        static readonly string[] Meats = { "food/meat-raw", "food/meat-ribs", "food/meat-sausage", "food/whole-ham", "food/fish" };
 
         // ------------------------------------------------------------ Düzenler
 
         void Market(int level, bool super)
         {
-            // Arka duvar boyunca soğutucu dolaplar.
-            for (float x = -HalfW + 1.2f; x < HalfW - 1.5f; x += 2.05f) Place("mm/freezers-standing", x + 1f, HalfD - 0.6f, Front);
-            // Sağ duvar boyunca raflar.
-            for (float z = -HalfD + 2.2f; z < HalfD - 1.8f; z += 1.65f) Place("mm/shelf-boxes", HalfW - 0.75f, z, Left);
-
-            // Orta reyonlar: seviye arttıkça çoğalır.
-            int rows = Mathf.Clamp(1 + level / 2 + (super ? 1 : 0), 1, super ? 5 : 3);
-            float zStart = HalfD - 2.6f;
+            // Arka duvar: içecek dolapları ve büyük raflar.
+            float x = -HalfW + 0.6f;
+            int fridges = super ? 4 : 2;
+            for (int i = 0; i < fridges; i++, x += 1.05f) Place("mm/freezers-standing", x + 0.5f, HalfD - 0.55f, Front);
+            for (; x < HalfW - 2.4f; x += 2.4f) FillShelf(Place("ph/steel_frame_shelves_03", x + 1.2f, HalfD - 0.45f, Front), Groceries);
+            // Sağ duvar: raflar.
+            for (float z = HalfD - 2.2f; z > -HalfD + 2.4f; z -= 1.2f) FillShelf(Place("ph/steel_frame_shelves_01", HalfW - 0.35f, z, Left), Groceries);
+            // Orta reyonlar (sırt sırta raf sıraları).
+            int rows = Mathf.Clamp(1 + level / 2 + (super ? 1 : 0), 1, super ? 4 : 3);
             for (int r = 0; r < rows; r++)
             {
-                float z = zStart - r * 2.5f;
-                if (z < -HalfD + 3.2f) break;
-                float xStart = -HalfW + (super ? 4.5f : 4.2f), xEnd = HalfW - 2.4f;
-                Place("mm/shelf-end", xStart - 0.6f, z, Left);
-                for (float x = xStart; x < xEnd - 0.8f; x += 1.62f) Place(r % 2 == 0 ? "mm/shelf-boxes" : "mm/shelf-bags", x + 0.8f, z, Front);
-            }
-
-            // Manav köşesi.
-            int stands = Mathf.Clamp(2 + level / 2, 2, 4) + (super ? 2 : 0);
-            for (int i = 0; i < stands; i++)
-            {
-                float x = -HalfW + 1.4f + (i % 2) * 1.5f, z = HalfD - 2.4f - (i / 2) * 1.6f;
-                Place("mm/display-fruit", x, z, Front);
-                Produce(x, z, 1.02f, i % 2 == 0 ? Fruits : Vegetables);
-            }
-            // Fırın köşesi.
-            if (level >= 2 || super)
-            {
-                Place("mm/display-bread", HalfW - 2.2f, -HalfD + 2.2f, Front);
-                Produce(HalfW - 2.2f, -HalfD + 2.2f, 1f, Breads, 5);
-            }
-            if (super)
-            {
-                for (int i = 0; i < 2; i++)
+                float z = HalfD - 2.6f - r * 2.3f;
+                if (z < -HalfD + 3f) break;
+                for (float rx = -HalfW + 4.2f; rx < HalfW - 2.6f; rx += 1.15f)
                 {
-                    Place("mm/freezer", HalfW - 4.4f - i * 1.7f, -HalfD + 2.2f, Front);
-                    Produce(HalfW - 4.4f - i * 1.7f, -HalfD + 2.2f, 0.72f, Meats, 4);
+                    FillShelf(Place("ph/steel_frame_shelves_01", rx + 0.55f, z + 0.27f, Back), Groceries);
+                    FillShelf(Place("ph/steel_frame_shelves_01", rx + 0.55f, z - 0.27f, Front), Groceries);
                 }
             }
-
-            // Kasalar ve kasiyerler.
+            // Manav köşesi: masalar üstünde meyve-sebze kasaları.
+            int tables = Mathf.Clamp(1 + level / 2, 1, 3) + (super ? 1 : 0);
+            for (int i = 0; i < tables; i++)
+            {
+                float tz = HalfD - 2.5f - i * 1.3f;
+                Place("ph/WoodenTable_01", -HalfW + 1.6f, tz, Front, 0f, 1.25f);
+                for (int k = 0; k < 3; k++) ProduceCrate(-HalfW + 1.0f + k * 0.55f, tz, 0.69f, (k + i) % 2 == 0 ? Fruits[(k + i) % Fruits.Length] : Vegetables[(k + i) % Vegetables.Length], Front);
+            }
+            if (level >= 2 || super)
+            {
+                FillShelf(Place("ph/wooden_display_shelves_01", HalfW - 2.2f, -HalfD + 1.9f, Front), Breads);
+            }
             int registers = 1 + level / 3 + (super ? 2 : 0);
-            for (int i = 0; i < registers; i++) Register(-HalfW + 1.6f + i * 1.9f, -HalfD + 1.3f, Right);
-            for (int i = 0; i < 3; i++) Place("mm/shopping-cart", -HalfW + 0.6f, -HalfD + 2.6f + i * 0.55f, Right);
-            Place("mm/shopping-basket", -HalfW + 0.6f, -HalfD + 4.4f, Front);
-            Place("furn/pottedPlant", HalfW - 0.6f, -HalfD + 0.6f, Front);
+            for (int i = 0; i < registers; i++) Register(-HalfW + 1.4f + i * 1.9f, -HalfD + 1.2f, Right);
+            for (int i = 0; i < 4; i++) Place("ph/wicker_basket_02", -HalfW + 0.4f, -HalfD + 2.6f + i * 0.3f, Front, i * 0.12f);
+            Plants();
             Customers(2 + level + (super ? 3 : 0), -HalfW + 3f, HalfW - 2f, -HalfD + 2.5f, HalfD - 2f);
         }
 
@@ -374,26 +472,26 @@ namespace CityRise.Interior
         {
             int cols = Mathf.Clamp(2 + level / 2, 2, 4);
             for (int c = 0; c < cols; c++)
-            for (int r = 0; r < 2; r++)
             {
-                float x = -HalfW + 1.8f + c * 1.6f, z = HalfD - 1.8f - r * 1.7f;
-                Place("mm/display-fruit", x, z, Front);
-                Produce(x, z, 1.02f, (c + r) % 2 == 0 ? Fruits : Vegetables, 8);
+                float tx = -HalfW + 1.6f + c * 2.0f;
+                if (tx > HalfW - 2.2f) break;
+                Place("ph/WoodenTable_01", tx, 0.3f, Front, 0f, 1.25f);
+                for (int k = 0; k < 3; k++) ProduceCrate(tx - 0.6f + k * 0.6f, 0.3f, 0.69f, (c + k) % 2 == 0 ? Fruits[(c * 3 + k) % Fruits.Length] : Vegetables[(c * 3 + k) % Vegetables.Length], Front);
             }
-            // Arka duvarda sebze kasaları.
-            for (float x = -HalfW + 0.8f; x < HalfW - 0.8f; x += 1.0f)
+            // Arka duvar: kademeli raflarda kasalar.
+            for (float x = -HalfW + 0.8f; x < HalfW - 1f; x += 1.15f)
             {
-                Place("furn/cardboardBoxOpen", x, HalfD - 0.45f, Front);
-                Produce(x, HalfD - 0.45f, 0.62f, Vegetables, 3);
+                Place("ph/wooden_display_shelves_01", x + 0.55f, HalfD - 0.3f, Front);
+                for (int s = 0; s < 2; s++) ProduceCrate(x + 0.55f, HalfD - 0.35f, 0.05f + s * 0.48f, s == 0 ? Vegetables[rng.Next(Vegetables.Length)] : Fruits[rng.Next(Fruits.Length)], Front);
             }
-            Register(HalfW - 1.6f, -HalfD + 1.4f, Left);
-            Place("mm/shopping-basket", -HalfW + 0.6f, -HalfD + 0.8f, Front);
-            Customers(1 + level, -HalfW + 1f, HalfW - 2.5f, -HalfD + 1f, 0f);
+            for (int i = 0; i < 3; i++) Place("ph/wooden_crate_02", HalfW - 0.8f, 0.6f - i * 0.65f, Left);
+            Register(HalfW - 1.6f, -HalfD + 1.3f, Left);
+            Plants();
+            Customers(1 + level, -HalfW + 1f, HalfW - 2.5f, -HalfD + 1f, -0.8f);
         }
 
         void Kasap(int level)
         {
-            // Et vitrini: soğutmalı tezgahlar.
             int counters = Mathf.Clamp(2 + level / 2, 2, 4);
             for (int i = 0; i < counters; i++)
             {
@@ -401,14 +499,12 @@ namespace CityRise.Interior
                 Place("mm/freezer", x, 0.2f, Front);
                 Produce(x, 0.2f, 0.72f, Meats, 5);
             }
-            // Arka tezgah: kesim tahtası, bıçak, asılı/duran but.
-            for (float x = -HalfW + 1f; x < HalfW - 0.8f; x += 1.0f) Place("furn/kitchenCabinet", x, HalfD - 0.55f, Front);
-            Place("food/cutting-board", -HalfW + 2f, HalfD - 0.55f, Front, 0.98f);
-            Place("food/cooking-knife-chopping", -HalfW + 2f, HalfD - 0.55f, Front, 1.02f);
-            Place("food/whole-ham", HalfW - 2f, HalfD - 0.55f, Front, 0.98f);
-            Place("food/meat-ribs", HalfW - 3f, HalfD - 0.55f, Front, 0.98f);
+            for (float x = -HalfW + 1.2f; x < HalfW - 1f; x += 2.0f) Place("ph/metal_office_desk", x + 1f, HalfD - 0.55f, Front, 0f, 0.9f);
+            Place("ph/wooden_cutting_board", -HalfW + 2.2f, HalfD - 0.55f, Front, 0.72f, 1.3f);
+            Place("food/meat-ribs", -HalfW + 2.2f, HalfD - 0.55f, Front, 0.77f);
+            Place("food/whole-ham", HalfW - 2f, HalfD - 0.55f, Front, 0.72f);
+            Place("ph/worn_metal_rack", HalfW - 0.5f, 0.2f, Left);
             Place("mm/employee", -HalfW + 2.4f, 1.6f, Front);
-            if (level >= 3) Place("furn/kitchenFridge", HalfW - 0.7f, 0.5f, Left);
             Register(HalfW - 1.8f, -HalfD + 1.3f, Left);
             Customers(1 + level / 2, -HalfW + 1f, HalfW - 3f, -HalfD + 0.8f, -1.2f);
         }
@@ -416,106 +512,81 @@ namespace CityRise.Interior
         void Firin(int level)
         {
             int displays = Mathf.Clamp(2 + level / 2, 2, 4);
-            for (int i = 0; i < displays; i++)
+            for (int i = 0; i < displays; i++) FillShelf(Place("ph/wooden_display_shelves_01", -HalfW + 1.2f + i * 1.2f, HalfD - 0.3f, Front), Breads, 0.95f);
+            FillShelf(Place("ph/painted_wooden_shelves", HalfW - 0.5f, HalfD - 0.3f, Front), Breads, 0.95f);
+            // Tezgah: sepetlerde ekmek.
+            for (int i = 0; i < 3; i++)
             {
-                float x = -HalfW + 1.5f + i * 1.6f;
-                Place("mm/display-bread", x, -0.2f, Front);
-                Produce(x, -0.2f, 1.0f, Breads, 5);
+                float x = -HalfW + 1.5f + i * 1.2f;
+                Place("ph/WoodenTable_01", x, -0.2f, Front, 0f, 0.65f);
+                Place("ph/wicker_basket_02", x, -0.2f, Front, 0.69f);
+                Produce(x, -0.2f, 0.78f, new[] { "ph/hamburger_buns", "ph/croissant" }, 3);
             }
-            // Arkada taş fırınlar ve ekmek rafları.
-            for (int i = 0; i < 2 + level / 3; i++) Place("furn/kitchenStove", -HalfW + 1f + i * 1.05f, HalfD - 0.55f, Front);
-            for (int i = 0; i < 2; i++)
-            {
-                float x = HalfW - 1.2f - i * 1.0f;
-                Place("furn/bookcaseOpenLow", x, HalfD - 0.35f, Front);
-                Produce(x, HalfD - 0.35f, 0.92f, Breads, 3);
-            }
-            Place("mm/employee", 0f, 1.4f, Front);
+            Place("mm/employee", 0f, 1.2f, Front);
             Register(HalfW - 1.6f, -HalfD + 1.3f, Left);
             Customers(1 + level / 2, -HalfW + 1f, HalfW - 3f, -HalfD + 0.8f, -1.5f);
         }
 
         void Simit(int level)
         {
-            Place("furn/kitchenBar", -0.5f, -0.4f, Front);
-            Place("furn/kitchenBarEnd", 0.5f, -0.4f, Front);
-            Place("mm/display-bread", -HalfW + 1.2f, -0.4f, Front);
-            Produce(-HalfW + 1.2f, -0.4f, 1.0f, new[] { "food/donut", "food/loaf-round", "food/croissant" }, 7);
-            Place("furn/kitchenCoffeeMachine", -0.5f, -0.4f, Front, 0.98f);
-            for (int i = 0; i < 3; i++) Place("food/cup-saucer", 0.2f + i * 0.25f, -0.4f, Front, 0.98f);
-            Place("furn/kitchenStove", HalfW - 1f, HalfD - 0.55f, Front);
-            Place("mm/employee", 0f, 0.8f, Front);
-            if (level >= 2) Place("furn/stoolBar", -0.8f, -1.4f, Back);
-            if (level >= 3) Place("furn/stoolBar", 0.3f, -1.4f, Back);
+            Place("ph/WoodenTable_01", -0.6f, -0.4f, Front, 0f, 1.1f);
+            for (int i = 0; i < 3; i++)
+            {
+                Place("ph/wicker_basket_02", -1.4f + i * 0.6f, -0.4f, Front, 0.6f);
+                Produce(-1.4f + i * 0.6f, -0.4f, 0.69f, new[] { "ph/hamburger_buns", "ph/croissant" }, 3);
+            }
+            Place("ph/CoffeeCart_01", HalfW - 1.4f, HalfD - 0.7f, Front);
+            FillShelf(Place("ph/painted_wooden_shelves", -HalfW + 0.5f, HalfD - 0.3f, Front), Breads, 0.9f);
+            Place("mm/employee", -0.4f, 0.6f, Front);
+            if (level >= 2) Place("ph/metal_stool_01", -1f, -1.4f, Back);
+            if (level >= 3) Place("ph/metal_stool_01", 0f, -1.4f, Back);
+            registerSpot = new Vector3(-0.6f, 0, -0.4f);
             Customers(1 + level / 2, -HalfW + 0.8f, HalfW - 0.8f, -HalfD + 0.6f, -1.6f);
         }
 
         void Bakkal(int level)
         {
-            for (float x = -HalfW + 1f; x < HalfW - 0.8f; x += 1.62f) Place("mm/shelf-boxes", x + 0.4f, HalfD - 0.75f, Front);
-            for (float z = -HalfD + 2f; z < HalfD - 2f; z += 1.62f) Place("mm/shelf-bags", HalfW - 0.75f, z, Left);
+            for (float x = -HalfW + 0.6f; x < HalfW - 2f; x += 2.4f) FillShelf(Place("ph/steel_frame_shelves_03", x + 1.2f, HalfD - 0.45f, Front), Groceries);
+            for (float z = HalfD - 2f; z > -HalfD + 2f; z -= 1.2f) FillShelf(Place("ph/steel_frame_shelves_01", HalfW - 0.35f, z, Left), Groceries);
             if (level >= 2)
-                for (float x = -HalfW + 2f; x < HalfW - 3f; x += 1.62f) Place("mm/shelf-boxes", x + 0.4f, 0f, Front);
-            Place("mm/freezer", -HalfW + 1.2f, -0.5f, Front);
-            Produce(-HalfW + 1.2f, -0.5f, 0.72f, new[] { "food/soda-can", "food/soda", "food/carton" }, 5);
+                for (float x = -HalfW + 2.5f; x < HalfW - 2.5f; x += 1.15f) FillShelf(Place("ph/steel_frame_shelves_01", x + 0.55f, 0f, Front), Groceries);
+            Place("mm/freezer", -HalfW + 1.2f, -0.6f, Front);
+            Produce(-HalfW + 1.2f, -0.6f, 0.72f, new[] { "ph/plastic_bottle_gallon", "ph/multi_cleaner_bottle" }, 4);
             Register(-HalfW + 1.6f, -HalfD + 1.3f, Right);
             Customers(1 + level / 2, -HalfW + 3f, HalfW - 2f, -HalfD + 1f, -0.8f);
         }
 
         void Kafe(int level)
         {
-            for (float x = -HalfW + 1f; x < HalfW - 1.5f; x += 1.0f) Place("furn/kitchenBar", x, HalfD - 0.55f, Front);
-            Place("furn/kitchenCoffeeMachine", -HalfW + 1.2f, HalfD - 0.55f, Front, 0.98f);
-            for (int i = 0; i < 4; i++) Place("food/cup-coffee", -HalfW + 2f + i * 0.35f, HalfD - 0.55f, Front, 0.98f);
-            Place("mm/display-bread", HalfW - 1.2f, HalfD - 1f, Front);
-            Produce(HalfW - 1.2f, HalfD - 1f, 1f, new[] { "food/cake", "food/cupcake", "food/croissant", "food/muffin" }, 4);
+            Place("ph/CoffeeCart_01", -HalfW + 1.4f, HalfD - 0.7f, Front);
+            Place("ph/WoodenTable_01", 0.5f, HalfD - 0.6f, Front, 0f, 1.3f);
+            Produce(0.5f, HalfD - 0.6f, 0.71f, new[] { "ph/carrot_cake", "ph/croissant" }, 4);
+            FillShelf(Place("ph/painted_wooden_shelves", HalfW - 0.5f, HalfD - 0.3f, Front), Breads, 0.9f);
             int tables = Mathf.Clamp(2 + level / 2, 2, 5);
             for (int i = 0; i < tables; i++)
             {
-                float x = -HalfW + 2f + (i % 3) * 2.6f, z = -0.4f - (i / 3) * 2.2f;
-                Place("furn/tableRound", x, z, Front);
-                Place("furn/chair", x - 0.85f, z, Right);
-                Place("furn/chair", x + 0.85f, z, Left);
-                Place("food/cup-coffee", x, z, Front, 0.82f);
+                float x = -HalfW + 1.8f + (i % 3) * 2.4f, z = -0.6f - (i / 3) * 2.0f;
+                Place("ph/round_wooden_table_02", x, z, Front);
+                Place("ph/gallinera_chair", x - 0.75f, z, Right);
+                Place("ph/gallinera_chair", x + 0.75f, z, Left);
+                Place("ph/carrot_cake", x, z, Front, 0.75f);
             }
-            Place("furn/pottedPlant", -HalfW + 0.5f, -HalfD + 0.5f, Front);
-            Place("mm/employee", 0f, HalfD - 1.5f, Front);
+            Plants();
+            Place("mm/employee", -HalfW + 2.6f, HalfD - 1.4f, Front);
+            registerSpot = new Vector3(0.5f, 0, HalfD - 1.2f);
             Customers(1 + level, -HalfW + 1f, HalfW - 1f, -HalfD + 0.8f, -HalfD + 1.6f);
         }
 
         void Eczane(int level)
         {
-            for (float x = -HalfW + 1f; x < HalfW - 0.8f; x += 1.0f) Place("furn/bookcaseOpen", x, HalfD - 0.35f, Front);
-            for (float x = -HalfW + 1f; x < HalfW - 0.8f; x += 1.0f)
-                for (int s = 0; s < 3; s++) Produce(x, HalfD - 0.35f, 0.45f + s * 0.55f, new[] { "food/carton", "food/soda-can", "food/bottle-oil" }, 2);
-            for (float x = -HalfW + 1.5f; x < HalfW - 1.5f; x += 1.0f) Place("furn/kitchenBar", x, 0.6f, Front);
-            Place("mm/cash-register", 0f, 0.6f, Front, 0.98f);
+            for (float x = -HalfW + 0.5f; x < HalfW - 1.3f; x += 1.4f) FillShelf(Place("ph/wooden_bookshelf_worn", x + 0.7f, HalfD - 0.35f, Front), Pharmacy, 0.9f);
+            for (float x = -HalfW + 1.5f; x < HalfW - 1.5f; x += 2.0f) Place("ph/metal_office_desk", x + 1f, 0.6f, Front, 0f, 0.95f);
+            Place("ph/CashRegister_01", 0f, 0.6f, Front, 0.75f);
+            registerSpot = new Vector3(0f, 0, 0.2f);
             Place("mm/employee", 0f, 1.6f, Front);
-            if (level >= 2) Place("mm/shelf-boxes", -HalfW + 0.8f, -1f, Right);
-            Place("furn/pottedPlant", HalfW - 0.5f, -HalfD + 0.5f, Front);
+            if (level >= 2) FillShelf(Place("ph/painted_wooden_shelves", -HalfW + 0.4f, -1f, Right), Pharmacy, 0.9f);
+            Plants();
             Customers(1 + level / 2, -HalfW + 1f, HalfW - 1f, -HalfD + 0.8f, -0.5f);
-        }
-
-        /// <summary>Belediye: vezne tezgahı, bekleme sandalyeleri, arkada masalı ofis ve dolaplar.</summary>
-        void Belediye(int level)
-        {
-            for (float x = -HalfW + 1f; x < HalfW - 0.8f; x += 1.0f) Place("furn/bookcaseOpen", x, HalfD - 0.35f, Front);
-            for (float x = -HalfW + 1f; x < HalfW - 0.8f; x += 1.0f)
-                for (int s = 0; s < 3; s++) Produce(x, HalfD - 0.35f, 0.45f + s * 0.55f, new[] { "furn/cardboardBoxClosed" }, 1);
-            for (int i = 0; i < 3; i++)
-            {
-                float x = -HalfW + 2f + i * 2.6f;
-                Place("furn/desk", x, HalfD - 2.2f, Front);
-                Place("furn/chairModernCushion", x, HalfD - 1.5f, Front);
-                Place("mm/employee", x, HalfD - 1.3f, Front);
-            }
-            // Vezne.
-            for (float x = -HalfW + 1.5f; x < HalfW - 2.5f; x += 1.0f) Place("furn/kitchenBar", x, 0f, Front);
-            for (int i = 0; i < 6; i++) Place("furn/chair", -HalfW + 1.4f + i * 0.85f, -HalfD + 1.2f, Back);
-            Place("furn/pottedPlant", HalfW - 0.6f, -HalfD + 0.6f, Front);
-            Place("furn/pottedPlant", -HalfW + 0.6f, HalfD - 1.4f, Front);
-            Place("furn/coatRackStanding", HalfW - 0.6f, HalfD - 1.6f, Left);
-            Customers(3, -HalfW + 1f, HalfW - 2f, -HalfD + 1.8f, -0.8f);
         }
 
         void Berber(int level)
@@ -524,15 +595,31 @@ namespace CityRise.Interior
             for (int i = 0; i < chairs; i++)
             {
                 float x = -HalfW + 1.3f + i * 1.6f;
-                Place("furn/bathroomMirror", x, HalfD - 0.1f, Front, 1.2f);
-                Place("furn/chairModernCushion", x, HalfD - 1.3f, Back);
-                if (i < chairs - 1) Place("furn/sideTableDrawers", x + 0.8f, HalfD - 0.35f, Front);
+                Place("ph/ornate_mirror_01", x, HalfD - 0.05f, Front, 1.2f, 1.2f);
+                Place("ph/BarberShopChair_01", x, HalfD - 1.4f, Back);
+                FillShelf(Place("ph/painted_wooden_shelves", x + 0.8f, HalfD - 0.25f, Front, 0f, 0.8f), new[] { "ph/multi_cleaner_bottle", "ph/jug_01" }, 0.7f);
             }
-            Place("furn/bathroomSink", HalfW - 0.6f, HalfD - 0.6f, Left);
-            Place("furn/coatRackStanding", -HalfW + 0.5f, -HalfD + 0.6f, Right);
-            for (int i = 0; i < 3; i++) Place("furn/chair", HalfW - 0.7f, -HalfD + 1f + i * 0.9f, Left);
-            Place("mm/employee", -HalfW + 2f, HalfD - 2.2f, Back);
+            for (int i = 0; i < 3; i++) Place("ph/ArmChair_01", HalfW - 0.6f, -HalfD + 1f + i * 1.0f, Left);
+            Place("mm/employee", -HalfW + 2f, HalfD - 2.4f, Back);
+            Plants();
             Customers(1 + level / 2, -HalfW + 1f, HalfW - 2f, -HalfD + 0.8f, 0f);
+        }
+
+        /// <summary>Belediye: vezne, ofis masaları, dosya rafları, bekleme koltukları.</summary>
+        void Belediye(int level)
+        {
+            for (float x = -HalfW + 0.5f; x < HalfW - 1.3f; x += 1.4f) FillShelf(Place("ph/wooden_bookshelf_worn", x + 0.7f, HalfD - 0.35f, Front), new[] { "ph/cardboard_box_01", "ph/medical_box" }, 0.7f);
+            for (int i = 0; i < 3; i++)
+            {
+                float x = -HalfW + 2f + i * 2.8f;
+                Place("ph/metal_office_desk", x, HalfD - 2.1f, Front);
+                Place("ph/SchoolChair_01", x, HalfD - 1.4f, Front);
+                Place("mm/employee", x, HalfD - 1.3f, Front);
+            }
+            for (float x = -HalfW + 1.5f; x < HalfW - 2.5f; x += 2.0f) Place("ph/metal_office_desk", x + 1f, 0f, Front, 0f, 1f);
+            for (int i = 0; i < 4; i++) Place("ph/modern_arm_chair_01", -HalfW + 1.4f + i * 1.1f, -HalfD + 1.1f, Back);
+            Plants();
+            Customers(3, -HalfW + 1f, HalfW - 2f, -HalfD + 1.8f, -0.8f);
         }
     }
 }

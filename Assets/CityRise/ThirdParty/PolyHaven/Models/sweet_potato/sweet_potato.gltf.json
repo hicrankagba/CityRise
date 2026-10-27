@@ -1,0 +1,160 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v4.0.44",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "sweet_potato"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "sweet_potato",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0,
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "sweet_potato",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "sweet_potato_nor_gl",
+      "uri": "textures/sweet_potato_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "sweet_potato_diff",
+      "uri": "textures/sweet_potato_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "sweet_potato_rough",
+      "uri": "textures/sweet_potato_arm_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1181,
+      "max": [
+        0.029791180044412613,
+        0.048377569764852524,
+        0.02981095388531685
+      ],
+      "min": [
+        -0.028333090245723724,
+        -0.05208539217710495,
+        -0.031178344041109085
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1181,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1181,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 6126,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 14172,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 14172,
+      "byteOffset": 14172,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 9448,
+      "byteOffset": 28344,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 12252,
+      "byteOffset": 37792,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 50044,
+      "uri": "sweet_potato.bin"
+    }
+  ]
+}

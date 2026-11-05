@@ -1,0 +1,180 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>15_Troubleshooting</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>Troubleshooting and FAQ</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>Troubleshooting and FAQ</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Common Issues</a></li>
+<li style='margin-left:40px'><a href='#section-2'>Vehicle doesn't move</a></li>
+<li style='margin-left:40px'><a href='#section-3'>Vehicle flips or behaves erratically</a></li>
+<li style='margin-left:40px'><a href='#section-4'>No sound</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Camera doesn't follow the vehicle</a></li>
+<li style='margin-left:40px'><a href='#section-6'>Grayed-out fields in the Inspector</a></li>
+<li style='margin-left:40px'><a href='#section-7'>Compile errors after import</a></li>
+<li style='margin-left:40px'><a href='#section-8'>Mobile controls not showing</a></li>
+<li style='margin-left:40px'><a href='#section-9'>AI vehicle not driving</a></li>
+<li style='margin-left:40px'><a href='#section-10'>Wheels floating or clipping through ground</a></li>
+<li style='margin-left:40px'><a href='#section-11'>Performance issues</a></li>
+<li style='margin-left:20px'><a href='#section-12'>FAQ</a></li>
+<li style='margin-left:40px'><a href='#section-13'>Can I ship a game with RCCP Lite?</a></li>
+<li style='margin-left:40px'><a href='#section-14'>Is there any DRM or time limit?</a></li>
+<li style='margin-left:40px'><a href='#section-15'>Can I modify the runtime scripts?</a></li>
+<li style='margin-left:40px'><a href='#section-16'>Will my project break if I upgrade to Pro?</a></li>
+<li style='margin-left:40px'><a href='#section-17'>Can I use RCCP Lite with URP (Universal Render Pipeline)?</a></li>
+<li style='margin-left:40px'><a href='#section-18'>How do I create a new vehicle?</a></li>
+<li style='margin-left:40px'><a href='#section-19'>Can I have multiple player vehicles?</a></li>
+<li style='margin-left:40px'><a href='#section-20'>Does RCCP support multiplayer?</a></li>
+<li style='margin-left:40px'><a href='#section-21'>Where are the original Pro documentation PDFs?</a></li>
+<li style='margin-left:20px'><a href='#section-22'>Support</a></li>
+<li style='margin-left:20px'><a href='#section-23'>Documentation Index</a></li>
+</ul></div>
+<h2 id='section-1'>Common Issues</h2>
+<h3 id='section-2'>Vehicle doesn't move</h3>
+<p><strong>Symptoms</strong>: Vehicle spawns but doesn't respond to input.</p>
+<p><strong>Checklist</strong>:</p>
+<ol>
+<li>Ensure the vehicle is registered as the player vehicle — check <code>RCCP_SceneManager.Instance.activePlayerVehicle</code> is not null</li>
+<li>Verify <code>canControl</code> is true on the <code>RCCP_CarController</code></li>
+<li>Verify <code>externalControl</code> is false (unless you intend AI/script control)</li>
+<li>Check that the engine is running — <code>engineRunning</code> should be true</li>
+<li>Ensure <code>RCCP_InputManager</code> exists in the scene (added automatically with Scene Managers)</li>
+<li>Check the Console for errors about missing components</li>
+</ol>
+<h3 id='section-3'>Vehicle flips or behaves erratically</h3>
+<p><strong>Symptoms</strong>: Vehicle spins, rolls over, or bounces uncontrollably.</p>
+<p><strong>Possible causes</strong>:</p>
+<ul>
+<li><strong>Center of mass too high</strong>: The default COM position may not suit your vehicle mesh. In RCCP Pro, you can adjust the COM position; in Lite, it uses default placement</li>
+<li><strong>Wheel collider position</strong>: Wheel colliders must be properly aligned with wheel models. Check that <code>RCCP_WheelCollider</code> transforms are at wheel centers</li>
+<li><strong>Scale issues</strong>: Vehicle should be at realistic scale (approximately 4m long for a sedan). Non-uniform scale on parent objects causes physics issues</li>
+<li><strong>Rigidbody mass</strong>: Verify the vehicle's Rigidbody mass is appropriate (typically 1000-2000 kg for a car)</li>
+</ul>
+<h3 id='section-4'>No sound</h3>
+<p><strong>Symptoms</strong>: Vehicle runs silently.</p>
+<p><strong>Checklist</strong>:</p>
+<ol>
+<li>Check that <code>RCCP_Audio</code> component exists and is enabled on the vehicle</li>
+<li>Verify audio clips are assigned in RCCP Settings (Resources/RCCP_Settings)</li>
+<li>Check Unity's Audio settings — ensure volume is not muted</li>
+<li>Check the AudioListener exists (usually on the camera)</li>
+<li>Verify audio sources aren't destroyed by scene load</li>
+</ol>
+<h3 id='section-5'>Camera doesn't follow the vehicle</h3>
+<p><strong>Symptoms</strong>: Camera stays in place or doesn't spawn.</p>
+<p><strong>Checklist</strong>:</p>
+<ol>
+<li>Ensure RCCP Camera is in the scene, or that a camera prefab is assigned in RCCP Settings</li>
+<li>Register the vehicle as a player vehicle — <code>RCCP.RegisterPlayerVehicle(vehicle)</code></li>
+<li>Check <code>RCCP_SceneManager.Instance.activePlayerCamera</code> is not null</li>
+<li>If the camera prefab is missing from RCCP Settings, re-assign it</li>
+</ol>
+<h3 id='section-6'>Grayed-out fields in the Inspector</h3>
+<p><strong>This is expected behavior in RCCP Lite.</strong> Advanced parameters are intentionally read-only to encourage upgrading to RCCP Pro. The grayed-out fields still function at runtime with their default values. See <a href='14_LiteVsPro.html'>14_LiteVsPro.md</a> for a complete list of what's editable vs locked.</p>
+<h3 id='section-7'>Compile errors after import</h3>
+<p><strong>Possible causes</strong>:</p>
+<ul>
+<li><strong>Unity version mismatch</strong>: RCCP Lite requires Unity 6000.0.49f1 or later. Earlier versions may have API incompatibilities</li>
+<li><strong>Missing packages</strong>: Ensure the Input System package is installed if your project uses it</li>
+<li><strong>Duplicate assemblies</strong>: If you have both RCCP Lite and RCCP Pro in the same project, remove one — they cannot coexist</li>
+</ul>
+<h3 id='section-8'>Mobile controls not showing</h3>
+<p><strong>Checklist</strong>:</p>
+<ol>
+<li>Verify <code>mobileControllerEnabled</code> is true in RCCP Settings</li>
+<li>Ensure the UI Canvas is in the scene</li>
+<li>Check that the correct platform is selected in Build Settings</li>
+<li>Mobile controls only appear when the platform is set to Android or iOS, or when forced via RCCP Settings</li>
+</ol>
+<h3 id='section-9'>AI vehicle not driving</h3>
+<p><strong>Checklist</strong>:</p>
+<ol>
+<li>Ensure <code>RCCP_AI</code> component exists on the vehicle</li>
+<li>Verify <code>externalControl</code> is true on the <code>RCCP_CarController</code></li>
+<li>Check that a waypoint container is assigned (for FollowWaypoints/RaceWaypoints modes)</li>
+<li>Ensure a NavMesh is baked in the scene (<strong>Window &gt; AI &gt; Navigation &gt; Bake</strong>)</li>
+<li>Verify the waypoints are placed on or near the NavMesh surface</li>
+</ol>
+<h3 id='section-10'>Wheels floating or clipping through ground</h3>
+<p><strong>Possible causes</strong>:</p>
+<ul>
+<li>Wheel collider radius doesn't match the visual wheel mesh size</li>
+<li>Wheel collider suspension distance is incorrect</li>
+<li>Ground layers are not properly configured in the physics layer matrix</li>
+</ul>
+<h3 id='section-11'>Performance issues</h3>
+<p><strong>Tips</strong>:</p>
+<ul>
+<li>Enable <code>multithreading</code> in RCCP Settings for async physics processing</li>
+<li>Use <code>RCCP_Lod</code> on vehicles for level-of-detail switching at distance</li>
+<li>Reduce the number of active vehicles when possible</li>
+<li>Lower skidmark quality/count via <code>RCCP_SkidmarksManager</code></li>
+<li>Disable telemetry and input debugger in RCCP Settings when not needed</li>
+</ul>
+<hr>
+<h2 id='section-12'>FAQ</h2>
+<h3 id='section-13'>Can I ship a game with RCCP Lite?</h3>
+<p>Yes. All runtime features are fully functional with no restrictions. RCCP Lite is free to use in commercial projects under the Unity Asset Store license terms. The editor locks are only visible to developers in the Unity Editor.</p>
+<h3 id='section-14'>Is there any DRM or time limit?</h3>
+<p>No. RCCP Lite has no DRM, no time limits, no watermarks, and no runtime restrictions. It complies with Unity Asset Store Section 1.4.a.</p>
+<h3 id='section-15'>Can I modify the runtime scripts?</h3>
+<p>The runtime scripts are provided as source code. You can read and understand them. Modifying them is possible but not recommended in Lite, as changes may conflict when upgrading to Pro.</p>
+<h3 id='section-16'>Will my project break if I upgrade to Pro?</h3>
+<p>No. Both Lite and Pro use the same component types, class names, and serialized field names. Upgrading is designed to be seamless — remove Lite, import Pro, and all scene references reconnect.</p>
+<h3 id='section-17'>Can I use RCCP Lite with URP (Universal Render Pipeline)?</h3>
+<p>Yes. RCCP works with both the Built-in Render Pipeline and URP. Some light and material configurations may need adjustments for URP, but the physics and gameplay systems are pipeline-independent.</p>
+<h3 id='section-18'>How do I create a new vehicle?</h3>
+<p>In RCCP Lite, the vehicle creation wizard is not available. You can:</p>
+<ol>
+<li>Duplicate the included prototype vehicle and modify its mesh/colliders</li>
+<li>Use the RCCP API to spawn and configure vehicles at runtime</li>
+<li>Upgrade to Pro for the full vehicle creation wizard</li>
+</ol>
+<h3 id='section-19'>Can I have multiple player vehicles?</h3>
+<p>Only one vehicle can be the active player vehicle at a time. However, you can switch between vehicles at runtime using <code>RCCP.RegisterPlayerVehicle(newVehicle)</code>. All vehicles remain in the scene and can be AI-controlled or idle.</p>
+<h3 id='section-20'>Does RCCP support multiplayer?</h3>
+<p>RCCP itself is a single-player vehicle physics system. For multiplayer, you would need to add a networking layer (such as Photon, Mirror, or Netcode for GameObjects) that synchronizes vehicle state. RCCP Pro documentation includes a Photon integration guide. The input override system makes it straightforward to apply network-received inputs to vehicles.</p>
+<h3 id='section-21'>Where are the original Pro documentation PDFs?</h3>
+<p>The original RCCP Pro PDF documentation is in <code>Assets/Realistic Car Controller Pro/Documentation/</code>. These docs reference the full Pro feature set and may describe features or tools not available in Lite.</p>
+<hr>
+<h2 id='section-22'>Support</h2>
+<ul>
+<li><strong>BoneCracker Games Support</strong>: <a href='https://bonecrackergames.com/bonecrackergames.com/contact'>bonecrackergames.com/contact</a></li>
+<li><strong>Upgrade to Pro</strong>: <a href='https://assetstore.unity.com/packages/tools/physics/realistic-car-controller-pro-222612'>Unity Asset Store</a></li>
+<li><strong>Unity Forums</strong>: Search for &quot;RCCP&quot; or &quot;Realistic Car Controller Pro&quot; on the Unity Forums</li>
+</ul>
+<h2 id='section-23'>Documentation Index</h2>
+<table>
+<tr><th>Document</th><th>Description</th></tr>
+<tr><td><a href='01_GettingStarted.html'>01_GettingStarted.md</a></td><td>Welcome and quick start</td></tr>
+<tr><td><a href='02_Installation.html'>02_Installation.md</a></td><td>Import and setup</td></tr>
+<tr><td><a href='03_VehicleSetup.html'>03_VehicleSetup.md</a></td><td>Vehicle architecture</td></tr>
+<tr><td><a href='04_DrivetrainComponents.html'>04_DrivetrainComponents.md</a></td><td>Engine, Gearbox, Differential, etc.</td></tr>
+<tr><td><a href='05_VehicleSystems.html'>05_VehicleSystems.md</a></td><td>Stability, Damage, Audio, etc.</td></tr>
+<tr><td><a href='06_CameraSystem.html'>06_CameraSystem.md</a></td><td>Camera modes</td></tr>
+<tr><td><a href='07_InputSystem.html'>07_InputSystem.md</a></td><td>Input handling</td></tr>
+<tr><td><a href='08_AISystem.html'>08_AISystem.md</a></td><td>AI driving</td></tr>
+<tr><td><a href='09_Customization.html'>09_Customization.md</a></td><td>Customization and upgrades</td></tr>
+<tr><td><a href='10_UISystem.html'>10_UISystem.md</a></td><td>UI system</td></tr>
+<tr><td><a href='11_SceneManagement.html'>11_SceneManagement.md</a></td><td>Vehicle spawning</td></tr>
+<tr><td><a href='12_Settings.html'>12_Settings.md</a></td><td>Global settings</td></tr>
+<tr><td><a href='13_API.html'>13_API.md</a></td><td>Scripting API</td></tr>
+<tr><td><a href='14_LiteVsPro.html'>14_LiteVsPro.md</a></td><td>Lite vs Pro comparison</td></tr>
+<tr><td><a href='15_Troubleshooting.html'>15_Troubleshooting.md</a></td><td>This guide</td></tr>
+</table>
+</div></body></html>

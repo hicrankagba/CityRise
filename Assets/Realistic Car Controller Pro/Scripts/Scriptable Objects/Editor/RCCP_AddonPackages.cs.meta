@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 2d92b409093d234409197fc4c7649d6d
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Scripts/Scriptable Objects/Editor/RCCP_AddonPackages.cs
+  uploadId: 870692

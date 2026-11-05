@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 78a4fedcfbacb6c43823129ee5e0fd58
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Editor/RCCP_WheelColliderEditor.cs
+  uploadId: 870692

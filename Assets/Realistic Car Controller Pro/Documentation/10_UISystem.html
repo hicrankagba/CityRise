@@ -1,0 +1,122 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>10_UISystem</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>UI System</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>UI System</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>UI Architecture</a></li>
+<li style='margin-left:20px'><a href='#section-3'>Dashboard</a></li>
+<li style='margin-left:40px'><a href='#section-4'>Status Indicators</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Dashboard Slider Component</a></li>
+<li style='margin-left:40px'><a href='#section-6'>In-Vehicle Dashboard</a></li>
+<li style='margin-left:20px'><a href='#section-7'>Mobile Controls</a></li>
+<li style='margin-left:40px'><a href='#section-8'>Mobile UI Components</a></li>
+<li style='margin-left:20px'><a href='#section-9'>Settings Panels</a></li>
+<li style='margin-left:40px'><a href='#section-10'>Audio Settings</a></li>
+<li style='margin-left:40px'><a href='#section-11'>Quality Settings</a></li>
+<li style='margin-left:40px'><a href='#section-12'>Behavior Presets</a></li>
+<li style='margin-left:40px'><a href='#section-13'>Transmission Selector</a></li>
+<li style='margin-left:40px'><a href='#section-14'>Mobile Controller Selector</a></li>
+<li style='margin-left:20px'><a href='#section-15'>Input Rebinding UI</a></li>
+<li style='margin-left:20px'><a href='#section-16'>Customization UI</a></li>
+<li style='margin-left:20px'><a href='#section-17'>Notification System</a></li>
+<li style='margin-left:20px'><a href='#section-18'>Vehicle Spawn UI</a></li>
+<li style='margin-left:20px'><a href='#section-19'>Scene Selection</a></li>
+<li style='margin-left:20px'><a href='#section-20'>Lite Promotion Banner</a></li>
+<li style='margin-left:20px'><a href='#section-21'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Overview</h2>
+<p>RCCP provides a complete UI system with a dashboard display, mobile controls, vehicle customization panels, settings menus, and input rebinding. The UI is managed by <code>RCCP_UIManager</code>, which is instantiated from a prefab referenced in RCCP Settings and automatically connects to the active player vehicle.</p>
+<h2 id='section-2'>UI Architecture</h2>
+<p>The UI canvas is spawned automatically when a player vehicle is registered, or can be added manually via <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; Create &gt; Add UI Canvas</strong>.</p>
+<p><code>RCCP_UIManager</code> is a singleton that tracks the active player vehicle and updates all UI elements accordingly. When the active vehicle changes, the UI automatically reconnects to the new vehicle's data.</p>
+<h2 id='section-3'>Dashboard</h2>
+<p>The dashboard displays real-time vehicle telemetry:</p>
+<table>
+<tr><th>Element</th><th>Description</th></tr>
+<tr><td>Speedometer</td><td>Animated needle showing current speed (KMH or MPH)</td></tr>
+<tr><td>Tachometer</td><td>Engine RPM gauge</td></tr>
+<tr><td>Gear Display</td><td>Current gear number (or R for reverse, N for neutral)</td></tr>
+<tr><td>Speed Text</td><td>Numeric speed readout</td></tr>
+<tr><td>RPM Text</td><td>Numeric RPM readout</td></tr>
+<tr><td>Fuel Gauge</td><td>Fuel level indicator</td></tr>
+<tr><td>NOS Gauge</td><td>Nitrous oxide level</td></tr>
+</table>
+<h3 id='section-4'>Status Indicators</h3>
+<p>The dashboard also shows active vehicle systems:</p>
+<table>
+<tr><th>Indicator</th><th>Shows When</th></tr>
+<tr><td>ABS</td><td>Anti-lock braking is engaged</td></tr>
+<tr><td>ESP</td><td>Electronic stability is active</td></tr>
+<tr><td>TCS</td><td>Traction control is active</td></tr>
+<tr><td>Headlights</td><td>Low or high beam lights are on</td></tr>
+<tr><td>Indicators</td><td>Left, right, or hazard lights active</td></tr>
+</table>
+<h3 id='section-5'>Dashboard Slider Component</h3>
+<p><code>RCCP_UI_DashboardSlider</code> drives gauge needles. It reads a float value from the vehicle (speed, RPM, etc.) and rotates or moves a UI element proportionally.</p>
+<h3 id='section-6'>In-Vehicle Dashboard</h3>
+<p><code>RCCP_Visual_Dashboard</code> provides an in-world 3D dashboard inside the vehicle cabin for first-person view. It uses world-space UI or mesh-based gauges.</p>
+<h2 id='section-7'>Mobile Controls</h2>
+<p>On mobile platforms, RCCP provides on-screen controls that correspond to the selected mobile input mode:</p>
+<table>
+<tr><th>Mode</th><th>UI Elements</th></tr>
+<tr><td>TouchScreen</td><td>Throttle, brake, steer left, steer right buttons</td></tr>
+<tr><td>Gyro</td><td>Throttle and brake buttons (steering via device tilt)</td></tr>
+<tr><td>SteeringWheel</td><td>Virtual steering wheel + throttle/brake pedals</td></tr>
+<tr><td>Joystick</td><td>Virtual joystick + throttle/brake buttons</td></tr>
+</table>
+<h3 id='section-8'>Mobile UI Components</h3>
+<table>
+<tr><th>Component</th><th>Purpose</th></tr>
+<tr><td><code>RCCP_UI_Joystick</code></td><td>Virtual joystick for steering</td></tr>
+<tr><td><code>RCCP_UI_SteeringWheelController</code></td><td>Virtual steering wheel with rotation</td></tr>
+<tr><td><code>RCCP_UI_MobileDrag</code></td><td>Touch drag handling</td></tr>
+<tr><td><code>RCCP_UI_DashboardButton</code></td><td>On-screen button interactions</td></tr>
+</table>
+<h2 id='section-9'>Settings Panels</h2>
+<h3 id='section-10'>Audio Settings</h3>
+<p><code>RCCP_UI_SetAudio</code> provides volume sliders for master, engine, and effects audio.</p>
+<h3 id='section-11'>Quality Settings</h3>
+<p><code>RCCP_UI_SetQuality</code> offers buttons or a dropdown to change Unity's quality level at runtime.</p>
+<h3 id='section-12'>Behavior Presets</h3>
+<p><code>RCCP_UI_SetBehaviorType</code> lets the player switch between driving behavior presets (e.g., normal, sport, drift) that change stability settings, steering response, and drift behavior.</p>
+<h3 id='section-13'>Transmission Selector</h3>
+<p><code>RCCP_UI_SetGearbox</code> allows switching between Automatic, Manual, and CVT transmission at runtime.</p>
+<h3 id='section-14'>Mobile Controller Selector</h3>
+<p><code>RCCP_UI_SetMobileController</code> lets players choose their preferred mobile input mode.</p>
+<h2 id='section-15'>Input Rebinding UI</h2>
+<p><code>RCCP_UI_RebindInput</code> provides a per-action rebinding interface. When the player clicks a rebind button, the system listens for the next key/button press and assigns it to that action. <code>RCCP_UI_RebindInputReset</code> resets all bindings to defaults.</p>
+<p>Rebinding data is automatically saved and loaded if enabled in RCCP Settings.</p>
+<h2 id='section-16'>Customization UI</h2>
+<p>See <a href='09_Customization.html'>09_Customization.md</a> for the full customization UI documentation. The customization panel includes sub-panels for paint, wheels, spoilers, decals, neons, sirens, and performance upgrades.</p>
+<h2 id='section-17'>Notification System</h2>
+<p><code>RCCP_UI_Informer</code> displays toast-style notifications for vehicle events (engine start, gear changes, damage, etc.). It subscribes to <code>RCCP_Events.OnRCCPUIInformer</code> and shows messages with an auto-dismiss timer and TextMeshPro animation.</p>
+<h2 id='section-18'>Vehicle Spawn UI</h2>
+<p><code>RCCP_UIManager</code> includes panels for spawning vehicles from the demo vehicle registry or prototype prefabs. These panels display available vehicles and let the player select one to spawn.</p>
+<h2 id='section-19'>Scene Selection</h2>
+<p><code>RCCP_UI_SceneSelector</code> provides a UI for switching between demo scenes or levels.</p>
+<h2 id='section-20'>Lite Promotion Banner</h2>
+<p><code>RCCP_UI_LitePromo</code> displays an in-game banner encouraging users to upgrade to RCCP Pro, with a link to the Asset Store page.</p>
+<h2 id='section-21'>Next Steps</h2>
+<ul>
+<li><a href='11_SceneManagement.html'>11_SceneManagement.md</a> — Spawning and managing vehicles</li>
+<li><a href='09_Customization.html'>09_Customization.md</a> — Customization UI details</li>
+</ul>
+</div></body></html>

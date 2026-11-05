@@ -1,0 +1,183 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>14_LiteVsPro</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>RCCP Lite vs RCCP Pro</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>RCCP Lite vs RCCP Pro</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>What This Means for You</a></li>
+<li style='margin-left:20px'><a href='#section-3'>Feature Comparison</a></li>
+<li style='margin-left:40px'><a href='#section-4'>Runtime Features (Identical in Both)</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Editor Features (Where Lite Has Restrictions)</a></li>
+<li style='margin-left:40px'><a href='#section-6'>Editor Tools</a></li>
+<li style='margin-left:40px'><a href='#section-7'>Content</a></li>
+<li style='margin-left:20px'><a href='#section-8'>Upgrading from Lite to Pro</a></li>
+<li style='margin-left:40px'><a href='#section-9'>What Carries Over</a></li>
+<li style='margin-left:40px'><a href='#section-10'>What Changes</a></li>
+<li style='margin-left:20px'><a href='#section-11'>Upgrade Link</a></li>
+<li style='margin-left:20px'><a href='#section-12'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Overview</h2>
+<p>RCCP Lite and RCCP Pro share the same codebase and runtime behavior. Every feature that works in Pro works identically in Lite at runtime. The difference is exclusively in the Unity Editor inspector — Lite grays out advanced tuning parameters to encourage upgrading.</p>
+<p>There is no DRM, no time limit, no watermark, and no runtime restriction. Games built with RCCP Lite have full functionality.</p>
+<h2 id='section-2'>What This Means for You</h2>
+<ul>
+<li><strong>Evaluating RCCP</strong>: Use Lite to test all features before purchasing</li>
+<li><strong>Prototyping</strong>: Build a working prototype with Lite, upgrade to Pro when you need fine-tuning</li>
+<li><strong>Learning</strong>: Understand the full RCCP system before committing</li>
+<li><strong>Shipping</strong>: Lite vehicles work in shipped games — upgrade to Pro when you want to customize the feel</li>
+</ul>
+<h2 id='section-3'>Feature Comparison</h2>
+<h3 id='section-4'>Runtime Features (Identical in Both)</h3>
+<table>
+<tr><th>Feature</th><th>Lite</th><th>Pro</th></tr>
+<tr><td>Engine physics simulation</td><td>Full</td><td>Full</td></tr>
+<tr><td>Gear shifting (Auto/Manual/CVT)</td><td>Full</td><td>Full</td></tr>
+<tr><td>Tire grip and slip</td><td>Full</td><td>Full</td></tr>
+<tr><td>ABS / ESP / TCS</td><td>Full</td><td>Full</td></tr>
+<tr><td>Drift mode</td><td>Full</td><td>Full</td></tr>
+<tr><td>Damage (mesh, wheel, light, part)</td><td>Full</td><td>Full</td></tr>
+<tr><td>Camera (7 modes)</td><td>Full</td><td>Full</td></tr>
+<tr><td>AI driving (4 modes)</td><td>Full</td><td>Full</td></tr>
+<tr><td>Audio system</td><td>Full</td><td>Full</td></tr>
+<tr><td>Particle effects</td><td>Full</td><td>Full</td></tr>
+<tr><td>Lighting (headlights, indicators)</td><td>Full</td><td>Full</td></tr>
+<tr><td>Customization (paint, wheels, etc.)</td><td>Full</td><td>Full</td></tr>
+<tr><td>Performance upgrades</td><td>Full</td><td>Full</td></tr>
+<tr><td>Input (keyboard, gamepad, mobile)</td><td>Full</td><td>Full</td></tr>
+<tr><td>Input rebinding</td><td>Full</td><td>Full</td></tr>
+<tr><td>Recording/replay</td><td>Full</td><td>Full</td></tr>
+<tr><td>NOS / fuel system</td><td>Full</td><td>Full</td></tr>
+<tr><td>Trailer attachment</td><td>Full</td><td>Full</td></tr>
+<tr><td>Vehicle spawning API</td><td>Full</td><td>Full</td></tr>
+<tr><td>Behavior presets</td><td>Full</td><td>Full</td></tr>
+<tr><td>Telemetry</td><td>Full</td><td>Full</td></tr>
+</table>
+<h3 id='section-5'>Editor Features (Where Lite Has Restrictions)</h3>
+<table>
+<tr><th>Feature</th><th>Lite</th><th>Pro</th></tr>
+<tr><td><strong>Engine</strong></td></tr>
+<tr><td>Set max speed and torque</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Set RPM range</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Toggle rev limiter</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Edit torque curve (NMCurve)</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Configure turbocharger</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Engine friction/inertia</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Temperature simulation</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Variable valve timing</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Clutch</strong></td></tr>
+<tr><td>Toggle automatic clutch</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Clutch inertia/engagement</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Gearbox</strong></td></tr>
+<tr><td>Select transmission type</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Edit gear ratios</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Shift timing/thresholds</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Gear preset buttons</td><td>Disabled</td><td>Available</td></tr>
+<tr><td><strong>Differential</strong></td></tr>
+<tr><td>Select differential type</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Limited slip ratio</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Final drive ratio</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Axles</strong></td></tr>
+<tr><td>Toggle steer/brake/handbrake</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Steer angles, brake torque</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Anti-roll force</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Create/remove axles</td><td>Disabled</td><td>Available</td></tr>
+<tr><td><strong>Wheel Colliders</strong></td></tr>
+<tr><td>Tire stiffness/friction</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Deflation/deformation</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Stability</strong></td></tr>
+<tr><td>Toggle ABS/ESP/TCS/helpers</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Threshold/intensity tuning</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Drift parameter tuning</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Aerodynamics</strong></td></tr>
+<tr><td>Set downforce</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Toggle auto-reset</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Air/wheel resistance</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Center of mass</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Damage</strong></td></tr>
+<tr><td>Toggle damage types</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>Deformation settings</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Save/Load damage</td><td>Disabled</td><td>Available</td></tr>
+<tr><td><strong>AI</strong></td></tr>
+<tr><td>Select behavior mode</td><td>Editable</td><td>Editable</td></tr>
+<tr><td>PID tuning, look-ahead</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td>Target/waypoint assignment</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Camera</strong></td></tr>
+<tr><td>All camera settings</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Audio</strong></td></tr>
+<tr><td>All audio configuration</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Lights</strong></td></tr>
+<tr><td>Light creation/removal</td><td>Disabled</td><td>Available</td></tr>
+<tr><td>Light configuration</td><td>Read-only</td><td>Editable</td></tr>
+<tr><td><strong>Other</strong></td></tr>
+<tr><td>Component creation</td><td>Disabled</td><td>Available</td></tr>
+<tr><td>Component removal</td><td>Disabled</td><td>Available</td></tr>
+<tr><td>Drivetrain wiring (outputEvent)</td><td>Disabled</td><td>Available</td></tr>
+</table>
+<h3 id='section-6'>Editor Tools</h3>
+<table>
+<tr><th>Tool</th><th>Lite</th><th>Pro</th></tr>
+<tr><td>RCCP Settings window</td><td>Available</td><td>Available</td></tr>
+<tr><td>Ground Physics config</td><td>Available</td><td>Available</td></tr>
+<tr><td>Wheel Configurations</td><td>Available</td><td>Available</td></tr>
+<tr><td>Create Scene Managers</td><td>Available</td><td>Available</td></tr>
+<tr><td>Add Camera / UI Canvas</td><td>Available</td><td>Available</td></tr>
+<tr><td>Add AI Waypoints</td><td>Available</td><td>Available</td></tr>
+<tr><td>Vehicle creation wizard</td><td>Removed</td><td>Available</td></tr>
+<tr><td>Additional setup wizards</td><td>Removed</td><td>Available</td></tr>
+</table>
+<h3 id='section-7'>Content</h3>
+<table>
+<tr><th>Content</th><th>Lite</th><th>Pro</th></tr>
+<tr><td>Demo scenes</td><td>1 (prototype)</td><td>Multiple themed scenes</td></tr>
+<tr><td>Demo vehicles</td><td>1 (prototype)</td><td>Multiple vehicles</td></tr>
+<tr><td>Vehicle models</td><td>Prototype only</td><td>Multiple detailed models</td></tr>
+</table>
+<h2 id='section-8'>Upgrading from Lite to Pro</h2>
+<p>The upgrade process is straightforward because both versions use the same component types and serialized field names:</p>
+<ol>
+<li>Purchase <a href='https://assetstore.unity.com/packages/tools/physics/realistic-car-controller-pro-222612'>RCCP Pro</a> from the Unity Asset Store</li>
+<li>Remove the <code>Assets/Realistic Car Controller Pro/</code> folder from your project</li>
+<li>Import RCCP Pro</li>
+<li>Open your scenes — all references should reconnect automatically</li>
+<li>You now have full access to all editor parameters</li>
+</ol>
+<h3 id='section-9'>What Carries Over</h3>
+<ul>
+<li>Scene setup (managers, camera, UI)</li>
+<li>Vehicle prefab references</li>
+<li>Component configurations (all serialized field values)</li>
+<li>Customization save data (PlayerPrefs)</li>
+<li>Input rebinding data</li>
+</ul>
+<h3 id='section-10'>What Changes</h3>
+<ul>
+<li>All inspector fields become editable</li>
+<li>Additional demo content and vehicle models</li>
+<li>Vehicle creation wizard and advanced tools</li>
+<li>No more &quot;RCCP Lite&quot; banners in inspectors</li>
+</ul>
+<h2 id='section-11'>Upgrade Link</h2>
+<p><strong><a href='https://assetstore.unity.com/packages/tools/physics/realistic-car-controller-pro-222612'>Realistic Car Controller Pro on the Unity Asset Store</a></strong></p>
+<h2 id='section-12'>Next Steps</h2>
+<ul>
+<li><a href='15_Troubleshooting.html'>15_Troubleshooting.md</a> — Common issues and FAQ</li>
+<li><a href='01_GettingStarted.html'>01_GettingStarted.md</a> — Back to the beginning</li>
+</ul>
+</div></body></html>

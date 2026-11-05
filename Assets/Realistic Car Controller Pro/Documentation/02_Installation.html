@@ -1,0 +1,124 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>02_Installation</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>Installation</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>Installation</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Importing RCCP Lite</a></li>
+<li style='margin-left:20px'><a href='#section-2'>Post-Import Setup</a></li>
+<li style='margin-left:40px'><a href='#section-3'>Layer Configuration</a></li>
+<li style='margin-left:40px'><a href='#section-4'>Input System</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Physics Settings</a></li>
+<li style='margin-left:20px'><a href='#section-6'>Verifying the Installation</a></li>
+<li style='margin-left:20px'><a href='#section-7'>RCCP Settings Asset</a></li>
+<li style='margin-left:20px'><a href='#section-8'>Adding RCCP to an Existing Scene</a></li>
+<li style='margin-left:20px'><a href='#section-9'>Upgrading to RCCP Pro</a></li>
+<li style='margin-left:20px'><a href='#section-10'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Importing RCCP Lite</h2>
+<ol>
+<li>Open your Unity project (Unity 6000.0.49f1 or later recommended)</li>
+<li>Open the Asset Store window via <strong>Window &gt; Asset Store</strong> or visit the <a href='https://assetstore.unity.com'>Unity Asset Store</a></li>
+<li>Search for &quot;Realistic Car Controller Pro Lite&quot; and click <strong>Import</strong></li>
+<li>In the Import dialog, ensure all files are selected and click <strong>Import</strong></li>
+<li>Wait for Unity to compile all scripts — this may take a moment on first import</li>
+</ol>
+<h2 id='section-2'>Post-Import Setup</h2>
+<h3 id='section-3'>Layer Configuration</h3>
+<p>RCCP uses specific physics layers for vehicle collision detection. After importing, Unity may prompt you to configure layers. If not, set them up manually:</p>
+<ol>
+<li>Open <strong>Edit &gt; Project Settings &gt; Tags and Layers</strong></li>
+<li>Add the following layers (the exact layer numbers don't matter, but the names must match):</li>
+</ol>
+<table>
+<tr><th>Layer Name</th><th>Purpose</th></tr>
+<tr><td>RCCP_Vehicle</td><td>Main vehicle body</td></tr>
+<tr><td>RCCP_WheelCollider</td><td>Wheel collider physics</td></tr>
+<tr><td>RCCP_DetachablePart</td><td>Detachable body parts (bumpers, doors)</td></tr>
+<tr><td>RCCP_Prop</td><td>Scene props and obstacles</td></tr>
+</table>
+<p>RCCP Settings stores these layer names and applies them automatically at runtime. You can verify layer assignments in the RCCP Settings asset.</p>
+<h3 id='section-4'>Input System</h3>
+<p>RCCP supports both Unity's legacy Input Manager and the new Input System package. The input configuration is stored in <code>Assets/Realistic Car Controller Pro/InputActions/RCCP_InputActions.inputactions</code>.</p>
+<p>If you're using the new Input System:</p>
+<ol>
+<li>Ensure the Input System package is installed via <strong>Window &gt; Package Manager</strong></li>
+<li>Set <strong>Edit &gt; Project Settings &gt; Player &gt; Active Input Handling</strong> to &quot;Both&quot; or &quot;Input System Package&quot;</li>
+</ol>
+<p>If you prefer the legacy Input Manager, RCCP will use it automatically when the new Input System is not available.</p>
+<h3 id='section-5'>Physics Settings</h3>
+<p>For optimal vehicle physics behavior, verify these settings in <strong>Edit &gt; Project Settings &gt; Physics</strong>:</p>
+<ul>
+<li><strong>Default Solver Iterations</strong>: 6 or higher (default is fine)</li>
+<li><strong>Default Solver Velocity Iterations</strong>: 1 or higher</li>
+<li><strong>Auto Sync Transforms</strong>: Enabled</li>
+</ul>
+<p>RCCP can override the fixed timestep through its Settings asset if needed.</p>
+<h2 id='section-6'>Verifying the Installation</h2>
+<ol>
+<li>Open the demo scene: <code>Assets/Realistic Car Controller Pro/Scenes/RCCP_Scene_Blank_Prototype.unity</code></li>
+<li>Press <strong>Play</strong> in the Unity Editor</li>
+<li>You should see a prototype vehicle that you can drive using keyboard controls:</li>
+</ol>
+<ul>
+<li><strong>W / Up Arrow</strong>: Accelerate</li>
+<li><strong>S / Down Arrow</strong>: Brake / Reverse</li>
+<li><strong>A/D or Left/Right Arrow</strong>: Steer</li>
+<li><strong>Space</strong>: Handbrake</li>
+<li><strong>C</strong>: Change camera mode</li>
+<li><strong>L</strong>: Toggle headlights</li>
+<li><strong>Q/E</strong>: Left/Right indicators</li>
+</ul>
+<p>If the vehicle drives and responds to input, RCCP Lite is installed correctly.</p>
+<h2 id='section-7'>RCCP Settings Asset</h2>
+<p>The global configuration is stored as a ScriptableObject at:</p>
+<pre><code>
+Assets/Realistic Car Controller Pro/Resources/RCCP_Settings.asset
+</code></pre>
+<p>Access it in the editor via <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; RCCP Settings</strong>.</p>
+<p>This asset controls behavior presets, input configuration, physics settings, layer assignments, and resource prefab references. See <a href='12_Settings.html'>12_Settings.md</a> for details.</p>
+<h2 id='section-8'>Adding RCCP to an Existing Scene</h2>
+<p>To add RCCP vehicle support to your own scene:</p>
+<ol>
+<li>Open your scene</li>
+<li>Go to <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; Create &gt; Scene Managers</strong></li>
+</ol>
+<ul>
+<li>This adds the <code>RCCP_SceneManager</code> singleton (vehicle registry) and <code>RCCP_SkidmarksManager</code></li>
+</ul>
+<ol>
+<li>Go to <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; Create &gt; Add RCCP Camera</strong></li>
+<li>Go to <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; Create &gt; Add UI Canvas</strong></li>
+<li>Add a vehicle prefab to the scene or spawn one via script (see <a href='11_SceneManagement.html'>11_SceneManagement.md</a>)</li>
+</ol>
+<h2 id='section-9'>Upgrading to RCCP Pro</h2>
+<p>When you're ready to unlock all editor parameters and access advanced tuning:</p>
+<ol>
+<li>Purchase <a href='https://assetstore.unity.com/packages/tools/physics/realistic-car-controller-pro-222612'>RCCP Pro</a> from the Asset Store</li>
+<li>Remove the RCCP Lite folder from your project</li>
+<li>Import RCCP Pro</li>
+<li>Your scene references and vehicle configurations will carry over since both versions use the same component types and serialized field names</li>
+</ol>
+<h2 id='section-10'>Next Steps</h2>
+<ul>
+<li><a href='03_VehicleSetup.html'>03_VehicleSetup.md</a> — Learn how vehicles are structured</li>
+<li><a href='04_DrivetrainComponents.html'>04_DrivetrainComponents.md</a> — Understand the drivetrain system</li>
+<li><a href='13_API.html'>13_API.md</a> — Start scripting with the RCCP API</li>
+</ul>
+</div></body></html>

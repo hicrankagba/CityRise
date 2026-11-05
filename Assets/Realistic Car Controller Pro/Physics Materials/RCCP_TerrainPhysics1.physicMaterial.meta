@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 7c96667de01f7d841906d0d538697d27
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 13400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Physics Materials/RCCP_TerrainPhysics1.physicMaterial
+  uploadId: 870692

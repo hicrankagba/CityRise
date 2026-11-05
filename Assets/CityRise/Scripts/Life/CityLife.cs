@@ -11,12 +11,15 @@ namespace CityRise.Life
     /// Şehri canlandırır: yollarda şeritte giden arabalar, kaldırımlarda yürüyen ve dükkanlara girip çıkan yayalar.
     /// Sayılar aşamaya ve sahip olunan işletme sayısına göre artar; nesneler baştan havuzda oluşturulur,
     /// yalnızca gereken kadarı açılır. Ekranda görünmeyenlerin süs animasyonu atlanır.
-    /// Modeller: Kenney Car Kit ve Mini Characters (CC0), InteriorLibrary üzerinden.
+    /// Modeller InteriorLibrary üzerinden: gerçekçi arabalar (Asset Store, ücretsiz) ve Mixamo insanları;
+    /// yoksa Kenney Car Kit ve Mini Characters (CC0).
     /// </summary>
     public class CityLife : MonoBehaviour
     {
         public const int MaxCars = 20;
         public const int MaxWalkers = 40;
+        /// <summary>Gerçekçi (Mixamo) yayalar daha ağır: üst sınır düşük tutulur.</summary>
+        public const int MaxRealWalkers = 22;
 
         /// <summary>Şerit, yol ortasından bu kadar sağda (sağdan trafik).</summary>
         const float LaneOffset = 1.6f;
@@ -36,6 +39,8 @@ namespace CityRise.Life
 
         static readonly Vector2Int[] Dirs = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
         static readonly string[] CarModels = { "car/sedan", "car/sedan", "car/suv", "car/hatchback-sports", "car/sedan-sports", "car/taxi", "car/van", "car/delivery", "car/truck", "car/police" };
+        /// <summary>Gerçekçi arabalar (varsa bunlar kullanılır); süpermini ağır olduğu için seyrek.</summary>
+        static readonly string[] RealCarModels = { "rcar/skyline", "rcar/pickup", "rcar/skyline", "rcar/supermini", "rcar/skyline", "rcar/pickup" };
         static readonly string[] People = { "ch/female-a", "ch/female-b", "ch/female-c", "ch/female-d", "ch/male-a", "ch/male-b", "ch/male-c", "ch/male-d" };
 
         public int ActiveCars { get; private set; }
@@ -51,26 +56,33 @@ namespace CityRise.Life
 
             for (int i = 0; i < MaxCars; i++)
             {
-                var e = lib.Get(CarModels[i % CarModels.Length]);
+                var e = lib.Get(RealCarModels[i % RealCarModels.Length]) ?? lib.Get(CarModels[i % CarModels.Length]);
                 if (e == null) continue;
                 var go = Instantiate(e.prefab, transform);
                 go.name = "Araba";
                 go.transform.localScale = Vector3.one * e.scale;
-                Tint(go, i);
+                if (!e.key.StartsWith("rcar/")) Tint(go, i);
                 if (night) Headlights(go.transform);
                 go.SetActive(false);
                 cars.Add(new Car { t = go.transform, speed = 7f + (float)rng.NextDouble() * 3f });
             }
-            for (int i = 0; i < MaxWalkers; i++)
+            var real = new List<InteriorLibrary.Entry>();
+            foreach (var m in lib.models) if (m.prefab != null && m.key.StartsWith("mx/")) real.Add(m);
+            int walkerCount = real.Count > 0 ? MaxRealWalkers : MaxWalkers;
+            for (int i = 0; i < walkerCount; i++)
             {
-                var e = lib.Get(People[i % People.Length]);
+                var e = real.Count > 0 ? real[i % real.Count] : lib.Get(People[i % People.Length]);
                 if (e == null) continue;
                 var holder = new GameObject("Yaya");
                 holder.transform.SetParent(transform, false);
                 var body = Instantiate(e.prefab, holder.transform);
                 body.transform.localScale = Vector3.one * e.scale;
                 holder.SetActive(false);
-                walkers.Add(new Walker { t = holder.transform, body = body.transform, scale = e.scale, speed = 1.1f + (float)rng.NextDouble() * 0.5f, phase = (float)rng.NextDouble() * 10f });
+                var animator = body.GetComponent<Animator>();
+                // Animasyonlu yürüyüşte adım ile hız uyumlu olsun (Mixamo yürüyüşü ~1,3 m/sn).
+                float speed = animator != null ? 1.15f + (float)rng.NextDouble() * 0.25f : 1.1f + (float)rng.NextDouble() * 0.5f;
+                if (animator != null) animator.speed = speed / 1.3f;
+                walkers.Add(new Walker { t = holder.transform, body = body.transform, animator = animator, scale = e.scale, speed = speed, phase = (float)rng.NextDouble() * 10f });
             }
             Rebuild();
         }
@@ -84,16 +96,23 @@ namespace CityRise.Life
             foreach (var r in go.GetComponentsInChildren<Renderer>()) r.SetPropertyBlock(block);
         }
 
+        /// <summary>Gece farları: aracın ön yüzüne iki parlak kutu (aracın boyutuna göre).</summary>
         static void Headlights(Transform car)
         {
+            var rs = car.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return;
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
             var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(1f, 0.95f, 0.7f) * 3f };
-            foreach (var x in new[] { -0.45f, 0.45f })
+            float halfW = b.extents.x * 0.6f, y = b.min.y + b.size.y * 0.42f, z = b.max.z - 0.02f;
+            foreach (var x in new[] { -halfW, halfW })
             {
                 var lamp = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 Destroy(lamp.GetComponent<Collider>());
-                lamp.transform.SetParent(car, false);
-                lamp.transform.localPosition = new Vector3(x / car.localScale.x, 0.55f / car.localScale.y, 1.32f / car.localScale.z);
-                lamp.transform.localScale = new Vector3(0.28f, 0.14f, 0.05f) / car.localScale.x;
+                lamp.transform.SetParent(car, true);
+                lamp.transform.position = new Vector3(b.center.x + x, y, z);
+                var s = car.lossyScale;
+                lamp.transform.localScale = new Vector3(0.28f / s.x, 0.14f / s.y, 0.05f / s.z);
                 lamp.GetComponent<Renderer>().sharedMaterial = mat;
             }
         }
@@ -239,6 +258,8 @@ namespace CityRise.Life
         class Walker
         {
             public Transform t, body;
+            public Animator animator;
+            public string state;
             public float speed, phase, pause, scale;
             public List<Vector3> loop = new List<Vector3>();
             public int target;
@@ -269,6 +290,7 @@ namespace CityRise.Life
             w.target = (start + 1) % 4;
             w.shopDoor = null;
             w.inside = 0;
+            w.state = null;
         }
 
         void MoveWalker(Walker w, float dt)
@@ -277,7 +299,7 @@ namespace CityRise.Life
             {
                 // Dükkanın içinde: görünmez, sonra kapıdan çıkar.
                 w.inside -= dt;
-                if (w.inside <= 0) w.body.gameObject.SetActive(true);
+                if (w.inside <= 0) { w.body.gameObject.SetActive(true); w.state = null; }
                 return;
             }
             if (w.pause > 0) { w.pause -= dt; Animate(w, 0); return; }
@@ -299,7 +321,12 @@ namespace CityRise.Life
                     return;
                 }
                 w.target = (w.target + 1) % w.loop.Count;
-                if (rng.NextDouble() < 0.15) w.pause = 1f + (float)rng.NextDouble() * 2f;
+                if (rng.NextDouble() < 0.15)
+                {
+                    // Köşede durur; bazen telefonla konuşur.
+                    w.pause = 1f + (float)rng.NextDouble() * 2f;
+                    if (w.animator != null && rng.NextDouble() < 0.4) { w.pause += 4f; SetState(w, "Phone"); }
+                }
                 else if (rng.NextDouble() < 0.35) TryVisitShop(w);
                 return;
             }
@@ -331,10 +358,25 @@ namespace CityRise.Life
             return grid.RectCenter(p.cells) + new Vector3(f.x, 0, f.y) * (half - 1.2f) + Vector3.up * 0.15f;
         }
 
-        /// <summary>Yürüme hissi: hafif zıplama ve sağa-sola sallanma (yalnızca ekrandaysa).</summary>
+        void SetState(Walker w, string state)
+        {
+            if (w.animator == null || w.state == state || !w.animator.isActiveAndEnabled) return;
+            w.state = state;
+            w.animator.CrossFadeInFixedTime(state, 0.25f);
+        }
+
+        /// <summary>
+        /// Gerçekçi karakterlerde yürüme/durma animasyonu; basit karakterlerde hafif zıplama ve sallanma.
+        /// </summary>
         void Animate(Walker w, float moving)
         {
             if (w.body == null) return;
+            if (w.animator != null)
+            {
+                if (moving > 0) SetState(w, "Walk");
+                else if (w.state != "Phone") SetState(w, "Idle");
+                return;
+            }
             w.phase += Time.deltaTime * 9f * moving;
             float bob = Mathf.Abs(Mathf.Sin(w.phase)) * 0.05f * moving;
             float sway = Mathf.Sin(w.phase) * 6f * moving;

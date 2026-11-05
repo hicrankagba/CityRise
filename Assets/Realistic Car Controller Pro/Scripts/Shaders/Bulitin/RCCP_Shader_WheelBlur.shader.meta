@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 49bd92253bfe8f240a1b8436a426f1f7
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _WheelBlurTexture: {fileID: 2800000, guid: bcfeef4f045edec46b3a6d32b2f929e0, type: 3}
+  nonModifiableTextures: []
+  preprocessorOverride: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Scripts/Shaders/Bulitin/RCCP_Shader_WheelBlur.shader
+  uploadId: 870692

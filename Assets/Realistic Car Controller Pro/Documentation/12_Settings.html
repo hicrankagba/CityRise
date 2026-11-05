@@ -1,0 +1,171 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>12_Settings</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>Settings and Configuration</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>Settings and Configuration</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>Behavior Presets</a></li>
+<li style='margin-left:40px'><a href='#section-3'>What a Behavior Preset Controls</a></li>
+<li style='margin-left:40px'><a href='#section-4'>Switching Behaviors at Runtime</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Per-Vehicle Behavior Override</a></li>
+<li style='margin-left:20px'><a href='#section-6'>Global Physics Settings</a></li>
+<li style='margin-left:20px'><a href='#section-7'>Auto-Reset</a></li>
+<li style='margin-left:20px'><a href='#section-8'>Input Settings</a></li>
+<li style='margin-left:20px'><a href='#section-9'>Display Settings</a></li>
+<li style='margin-left:20px'><a href='#section-10'>Layer Configuration</a></li>
+<li style='margin-left:20px'><a href='#section-11'>Resource Prefab References</a></li>
+<li style='margin-left:40px'><a href='#section-12'>Camera Prefabs</a></li>
+<li style='margin-left:40px'><a href='#section-13'>UI and System Prefabs</a></li>
+<li style='margin-left:40px'><a href='#section-14'>Audio Clips</a></li>
+<li style='margin-left:40px'><a href='#section-15'>Particle Prefabs</a></li>
+<li style='margin-left:20px'><a href='#section-16'>Ground Materials</a></li>
+<li style='margin-left:20px'><a href='#section-17'>Changeable Wheels</a></li>
+<li style='margin-left:20px'><a href='#section-18'>Other Configuration Assets</a></li>
+<li style='margin-left:20px'><a href='#section-19'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Overview</h2>
+<p>RCCP's global configuration is stored in <code>RCCP_Settings</code>, a ScriptableObject asset located at:</p>
+<pre><code>
+Assets/Realistic Car Controller Pro/Resources/RCCP_Settings.asset
+</code></pre>
+<p>This asset is loaded at runtime via <code>Resources.Load<RCCP_Settings>(&quot;RCCP_Settings&quot;)</code> and accessed as a singleton through <code>RCCP_Settings.Instance</code>.</p>
+<p>Open it in the editor via <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; RCCP Settings</strong>.</p>
+<h2 id='section-2'>Behavior Presets</h2>
+<p>Behavior presets are the primary tuning mechanism in RCCP. Each preset defines a complete driving feel — from steering response to stability aid strengths to drift behavior. You can have multiple presets and switch between them at runtime.</p>
+<h3 id='section-3'>What a Behavior Preset Controls</h3>
+<table>
+<tr><th>Category</th><th>Parameters</th></tr>
+<tr><td>Stability Aids</td><td>ABS, ESP, TCS, steering helper, traction helper, angular drag helper toggles and strengths</td></tr>
+<tr><td>Drift System</td><td>Drift mode, angle limits, yaw torque, forward/sideways forces, min speed, friction settings, recovery</td></tr>
+<tr><td>Steering</td><td>Steering curve (speed-based), sensitivity, counter-steering, min/max steering limits</td></tr>
+<tr><td>Differential</td><td>Default differential type (Open, Limited, Locked, Direct)</td></tr>
+<tr><td>Wheel Friction</td><td>Forward and sideways friction curves for front and rear tires (extremum/asymptote values)</td></tr>
+<tr><td>Gearbox</td><td>Shift thresholds, shift delays, gear change timing</td></tr>
+<tr><td>Other</td><td>Anti-roll bar minimums, angular drag values</td></tr>
+</table>
+<h3 id='section-4'>Switching Behaviors at Runtime</h3>
+<pre><code>
+// By name
+RCCP.SetBehavior(&quot;Drift&quot;);
+RCCP.SetBehavior(&quot;Race&quot;);
+
+// By index
+RCCP.SetBehavior(0);
+
+// Query
+int index = RCCP.GetBehaviorIndexByName(&quot;Sport&quot;);
+RCCP_Settings.BehaviorType behavior = RCCP.GetBehaviorByName(&quot;Normal&quot;);
+</code></pre>
+<h3 id='section-5'>Per-Vehicle Behavior Override</h3>
+<p>Individual vehicles can ignore the global behavior preset:</p>
+<pre><code>
+vehicle.ineffectiveBehavior = true;  // Ignore global preset
+vehicle.useCustomBehavior = true;    // Use per-vehicle preset
+vehicle.customBehaviorIndex = 2;     // Which preset to use
+</code></pre>
+<h2 id='section-6'>Global Physics Settings</h2>
+<table>
+<tr><th>Setting</th><th>Description</th></tr>
+<tr><td><code>multithreading</code></td><td>Enable async processing where supported</td></tr>
+<tr><td><code>useFixedWheelColliders</code></td><td>Physics optimization for wheel colliders</td></tr>
+<tr><td><code>overrideFPS</code> / <code>maxFPS</code></td><td>Limit maximum framerate (up to 120)</td></tr>
+<tr><td><code>overrideFixedTimeStep</code> / <code>fixedTimeStep</code></td><td>Override Unity's physics timestep</td></tr>
+</table>
+<h2 id='section-7'>Auto-Reset</h2>
+<table>
+<tr><th>Setting</th><th>Description</th></tr>
+<tr><td><code>autoReset</code></td><td>Automatically flip the vehicle right-side-up if it rolls over</td></tr>
+</table>
+<p>This can also be toggled per-vehicle via the <code>RCCP_AeroDynamics</code> component.</p>
+<h2 id='section-8'>Input Settings</h2>
+<table>
+<tr><th>Setting</th><th>Description</th></tr>
+<tr><td><code>mobileControllerEnabled</code></td><td>Enable mobile on-screen controls</td></tr>
+<tr><td><code>mobileController</code></td><td>Mobile input mode: TouchScreen, Gyro, SteeringWheel, Joystick</td></tr>
+<tr><td><code>gyroSensitivity</code></td><td>Sensitivity of gyroscope steering</td></tr>
+<tr><td><code>autoSaveLoadInputRebind</code></td><td>Automatically save/load custom key bindings</td></tr>
+</table>
+<h2 id='section-9'>Display Settings</h2>
+<table>
+<tr><th>Setting</th><th>Description</th></tr>
+<tr><td><code>useMPH</code></td><td>Display speed in miles per hour instead of km/h</td></tr>
+<tr><td><code>useTelemetry</code></td><td>Show telemetry overlay during play mode</td></tr>
+<tr><td><code>useInputDebugger</code></td><td>Show input visualization overlay</td></tr>
+</table>
+<h2 id='section-10'>Layer Configuration</h2>
+<p>RCCP uses specific physics layers for collision detection between vehicles, wheels, detachable parts, and world objects:</p>
+<table>
+<tr><th>Setting</th><th>Purpose</th></tr>
+<tr><td><code>RCCPLayer</code></td><td>Main vehicle body layer</td></tr>
+<tr><td><code>RCCPWheelColliderLayer</code></td><td>Wheel collider physics layer</td></tr>
+<tr><td><code>RCCPDetachablePartLayer</code></td><td>Detachable body parts (bumpers, doors)</td></tr>
+<tr><td><code>RCCPPropLayer</code></td><td>Scene props</td></tr>
+<tr><td><code>RCCPObstacleLayer</code></td><td>AI obstacles</td></tr>
+</table>
+<p>These layer names are configured in the settings asset and applied automatically at runtime.</p>
+<h2 id='section-11'>Resource Prefab References</h2>
+<p>RCCP Settings holds references to all prefabs that get instantiated at runtime:</p>
+<h3 id='section-12'>Camera Prefabs</h3>
+<table>
+<tr><th>Setting</th><th>Prefab</th></tr>
+<tr><td><code>RCCPMainCamera</code></td><td>Main camera with RCCP_Camera</td></tr>
+<tr><td><code>RCCPHoodCamera</code></td><td>First-person camera mount</td></tr>
+<tr><td><code>RCCPWheelCamera</code></td><td>Wheel-level camera mount</td></tr>
+<tr><td><code>RCCPCinematicCamera</code></td><td>Cinematic path camera</td></tr>
+<tr><td><code>RCCPFixedCamera</code></td><td>Fixed trackside camera</td></tr>
+</table>
+<h3 id='section-13'>UI and System Prefabs</h3>
+<table>
+<tr><th>Setting</th><th>Prefab</th></tr>
+<tr><td><code>RCCPCanvas</code></td><td>Main UI canvas</td></tr>
+<tr><td><code>RCCPTelemetry</code></td><td>Telemetry display</td></tr>
+<tr><td><code>skidmarksManager</code></td><td>Tire marks renderer</td></tr>
+<tr><td><code>exhaustGas</code></td><td>Exhaust gas particle</td></tr>
+<tr><td><code>wheelBlur</code></td><td>Wheel motion blur</td></tr>
+</table>
+<h3 id='section-14'>Audio Clips</h3>
+<p>The settings asset also references default audio clips for engine sounds (idle, low/mid/high RPM, starter), gear shift, turbo, NOS, brake squeal, wind noise, crash impact, exhaust flame, and horn.</p>
+<h3 id='section-15'>Particle Prefabs</h3>
+<p>Contact particles, scratch particles, and wheel sparkle effects are referenced here.</p>
+<h2 id='section-16'>Ground Materials</h2>
+<p>Surface friction and audio are configured in <code>RCCP_GroundMaterials</code>, another ScriptableObject loaded from Resources. It defines per-surface settings:</p>
+<ul>
+<li><strong>Friction coefficients</strong> for each terrain/material type (asphalt, grass, gravel, sand, etc.)</li>
+<li><strong>Audio clips</strong> for tire-on-surface sounds</li>
+<li><strong>Particle effects</strong> for surface contact (dust on dirt, spray on water, etc.)</li>
+</ul>
+<p>Access via <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; Ground Physics</strong>.</p>
+<h2 id='section-17'>Changeable Wheels</h2>
+<p><code>RCCP_ChangableWheels</code> defines the registry of available wheel models for the customization system. Each entry includes the wheel mesh, material, and sizing data.</p>
+<p>Access via <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; Wheel Configurations</strong>.</p>
+<h2 id='section-18'>Other Configuration Assets</h2>
+<table>
+<tr><th>Asset</th><th>Purpose</th></tr>
+<tr><td><code>RCCP_Records</code></td><td>Saved recording/replay clips</td></tr>
+<tr><td><code>RCCP_DemoVehicles</code></td><td>Demo vehicle prefab registry</td></tr>
+<tr><td><code>RCCP_DemoScenes</code></td><td>Demo scene references</td></tr>
+<tr><td><code>RCCP_CustomizationSetups</code></td><td>Preset customization loadouts</td></tr>
+</table>
+<h2 id='section-19'>Next Steps</h2>
+<ul>
+<li><a href='13_API.html'>13_API.md</a> — Complete scripting API</li>
+<li><a href='11_SceneManagement.html'>11_SceneManagement.md</a> — Vehicle spawning and management</li>
+</ul>
+</div></body></html>

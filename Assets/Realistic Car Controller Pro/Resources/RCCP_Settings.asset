@@ -1,0 +1,501 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 1158988033, guid: cb0117e2a21a4c44488ba8189a23395b, type: 3}
+  m_Name: RCCP_Settings
+  m_EditorClassIdentifier: 
+  multithreading: 0
+  behaviorSelectedIndex: 0
+  overrideFPS: 0
+  overrideFixedTimeStep: 0
+  fixedTimeStep: 0.02
+  maxAngularVelocity: 8
+  maxFPS: 300
+  overrideBehavior: 0
+  behaviorTypes:
+  - behaviorName: Balanced
+    ABS: 1
+    ESP: 1
+    TCS: 1
+    steeringHelper: 1
+    tractionHelper: 1
+    angularDragHelper: 1
+    driftMode: 0
+    driftAngleLimiter: 0
+    driftAngleLimit: 30
+    driftAngleCorrectionFactor: 3
+    driftYawTorqueMultiplier: 0.7
+    driftForwardForceMultiplier: 2000
+    driftSidewaysForceMultiplier: 1500
+    driftMinSpeed: 20
+    driftFullForceSpeed: 80
+    driftThrottleYawFactor: 0.3
+    driftRearSidewaysStiffnessMin: 0.45
+    driftRearForwardStiffnessMin: 0.8
+    driftFrontSidewaysStiffnessMin: 0.9
+    driftFrictionResponseSpeed: 8
+    driftFrictionRecoverySpeed: 4
+    driftMaxAngularVelocity: 120
+    driftCounterSteerRecoveryBoost: 2
+    driftMomentumMaintenanceForce: 800
+    driftForceSmoothing: 8
+    steeringCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: -0.014675421
+        outSlope: -0.014675421
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.03251122
+      - serializedVersion: 3
+        time: 61.902683
+        value: 0.372998
+        inSlope: -0.004611339
+        outSlope: -0.004611339
+        tangentMode: 1
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.09890028
+      - serializedVersion: 3
+        time: 200
+        value: 0.15
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 0
+    steeringSensitivity: 0.5
+    counterSteering: 1
+    limitSteering: 1
+    differentialType: 0
+    counterSteeringMinimum: 0.5
+    counterSteeringMaximum: 1
+    steeringSpeedMinimum: 0.5
+    steeringSpeedMaximum: 1
+    steeringHelperStrengthMinimum: 0.05
+    steeringHelperStrengthMaximum: 0.1
+    tractionHelperStrengthMinimum: 0.05
+    tractionHelperStrengthMaximum: 0.1
+    angularDrag: 0.25
+    angularDragHelperMinimum: 0.075
+    angularDragHelperMaximum: 0.1
+    antiRollMinimum: 400
+    gearShiftingThreshold: 0.8
+    gearShiftingDelayMinimum: 0.1
+    gearShiftingDelayMaximum: 0.1
+    forwardExtremumSlip_F: 0.375
+    forwardExtremumValue_F: 1
+    forwardAsymptoteSlip_F: 0.8
+    forwardAsymptoteValue_F: 0.8
+    forwardExtremumSlip_R: 0.375
+    forwardExtremumValue_R: 1
+    forwardAsymptoteSlip_R: 0.8
+    forwardAsymptoteValue_R: 0.75
+    sidewaysExtremumSlip_F: 0.325
+    sidewaysExtremumValue_F: 1
+    sidewaysAsymptoteSlip_F: 0.5
+    sidewaysAsymptoteValue_F: 0.8
+    sidewaysExtremumSlip_R: 0.3
+    sidewaysExtremumValue_R: 1.1
+    sidewaysAsymptoteSlip_R: 0.5
+    sidewaysAsymptoteValue_R: 0.85
+  - behaviorName: Drift
+    ABS: 0
+    ESP: 0
+    TCS: 0
+    steeringHelper: 1
+    tractionHelper: 1
+    angularDragHelper: 1
+    driftMode: 1
+    driftAngleLimiter: 1
+    driftAngleLimit: 40
+    driftAngleCorrectionFactor: 2
+    driftYawTorqueMultiplier: 0.5
+    driftForwardForceMultiplier: 500
+    driftSidewaysForceMultiplier: 2500
+    driftMinSpeed: 10
+    driftFullForceSpeed: 85
+    driftThrottleYawFactor: 0.7
+    driftRearSidewaysStiffnessMin: 0.5
+    driftRearForwardStiffnessMin: 0.95
+    driftFrontSidewaysStiffnessMin: 0.55
+    driftFrictionResponseSpeed: 12
+    driftFrictionRecoverySpeed: 12
+    driftMaxAngularVelocity: 80
+    driftCounterSteerRecoveryBoost: 3
+    driftMomentumMaintenanceForce: 3000
+    driftForceSmoothing: 12
+    steeringCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 25
+        value: 1
+        inSlope: -0.0000000571692
+        outSlope: -0.0000000571692
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.18535122
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 200
+        value: 0.4
+        inSlope: -0.005183279
+        outSlope: -0.005183279
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0.07739031
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 0
+    steeringSensitivity: 1
+    counterSteering: 1
+    limitSteering: 0
+    differentialType: 3
+    counterSteeringMinimum: 1
+    counterSteeringMaximum: 1
+    steeringSpeedMinimum: 2
+    steeringSpeedMaximum: 2
+    steeringHelperStrengthMinimum: 0.05
+    steeringHelperStrengthMaximum: 0.05
+    tractionHelperStrengthMinimum: 0.25
+    tractionHelperStrengthMaximum: 0.25
+    angularDrag: 0.35
+    angularDragHelperMinimum: 0.35
+    angularDragHelperMaximum: 0.35
+    antiRollMinimum: 600
+    gearShiftingThreshold: 0.8
+    gearShiftingDelayMinimum: 0.15
+    gearShiftingDelayMaximum: 0.3
+    forwardExtremumSlip_F: 0.4
+    forwardExtremumValue_F: 1
+    forwardAsymptoteSlip_F: 1
+    forwardAsymptoteValue_F: 1
+    forwardExtremumSlip_R: 0.4
+    forwardExtremumValue_R: 1
+    forwardAsymptoteSlip_R: 1
+    forwardAsymptoteValue_R: 1
+    sidewaysExtremumSlip_F: 0.4
+    sidewaysExtremumValue_F: 1
+    sidewaysAsymptoteSlip_F: 1
+    sidewaysAsymptoteValue_F: 1
+    sidewaysExtremumSlip_R: 0.4
+    sidewaysExtremumValue_R: 1
+    sidewaysAsymptoteSlip_R: 1
+    sidewaysAsymptoteValue_R: 1
+  - behaviorName: Race
+    ABS: 1
+    ESP: 1
+    TCS: 1
+    steeringHelper: 1
+    tractionHelper: 1
+    angularDragHelper: 1
+    driftMode: 0
+    driftAngleLimiter: 0
+    driftAngleLimit: 30
+    driftAngleCorrectionFactor: 3
+    driftYawTorqueMultiplier: 0.7
+    driftForwardForceMultiplier: 2000
+    driftSidewaysForceMultiplier: 1500
+    driftMinSpeed: 20
+    driftFullForceSpeed: 80
+    driftThrottleYawFactor: 0.3
+    driftRearSidewaysStiffnessMin: 0.45
+    driftRearForwardStiffnessMin: 0.8
+    driftFrontSidewaysStiffnessMin: 0.9
+    driftFrictionResponseSpeed: 8
+    driftFrictionRecoverySpeed: 4
+    driftMaxAngularVelocity: 120
+    driftCounterSteerRecoveryBoost: 2
+    driftMomentumMaintenanceForce: 800
+    driftForceSmoothing: 8
+    steeringCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: -0.014675421
+        outSlope: -0.014675421
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.03251122
+      - serializedVersion: 3
+        time: 61.902683
+        value: 0.372998
+        inSlope: -0.004611339
+        outSlope: -0.004611339
+        tangentMode: 1
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.09890028
+      - serializedVersion: 3
+        time: 200
+        value: 0.15
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 0
+    steeringSensitivity: 1
+    counterSteering: 1
+    limitSteering: 1
+    differentialType: 1
+    counterSteeringMinimum: 0.5
+    counterSteeringMaximum: 1
+    steeringSpeedMinimum: 1.5
+    steeringSpeedMaximum: 1.5
+    steeringHelperStrengthMinimum: 0.2
+    steeringHelperStrengthMaximum: 1
+    tractionHelperStrengthMinimum: 0.2
+    tractionHelperStrengthMaximum: 1
+    angularDrag: 0.2
+    angularDragHelperMinimum: 0.15
+    angularDragHelperMaximum: 0.5
+    antiRollMinimum: 2000
+    gearShiftingThreshold: 0.85
+    gearShiftingDelayMinimum: 0.15
+    gearShiftingDelayMaximum: 0.4
+    forwardExtremumSlip_F: 0.275
+    forwardExtremumValue_F: 1
+    forwardAsymptoteSlip_F: 0.8
+    forwardAsymptoteValue_F: 0.7
+    forwardExtremumSlip_R: 0.275
+    forwardExtremumValue_R: 1
+    forwardAsymptoteSlip_R: 0.8
+    forwardAsymptoteValue_R: 0.6
+    sidewaysExtremumSlip_F: 0.275
+    sidewaysExtremumValue_F: 1
+    sidewaysAsymptoteSlip_F: 0.5
+    sidewaysAsymptoteValue_F: 0.75
+    sidewaysExtremumSlip_R: 0.25
+    sidewaysExtremumValue_R: 1.5
+    sidewaysAsymptoteSlip_R: 0.5
+    sidewaysAsymptoteValue_R: 1.1
+  - behaviorName: Arcade
+    ABS: 1
+    ESP: 1
+    TCS: 1
+    steeringHelper: 1
+    tractionHelper: 1
+    angularDragHelper: 1
+    driftMode: 0
+    driftAngleLimiter: 0
+    driftAngleLimit: 30
+    driftAngleCorrectionFactor: 3
+    driftYawTorqueMultiplier: 0.7
+    driftForwardForceMultiplier: 2000
+    driftSidewaysForceMultiplier: 1500
+    driftMinSpeed: 20
+    driftFullForceSpeed: 80
+    driftThrottleYawFactor: 0.3
+    driftRearSidewaysStiffnessMin: 0.45
+    driftRearForwardStiffnessMin: 0.8
+    driftFrontSidewaysStiffnessMin: 0.9
+    driftFrictionResponseSpeed: 8
+    driftFrictionRecoverySpeed: 4
+    driftMaxAngularVelocity: 120
+    driftCounterSteerRecoveryBoost: 2
+    driftMomentumMaintenanceForce: 800
+    driftForceSmoothing: 8
+    steeringCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: -0.014675421
+        outSlope: -0.014675421
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.03251122
+      - serializedVersion: 3
+        time: 61.902683
+        value: 0.372998
+        inSlope: -0.004611339
+        outSlope: -0.004611339
+        tangentMode: 1
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.09890028
+      - serializedVersion: 3
+        time: 200
+        value: 0.15
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 0
+    steeringSensitivity: 1
+    counterSteering: 1
+    limitSteering: 1
+    differentialType: 1
+    counterSteeringMinimum: 0.5
+    counterSteeringMaximum: 1
+    steeringSpeedMinimum: 1.5
+    steeringSpeedMaximum: 1.5
+    steeringHelperStrengthMinimum: 0.5
+    steeringHelperStrengthMaximum: 1
+    tractionHelperStrengthMinimum: 0.5
+    tractionHelperStrengthMaximum: 1
+    angularDrag: 0.25
+    angularDragHelperMinimum: 0.5
+    angularDragHelperMaximum: 1
+    antiRollMinimum: 5000
+    gearShiftingThreshold: 0.85
+    gearShiftingDelayMinimum: 0.15
+    gearShiftingDelayMaximum: 0.3
+    forwardExtremumSlip_F: 0.25
+    forwardExtremumValue_F: 2.5
+    forwardAsymptoteSlip_F: 1
+    forwardAsymptoteValue_F: 2.5
+    forwardExtremumSlip_R: 0.25
+    forwardExtremumValue_R: 2
+    forwardAsymptoteSlip_R: 1
+    forwardAsymptoteValue_R: 2
+    sidewaysExtremumSlip_F: 0.25
+    sidewaysExtremumValue_F: 2
+    sidewaysAsymptoteSlip_F: 1
+    sidewaysAsymptoteValue_F: 2
+    sidewaysExtremumSlip_R: 0.25
+    sidewaysExtremumValue_R: 2.5
+    sidewaysAsymptoteSlip_R: 1
+    sidewaysAsymptoteValue_R: 2.5
+  useFixedWheelColliders: 1
+  autoReset: 1
+  useTelemetry: 0
+  useInputDebugger: 0
+  useMPH: 0
+  autoSaveLoadInputRebind: 1
+  mobileController: 0
+  mobileControllerEnabled: 0
+  gyroSensitivity: 2.5
+  setLayers: 1
+  RCCPLayer: RCCP_Vehicle
+  RCCPWheelColliderLayer: RCCP_WheelCollider
+  RCCPDetachablePartLayer: RCCP_DetachablePart
+  RCCPPropLayer: RCCP_Prop
+  RCCPObstacleLayer: RCCP_Obstacle
+  useHeadLightsAsVertexLights: 0
+  useBrakeLightsAsVertexLights: 1
+  useReverseLightsAsVertexLights: 1
+  useIndicatorLightsAsVertexLights: 1
+  useOtherLightsAsVertexLights: 1
+  lightsSetupData:
+    defaultIntensityForHeadlights: 2.5
+    defaultIntensityForBrakeLights: 1
+    defaultIntensityForReverseLights: 1
+    defaultIntensityForIndicatorLights: 1
+    headlightColor: {r: 1, g: 1, b: 0.9, a: 1}
+    brakelightColor: {r: 1, g: 0.1, b: 0.05, a: 1}
+    taillightColor: {r: 1, g: 0.05, b: 0.05, a: 1}
+    reverselightColor: {r: 0.9, g: 1, b: 1, a: 1}
+    indicatorColor: {r: 1, g: 0.5, b: 0, a: 1}
+    useLensFlares: 1
+    lensFlareSRP: {fileID: 11400000, guid: 54e5387da1f6fc941b7e12cade99ccbb, type: 2}
+    flare: {fileID: 12100000, guid: b2eadc2457f314a4ba64917775883893, type: 2}
+  lightBox: {fileID: 72223198486051535, guid: 7b5b8d692e26f7e4ab0f515a7882f95b, type: 3}
+  RCCPMainCamera: {fileID: 2060493299427690371, guid: fdb1354f3bd578d4faaec9dc39e2619c, type: 3}
+  RCCPHoodCamera: {fileID: 1786539850405938176, guid: f187122bd7d945b4182bd1ce47db1b04, type: 3}
+  RCCPWheelCamera: {fileID: 4317606198683106918, guid: 3941f547f9edee0469c16494011c6917, type: 3}
+  RCCPCinematicCamera: {fileID: 6853277956206537754, guid: 533113be8939e0042a81c2bfef8d2643, type: 3}
+  RCCPFixedCamera: {fileID: 2591555967798884715, guid: 19f260b32efeae9448a0f801f53db857, type: 3}
+  RCCPCanvas: {fileID: 7242563728492524846, guid: 679e140928b0c964c92a4fd6d73669c7, type: 3}
+  RCCPTelemetry: {fileID: 5931298226553231135, guid: e06159deea2e788438af7ed9956c660c, type: 3}
+  audioMixer: {fileID: 24300002, guid: 1f184b80a5580734490824e8df462002, type: 2}
+  engineLowClipOn: {fileID: 8300000, guid: dccc82152f621824c87825d889240b99, type: 3}
+  engineLowClipOff: {fileID: 8300000, guid: aceb7ad2900174948b20301ab8ca5823, type: 3}
+  engineMedClipOn: {fileID: 8300000, guid: 139fd09d7108a514b8be04a5ebaa7c17, type: 3}
+  engineMedClipOff: {fileID: 8300000, guid: 4454189fef3d9814e8bce98f844e72ed, type: 3}
+  engineHighClipOn: {fileID: 8300000, guid: ed9829075a152d44fb883f69ddd39287, type: 3}
+  engineHighClipOff: {fileID: 8300000, guid: d745a42b5f415d44c9b87a1a45d12388, type: 3}
+  engineIdleClipOn: {fileID: 8300000, guid: 2b741dfa0149c51458b0cd763fc15cea, type: 3}
+  engineIdleClipOff: {fileID: 8300000, guid: 2b741dfa0149c51458b0cd763fc15cea, type: 3}
+  engineStartClip: {fileID: 8300000, guid: 8d3ddfbc69660b342b48f88b496dedee, type: 3}
+  reversingClip: {fileID: 8300000, guid: 496267bbcffddfb458351d3214c6cd1a, type: 3}
+  windClip: {fileID: 8300000, guid: 6c7312d1af74e3f4599722894161fafc, type: 3}
+  brakeClip: {fileID: 8300000, guid: 4b6a38decd073724fb0aebb87b9ae8ee, type: 3}
+  wheelDeflateClip: {fileID: 8300000, guid: faa704d83029a9647a2363b2237e4e19, type: 3}
+  wheelInflateClip: {fileID: 8300000, guid: 4ce6102d00c8375478c1f9b3b1ac6688, type: 3}
+  wheelFlatClip: {fileID: 8300000, guid: 26b58ff4d9777244a9095f50b4179eb7, type: 3}
+  indicatorClip: {fileID: 8300000, guid: 20b75c2df52a1934e84ef5b0a3777636, type: 3}
+  bumpClip: {fileID: 8300000, guid: 948b55abd80345b4aab96053dbe0c2ba, type: 3}
+  NOSClip: {fileID: 8300000, guid: 1503108270ff7694eb6fabc1bc9f2de8, type: 3}
+  turboClip: {fileID: 8300000, guid: 7f48c51367eb26f4bb55673f28ae5404, type: 3}
+  gearClips:
+  - {fileID: 8300000, guid: fd92e514f75331e4085d0846a166fef8, type: 3}
+  - {fileID: 8300000, guid: 51d3f215e07c15a41aab4038522df8d6, type: 3}
+  - {fileID: 8300000, guid: d16b0aad793dafa4fb78adaae796fbfe, type: 3}
+  - {fileID: 8300000, guid: af63e188bf4d51d458ed8680ad764a3b, type: 3}
+  - {fileID: 8300000, guid: f5993d9cca0a2804f93ce20e421cbf04, type: 3}
+  crashClips:
+  - {fileID: 8300000, guid: 4c05a8cdfbec615458d075d1e07a7d4c, type: 3}
+  - {fileID: 8300000, guid: 17550b365ac51f2418915bf82b519630, type: 3}
+  - {fileID: 8300000, guid: 82f3ac1f97a9a384db5bcb1fd1966b16, type: 3}
+  - {fileID: 8300000, guid: 370cb2e9c8bccfe48bdec70db08e4644, type: 3}
+  blowoutClip:
+  - {fileID: 8300000, guid: fe7d483597e1b604a8f6f21f68b9df07, type: 3}
+  - {fileID: 8300000, guid: 823e15bf810982849a39b4368dfdaf27, type: 3}
+  exhaustFlameClips:
+  - {fileID: 8300000, guid: a8cfbfa0153a85c4da8402ee5479a3de, type: 3}
+  - {fileID: 8300000, guid: abe24e1d59cd24e48ab2b17acb6b57ff, type: 3}
+  - {fileID: 8300000, guid: f772a702dcfbfe9478afe01aa9429fbc, type: 3}
+  - {fileID: 8300000, guid: 4ebe01570cad61a40be61693713688b4, type: 3}
+  contactParticles: {fileID: 193332, guid: 01d1c0c6e41e0cd408370a38e1548da4, type: 3}
+  scratchParticles: {fileID: 193332, guid: 30a3b5f6ca82302478f2f278e151e4ef, type: 3}
+  wheelSparkleParticles: {fileID: 5240681609208784007, guid: 5334e6d9eb50a524791108140788233e, type: 3}
+  exhaustGas: {fileID: 104134, guid: 71646b81456d51f41b855afa0de694ab, type: 3}
+  skidmarksManager: {fileID: 114786316056322602, guid: 60a473c93b29c684784c2783e8f19074, type: 3}
+  wheelBlur: {fileID: 642269834616080727, guid: edfc5608e4637494cb26f896ce1e8d95, type: 3}
+  lensFlareData: {fileID: 11400000, guid: 54e5387da1f6fc941b7e12cade99ccbb, type: 2}
+  flare: {fileID: 12100000, guid: b2eadc2457f314a4ba64917775883893, type: 2}
+  flarePrefab: {fileID: 7416828820312680700, guid: 4965f6049ff63a043b55c0da994908e3, type: 3}
+  hdrpVolumeProfilePrefab: {fileID: 469843299675766406, guid: cb4f674b37aa99e48be91e3fb1a3d4f8, type: 3}
+  defaultDecalMaterial: {fileID: 2100000, guid: b252fb4fac6eeaf458fab961e66dac63, type: 2}
+  defaultNeonMaterial: {fileID: 2100000, guid: 5a8bf0c127822fc4facf610a4741e265, type: 2}
+  vehicleColliderMaterial: {fileID: 13400000, guid: 9738edcfa98f23746962bceee4277c70, type: 2}
+  foldGeneralSettings: 1
+  foldBehaviorSettings: 1
+  foldControllerSettings: 1
+  foldUISettings: 1
+  foldWheelPhysics: 1
+  foldOptimization: 1
+  foldTagsAndLayers: 1
+  foldExtensions: 1
+  resourcesSettings: 1

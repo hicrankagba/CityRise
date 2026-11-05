@@ -1,0 +1,176 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>04_DrivetrainComponents</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>Drivetrain Components</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>Drivetrain Components</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Power Flow Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>RCCP_Engine</a></li>
+<li style='margin-left:40px'><a href='#section-3'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-4'>Locked in Lite (Available in Pro)</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Runtime Behavior</a></li>
+<li style='margin-left:20px'><a href='#section-6'>RCCP_Clutch</a></li>
+<li style='margin-left:40px'><a href='#section-7'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-8'>Locked in Lite (Available in Pro)</a></li>
+<li style='margin-left:20px'><a href='#section-9'>RCCP_Gearbox</a></li>
+<li style='margin-left:40px'><a href='#section-10'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-11'>Locked in Lite (Available in Pro)</a></li>
+<li style='margin-left:40px'><a href='#section-12'>Transmission Types</a></li>
+<li style='margin-left:20px'><a href='#section-13'>RCCP_Differential</a></li>
+<li style='margin-left:40px'><a href='#section-14'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-15'>Locked in Lite (Available in Pro)</a></li>
+<li style='margin-left:40px'><a href='#section-16'>Differential Types</a></li>
+<li style='margin-left:20px'><a href='#section-17'>RCCPAxles / RCCPAxle</a></li>
+<li style='margin-left:40px'><a href='#section-18'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-19'>Locked in Lite (Available in Pro)</a></li>
+<li style='margin-left:40px'><a href='#section-20'>Axle Filtering</a></li>
+<li style='margin-left:20px'><a href='#section-21'>RCCP_WheelCollider</a></li>
+<li style='margin-left:40px'><a href='#section-22'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-23'>Locked in Lite (Available in Pro)</a></li>
+<li style='margin-left:20px'><a href='#section-24'>Drivetrain Configuration in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-25'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Power Flow Overview</h2>
+<p>RCCP simulates a realistic drivetrain where power flows from the engine through each component in sequence. Components communicate torque downstream via <code>outputEvent</code> fields:</p>
+<pre><code>
+RCCP_Engine (torque generation via NM curve)
+    ↓ outputEvent
+RCCP_Clutch (engagement modulation)
+    ↓ outputEvent
+RCCP_Gearbox (gear ratio multiplication)
+    ↓ outputEvent
+RCCP_Differential (power distribution)
+    ↓ connectedAxle
+RCCP_Axle (per-axle: steer / brake / power flags, anti-roll)
+    ↓ leftWheelCollider / rightWheelCollider
+RCCP_WheelCollider (tire physics, traction, skidmarks)
+    ↓ forces applied to
+Rigidbody (vehicle movement)
+</code></pre>
+<p>Each component receives torque from upstream, processes it, and passes the result downstream. This chain ensures that changes at any point (gear shift, clutch slip, differential lock) propagate realistically through the entire drivetrain.</p>
+<hr>
+<h2 id='section-2'>RCCP_Engine</h2>
+<p>The engine generates torque based on a Newton-Meter (NM) curve evaluated at the current RPM. It handles idle RPM, rev limiting, acceleration and deceleration rates, and optional features like turbocharging, variable valve timing (VVT), knock detection, and temperature simulation.</p>
+<h3 id='section-3'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>maximumSpeed</code></td><td>Top speed of the vehicle (km/h)</td></tr>
+<tr><td><code>maximumTorqueAsNM</code></td><td>Peak engine torque in Newton-Meters</td></tr>
+<tr><td><code>maxEngineRPM</code></td><td>Maximum RPM before rev limiter</td></tr>
+<tr><td><code>minEngineRPM</code></td><td>Idle RPM</td></tr>
+<tr><td><code>engineRunning</code></td><td>Whether the engine is currently running</td></tr>
+<tr><td><code>engineRevLimiter</code></td><td>Toggle rev limiter on/off</td></tr>
+</table>
+<h3 id='section-4'>Locked in Lite (Available in Pro)</h3>
+<p>Torque curve editing (NMCurve), turbocharger settings, engine friction and inertia, dynamic acceleration rates, engine temperature simulation, VVT configuration, knock detection, and output event wiring.</p>
+<h3 id='section-5'>Runtime Behavior</h3>
+<p>At runtime, the engine fully simulates all features regardless of Lite editor locks. The NM curve, turbo, VVT, and temperature systems all function — they simply use their default values which cannot be modified in the Lite inspector.</p>
+<hr>
+<h2 id='section-6'>RCCP_Clutch</h2>
+<p>The clutch modulates power transfer between the engine and gearbox. It supports both automatic and manual clutch modes, with configurable engagement RPM and inertia.</p>
+<h3 id='section-7'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>automaticClutch</code></td><td>Toggle automatic clutch engagement</td></tr>
+</table>
+<h3 id='section-8'>Locked in Lite (Available in Pro)</h3>
+<p>Clutch inertia, engagement RPM, force to press, behavior during gear shifts and handbraking, output event wiring.</p>
+<hr>
+<h2 id='section-9'>RCCP_Gearbox</h2>
+<p>The gearbox multiplies engine torque through gear ratios. It supports three transmission types: Automatic, Manual, and CVT (Continuously Variable Transmission). Automatic mode handles gear selection based on RPM thresholds; Manual mode requires player input for shifts.</p>
+<h3 id='section-10'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>transmissionType</code></td><td>Automatic, Manual, or CVT</td></tr>
+</table>
+<h3 id='section-11'>Locked in Lite (Available in Pro)</h3>
+<p>Gear ratios (individual values per gear), shift timing, shift RPM thresholds, automatic gear selector logic, gear preset buttons, output event wiring.</p>
+<h3 id='section-12'>Transmission Types</h3>
+<table>
+<tr><th>Type</th><th>Behavior</th></tr>
+<tr><td>Automatic</td><td>Shifts gears automatically based on RPM thresholds</td></tr>
+<tr><td>Manual</td><td>Player shifts using gear up/down inputs</td></tr>
+<tr><td>CVT</td><td>Continuously adjusts ratio for optimal RPM range</td></tr>
+</table>
+<hr>
+<h2 id='section-13'>RCCP_Differential</h2>
+<p>The differential distributes torque from the gearbox to the driven axle(s). RCCP supports multiple differential types that affect how power is split between left and right wheels, which significantly impacts handling characteristics.</p>
+<h3 id='section-14'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>differentialType</code></td><td>Open, Limited Slip, Full Locked, or Direct</td></tr>
+</table>
+<h3 id='section-15'>Locked in Lite (Available in Pro)</h3>
+<p>Limited slip ratio, final drive ratio, axle connection buttons.</p>
+<h3 id='section-16'>Differential Types</h3>
+<table>
+<tr><th>Type</th><th>Behavior</th></tr>
+<tr><td>Open</td><td>Power goes to the wheel with least resistance (realistic for road cars)</td></tr>
+<tr><td>Limited</td><td>Partially locks wheels together, prevents one-wheel spin (sporty)</td></tr>
+<tr><td>FullLocked</td><td>Both wheels always rotate at the same speed (off-road, drift)</td></tr>
+<tr><td>Direct</td><td>Direct torque pass-through without distribution logic</td></tr>
+</table>
+<hr>
+<h2 id='section-17'>RCCP_Axles / RCCP_Axle</h2>
+<p><code>RCCP_Axles</code> is a container that holds all <code>RCCP_Axle</code> components. Each axle represents a pair of wheels (left and right) and defines whether that axle provides steering, braking, handbrake, and/or power.</p>
+<p>A standard car has two axles (front and rear), but RCCP supports any number for trucks, buses, or custom configurations.</p>
+<h3 id='section-18'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>isSteer</code></td><td>This axle provides steering</td></tr>
+<tr><td><code>isBrake</code></td><td>This axle has brakes</td></tr>
+<tr><td><code>isHandbrake</code></td><td>This axle is affected by handbrake</td></tr>
+</table>
+<h3 id='section-19'>Locked in Lite (Available in Pro)</h3>
+<p>Wheel model and collider references, auto-align, anti-roll force, max steer angle, steer speed, brake torque, power multiplier, all per-axle tuning, axle creation/removal.</p>
+<h3 id='section-20'>Axle Filtering</h3>
+<p>The <code>RCCP_CarController</code> provides filtered axle lists for quick access:</p>
+<ul>
+<li><code>PoweredAxles</code> — Axles that receive engine power</li>
+<li><code>BrakedAxles</code> — Axles that have brakes</li>
+<li><code>SteeredAxles</code> — Axles that steer</li>
+<li><code>HandbrakedAxles</code> — Axles affected by handbrake</li>
+</ul>
+<hr>
+<h2 id='section-21'>RCCP_WheelCollider</h2>
+<p>Each wheel has an <code>RCCP_WheelCollider</code> that handles tire physics, including grip calculation, slip detection, traction control interaction, skidmark generation, and tire wear simulation.</p>
+<p>RCCP_WheelCollider extends Unity's built-in WheelCollider with additional physics for realistic tire behavior, including separate forward and sideways friction curves.</p>
+<h3 id='section-22'>Editable in Lite</h3>
+<p>Wheel colliders have no directly editable parameters in Lite. Their behavior is determined by the axle configuration, stability settings, and global behavior preset.</p>
+<h3 id='section-23'>Locked in Lite (Available in Pro)</h3>
+<p>Tire stiffness (forward and sideways), friction curve editing, deflation settings, wheel deformation, camber and toe angles.</p>
+<hr>
+<h2 id='section-24'>Drivetrain Configuration in Lite</h2>
+<p>While detailed parameter tuning is locked in Lite, you can still configure meaningful drivetrain variations:</p>
+<table>
+<tr><th>What You Can Do</th><th>How</th></tr>
+<tr><td>Set top speed and torque</td><td>Engine inspector: <code>maximumSpeed</code>, <code>maximumTorqueAsNM</code></td></tr>
+<tr><td>Choose transmission type</td><td>Gearbox inspector: Automatic / Manual / CVT</td></tr>
+<tr><td>Change differential behavior</td><td>Differential inspector: Open / Limited / Locked / Direct</td></tr>
+<tr><td>Configure drive layout</td><td>Axle inspectors: toggle <code>isSteer</code>, <code>isBrake</code>, <code>isPower</code> per axle</td></tr>
+<tr><td>Toggle automatic clutch</td><td>Clutch inspector: <code>automaticClutch</code></td></tr>
+<tr><td>Set RPM range</td><td>Engine inspector: <code>minEngineRPM</code>, <code>maxEngineRPM</code></td></tr>
+</table>
+<p>These options give you meaningful control over how the vehicle feels and performs, while advanced tuning (curves, ratios, friction) is available in RCCP Pro.</p>
+<h2 id='section-25'>Next Steps</h2>
+<ul>
+<li><a href='05_VehicleSystems.html'>05_VehicleSystems.md</a> — Stability, damage, audio, and more</li>
+<li><a href='03_VehicleSetup.html'>03_VehicleSetup.md</a> — Vehicle architecture overview</li>
+</ul>
+</div></body></html>

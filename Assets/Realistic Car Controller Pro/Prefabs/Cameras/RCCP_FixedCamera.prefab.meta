@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 19f260b32efeae9448a0f801f53db857
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Prefabs/Cameras/RCCP_FixedCamera.prefab
+  uploadId: 870692

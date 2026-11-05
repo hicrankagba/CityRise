@@ -1,0 +1,111 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>06_CameraSystem</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>Camera System</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>Camera System</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>Camera Modes</a></li>
+<li style='margin-left:40px'><a href='#section-3'>TPS (Third-Person Shoulder)</a></li>
+<li style='margin-left:40px'><a href='#section-4'>FPS (First-Person)</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Wheel</a></li>
+<li style='margin-left:40px'><a href='#section-6'>Fixed</a></li>
+<li style='margin-left:40px'><a href='#section-7'>Cinematic</a></li>
+<li style='margin-left:40px'><a href='#section-8'>Top</a></li>
+<li style='margin-left:40px'><a href='#section-9'>Truck Trailer</a></li>
+<li style='margin-left:20px'><a href='#section-10'>Changing Camera Modes</a></li>
+<li style='margin-left:40px'><a href='#section-11'>Via Input</a></li>
+<li style='margin-left:40px'><a href='#section-12'>Via Script</a></li>
+<li style='margin-left:20px'><a href='#section-13'>Camera Features</a></li>
+<li style='margin-left:40px'><a href='#section-14'>Collision Avoidance</a></li>
+<li style='margin-left:40px'><a href='#section-15'>Orbit Control</a></li>
+<li style='margin-left:40px'><a href='#section-16'>Auto-Switch</a></li>
+<li style='margin-left:40px'><a href='#section-17'>Axis Locking</a></li>
+<li style='margin-left:20px'><a href='#section-18'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-19'>Camera Prefabs</a></li>
+<li style='margin-left:20px'><a href='#section-20'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Overview</h2>
+<p>RCCP includes a complete camera system (<code>RCCP_Camera</code>) that provides seven different viewing modes, smooth transitions, collision avoidance, and orbit controls. The camera automatically follows the active player vehicle and can be cycled through modes at runtime.</p>
+<p>The camera is instantiated from the prefab referenced in RCCP Settings and managed by the <code>RCCP_SceneManager</code>.</p>
+<h2 id='section-2'>Camera Modes</h2>
+<h3 id='section-3'>TPS (Third-Person Shoulder)</h3>
+<p>The default camera mode. The camera follows behind and above the vehicle, providing a classic driving game view. RCCP supports two TPS variants (TPS1 and TPS2) with different distance and height profiles.</p>
+<ul>
+<li>Smooth position and rotation following</li>
+<li>Speed-dependent distance and height (dynamic camera)</li>
+<li>Orbit control with mouse or right stick</li>
+<li>Collision detection prevents clipping through geometry</li>
+</ul>
+<h3 id='section-4'>FPS (First-Person)</h3>
+<p>A cockpit view from the driver's perspective. Uses the <code>RCCP_HoodCamera</code> component placed on the vehicle to define the camera position inside the cabin.</p>
+<ul>
+<li>Fixed to the vehicle's interior camera mount point</li>
+<li>Head movement simulation during acceleration and turning</li>
+<li>Ideal for simulation-focused gameplay</li>
+</ul>
+<h3 id='section-5'>Wheel</h3>
+<p>A low-angle camera mounted near the wheels, using the <code>RCCP_WheelCamera</code> component. Provides a dramatic view of the tires and road surface.</p>
+<h3 id='section-6'>Fixed</h3>
+<p>A stationary world-space camera managed by <code>RCCP_FixedCamera</code>. The camera stays at a fixed position and rotates to track the vehicle as it drives past, similar to trackside TV cameras in motorsport.</p>
+<h3 id='section-7'>Cinematic</h3>
+<p>Scripted camera paths managed by <code>RCCP_CinematicCamera</code>. Provides smooth, sweeping camera movements for replays or presentation sequences. Field of view can be animated via <code>RCCP_FOVForCinematicCamera</code>.</p>
+<h3 id='section-8'>Top</h3>
+<p>A bird's-eye overhead view looking straight down at the vehicle. Supports orthographic projection for a flat, map-like perspective, or perspective projection for a more natural look.</p>
+<h3 id='section-9'>Truck Trailer</h3>
+<p>A specialized mode for viewing towed trailers or secondary vehicles. Useful when the player is operating a truck-and-trailer configuration.</p>
+<h2 id='section-10'>Changing Camera Modes</h2>
+<h3 id='section-11'>Via Input</h3>
+<p>Press <strong>C</strong> (default binding) to cycle through camera modes during gameplay.</p>
+<h3 id='section-12'>Via Script</h3>
+<pre><code>
+// Cycle to next camera mode
+RCCP.ChangeCamera();
+
+// Access the camera directly
+RCCP_Camera camera = RCCP_SceneManager.Instance.activePlayerCamera;
+camera.cameraMode = RCCP_Camera.CameraMode.TPS;
+</code></pre>
+<h2 id='section-13'>Camera Features</h2>
+<h3 id='section-14'>Collision Avoidance</h3>
+<p>The TPS camera uses SphereCast raycasting to detect walls, terrain, and objects between the camera and the vehicle. When an obstacle is detected, the camera moves closer to prevent clipping through geometry.</p>
+<h3 id='section-15'>Orbit Control</h3>
+<p>In TPS modes, the player can orbit the camera around the vehicle using mouse input or the right analog stick on a gamepad. Orbit can be configured to require holding a button (orbit-only-while-holding mode) or to be always active.</p>
+<h3 id='section-16'>Auto-Switch</h3>
+<p>The camera can automatically cycle through modes on a configurable timer, useful for idle/attract screens or cinematic sequences.</p>
+<h3 id='section-17'>Axis Locking</h3>
+<p>Each TPS mode can independently lock the camera's X, Y, or Z rotation axis to the vehicle's rotation. This allows customizing whether the camera tilts with the vehicle on hills, rolls during turns, or stays level.</p>
+<h2 id='section-18'>Editable in Lite</h2>
+<p>All camera configuration parameters are locked in the Lite inspector. The camera system works fully at runtime with default settings. You can switch modes, orbit, and interact with the camera through input — you just cannot edit the distance, height, FOV, or collision settings through the inspector.</p>
+<h2 id='section-19'>Camera Prefabs</h2>
+<p>The camera system uses several prefab references stored in RCCP Settings:</p>
+<table>
+<tr><th>Prefab</th><th>Description</th></tr>
+<tr><td><code>RCCPMainCamera</code></td><td>Main camera with RCCP_Camera component</td></tr>
+<tr><td><code>RCCPHoodCamera</code></td><td>First-person camera mount</td></tr>
+<tr><td><code>RCCPWheelCamera</code></td><td>Wheel-level camera mount</td></tr>
+<tr><td><code>RCCPCinematicCamera</code></td><td>Cinematic path camera</td></tr>
+<tr><td><code>RCCPFixedCamera</code></td><td>Fixed trackside camera</td></tr>
+</table>
+<h2 id='section-20'>Next Steps</h2>
+<ul>
+<li><a href='07_InputSystem.html'>07_InputSystem.md</a> — Input handling and controls</li>
+<li><a href='05_VehicleSystems.html'>05_VehicleSystems.md</a> — Vehicle auxiliary systems</li>
+</ul>
+</div></body></html>

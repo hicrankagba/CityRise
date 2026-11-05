@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 107a89f9ab3d16d4aae5a7a797850a15
+timeCreated: 1458261623
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Materials/Particle Materials/RCCP_WheelSlip.mat
+  uploadId: 870692

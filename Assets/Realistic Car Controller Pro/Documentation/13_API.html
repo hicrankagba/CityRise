@@ -1,0 +1,378 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>13_API</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>API Reference</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>API Reference</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>Spawn and Registration</a></li>
+<li style='margin-left:40px'><a href='#section-3'>RCCP.SpawnRCC</a></li>
+<li style='margin-left:40px'><a href='#section-4'>RCCP.RegisterPlayerVehicle</a></li>
+<li style='margin-left:40px'><a href='#section-5'>RCCP.DeRegisterPlayerVehicle</a></li>
+<li style='margin-left:20px'><a href='#section-6'>Vehicle Control</a></li>
+<li style='margin-left:40px'><a href='#section-7'>RCCP.SetControl</a></li>
+<li style='margin-left:40px'><a href='#section-8'>RCCP.SetExternalControl</a></li>
+<li style='margin-left:40px'><a href='#section-9'>RCCP.SetEngine</a></li>
+<li style='margin-left:40px'><a href='#section-10'>RCCP.SetAutomaticGear</a></li>
+<li style='margin-left:20px'><a href='#section-11'>Vehicle State</a></li>
+<li style='margin-left:40px'><a href='#section-12'>Direct Properties</a></li>
+<li style='margin-left:40px'><a href='#section-13'>Component Access</a></li>
+<li style='margin-left:20px'><a href='#section-14'>Behavior System</a></li>
+<li style='margin-left:40px'><a href='#section-15'>RCCP.SetBehavior</a></li>
+<li style='margin-left:40px'><a href='#section-16'>RCCP.GetBehaviorIndexByName</a></li>
+<li style='margin-left:40px'><a href='#section-17'>RCCP.GetBehaviorByName</a></li>
+<li style='margin-left:20px'><a href='#section-18'>Transport</a></li>
+<li style='margin-left:40px'><a href='#section-19'>RCCP.Transport</a></li>
+<li style='margin-left:20px'><a href='#section-20'>Repair</a></li>
+<li style='margin-left:40px'><a href='#section-21'>RCCP.Repair</a></li>
+<li style='margin-left:20px'><a href='#section-22'>Camera</a></li>
+<li style='margin-left:40px'><a href='#section-23'>RCCP.ChangeCamera</a></li>
+<li style='margin-left:40px'><a href='#section-24'>Direct Access</a></li>
+<li style='margin-left:20px'><a href='#section-25'>Mobile</a></li>
+<li style='margin-left:40px'><a href='#section-26'>RCCP.SetMobileController</a></li>
+<li style='margin-left:20px'><a href='#section-27'>Recording and Replay</a></li>
+<li style='margin-left:40px'><a href='#section-28'>RCCP.StartStopRecord</a></li>
+<li style='margin-left:40px'><a href='#section-29'>RCCP.StartStopReplay</a></li>
+<li style='margin-left:40px'><a href='#section-30'>RCCP.StopRecordReplay</a></li>
+<li style='margin-left:20px'><a href='#section-31'>World</a></li>
+<li style='margin-left:40px'><a href='#section-32'>RCCP.CleanSkidmarks</a></li>
+<li style='margin-left:20px'><a href='#section-33'>Input Override</a></li>
+<li style='margin-left:20px'><a href='#section-34'>Events</a></li>
+<li style='margin-left:20px'><a href='#section-35'>Common Patterns</a></li>
+<li style='margin-left:40px'><a href='#section-36'>Spawn Vehicle and Start Driving</a></li>
+<li style='margin-left:40px'><a href='#section-37'>Switch Player Vehicle</a></li>
+<li style='margin-left:40px'><a href='#section-38'>AI Vehicle With Override Inputs</a></li>
+<li style='margin-left:40px'><a href='#section-39'>Listen for Collisions</a></li>
+<li style='margin-left:40px'><a href='#section-40'>Read Vehicle Telemetry</a></li>
+<li style='margin-left:20px'><a href='#section-41'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Overview</h2>
+<p>RCCP provides a static API class (<code>RCCP</code>) that serves as the primary entry point for all vehicle operations. Use this class to spawn vehicles, control them, switch behaviors, manage the camera, and more.</p>
+<p>All methods are static and can be called from anywhere:</p>
+<pre><code>
+using UnityEngine;
+
+public class MyGameManager : MonoBehaviour {
+    public RCCP_CarController vehiclePrefab;
+
+    void Start() {
+        RCCP.SpawnRCC(vehiclePrefab, Vector3.zero, Quaternion.identity, true, true, true);
+    }
+}
+</code></pre>
+<hr>
+<h2 id='section-2'>Spawn and Registration</h2>
+<h3 id='section-3'>RCCP.SpawnRCC</h3>
+<p>Instantiate a vehicle from a prefab and optionally register it as the player vehicle.</p>
+<pre><code>
+RCCP_CarController RCCP.SpawnRCC(
+    RCCP_CarController vehiclePrefab,
+    Vector3 position,
+    Quaternion rotation,
+    bool registerAsPlayer,
+    bool isControllable,
+    bool engineRunning
+)
+</code></pre>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>vehiclePrefab</code></td><td>The vehicle prefab to instantiate</td></tr>
+<tr><td><code>position</code></td><td>World position to spawn at</td></tr>
+<tr><td><code>rotation</code></td><td>World rotation to spawn with</td></tr>
+<tr><td><code>registerAsPlayer</code></td><td>Register as the active player vehicle</td></tr>
+<tr><td><code>isControllable</code></td><td>Enable player input</td></tr>
+<tr><td><code>engineRunning</code></td><td>Start with engine running</td></tr>
+</table>
+<p><strong>Returns</strong>: The spawned <code>RCCP_CarController</code> instance.</p>
+<h3 id='section-4'>RCCP.RegisterPlayerVehicle</h3>
+<p>Register an existing vehicle as the active player vehicle. The camera and UI will follow this vehicle.</p>
+<pre><code>
+void RCCP.RegisterPlayerVehicle(RCCP_CarController vehicle)
+void RCCP.RegisterPlayerVehicle(RCCP_CarController vehicle, bool isControllable)
+void RCCP.RegisterPlayerVehicle(RCCP_CarController vehicle, bool isControllable, bool engineState)
+</code></pre>
+<h3 id='section-5'>RCCP.DeRegisterPlayerVehicle</h3>
+<p>Remove the current player vehicle registration. Camera and UI disconnect.</p>
+<pre><code>
+void RCCP.DeRegisterPlayerVehicle()
+</code></pre>
+<hr>
+<h2 id='section-6'>Vehicle Control</h2>
+<h3 id='section-7'>RCCP.SetControl</h3>
+<p>Enable or disable player input on a vehicle.</p>
+<pre><code>
+void RCCP.SetControl(RCCP_CarController vehicle, bool isControllable)
+</code></pre>
+<h3 id='section-8'>RCCP.SetExternalControl</h3>
+<p>Flag a vehicle for external (non-player) control. Used by AI and network systems.</p>
+<pre><code>
+void RCCP.SetExternalControl(RCCP_CarController vehicle, bool isExternal)
+</code></pre>
+<h3 id='section-9'>RCCP.SetEngine</h3>
+<p>Start or stop a vehicle's engine.</p>
+<pre><code>
+void RCCP.SetEngine(RCCP_CarController vehicle, bool engineState)
+</code></pre>
+<h3 id='section-10'>RCCP.SetAutomaticGear</h3>
+<p>Set the transmission mode.</p>
+<pre><code>
+void RCCP.SetAutomaticGear(RCCP_CarController vehicle, bool automatic)
+void RCCP.SetAutomaticGear(RCCP_CarController vehicle, RCCP_Gearbox.TransmissionType type)
+</code></pre>
+<hr>
+<h2 id='section-11'>Vehicle State</h2>
+<h3 id='section-12'>Direct Properties</h3>
+<p>Access vehicle state through the <code>RCCP_CarController</code> instance:</p>
+<pre><code>
+RCCP_CarController vehicle = RCCP_SceneManager.Instance.activePlayerVehicle;
+
+// Speed and movement
+float speed = vehicle.speed;                    // km/h
+float absSpeed = vehicle.absoluteSpeed;         // absolute km/h
+int direction = vehicle.direction;              // 1 = forward, -1 = reverse
+bool grounded = vehicle.IsGrounded;             // any wheel touching ground
+
+// Engine
+float rpm = vehicle.engineRPM;
+bool running = vehicle.engineRunning;
+float torque = vehicle.producedEngineTorque;    // Newton-Meters
+
+// Transmission
+int gear = vehicle.currentGear;
+float gearRatio = vehicle.currentGearRatio;
+bool shifting = vehicle.shiftingNow;
+bool reversing = vehicle.reversingNow;
+
+// Inputs (vehicle-processed values)
+float throttle = vehicle.throttleInput_V;       // 0-1
+float brake = vehicle.brakeInput_V;             // 0-1
+float steer = vehicle.steerInput_V;             // -1 to 1
+float handbrake = vehicle.handbrakeInput_V;     // 0-1
+
+// Lights
+bool headlights = vehicle.lowBeamLights;
+bool highBeam = vehicle.highBeamLights;
+bool leftIndicator = vehicle.indicatorsLeftLights;
+bool rightIndicator = vehicle.indicatorsRightLights;
+</code></pre>
+<h3 id='section-13'>Component Access</h3>
+<p>Access vehicle subsystems through lazy-loaded properties:</p>
+<pre><code>
+RCCP_Engine engine = vehicle.Engine;
+RCCP_Gearbox gearbox = vehicle.Gearbox;
+RCCP_Stability stability = vehicle.Stability;
+RCCP_Damage damage = vehicle.Damage;
+RCCP_WheelCollider[] wheels = vehicle.AllWheelColliders;
+RCCP_Axle frontAxle = vehicle.FrontAxle;
+RCCP_Axle rearAxle = vehicle.RearAxle;
+Rigidbody rb = vehicle.Rigid;
+</code></pre>
+<p>All component properties return null safely if the component is missing.</p>
+<hr>
+<h2 id='section-14'>Behavior System</h2>
+<h3 id='section-15'>RCCP.SetBehavior</h3>
+<p>Switch the global driving behavior preset.</p>
+<pre><code>
+void RCCP.SetBehavior(int behaviorIndex)
+void RCCP.SetBehavior(string behaviorName)  // Case-insensitive
+</code></pre>
+<h3 id='section-16'>RCCP.GetBehaviorIndexByName</h3>
+<p>Find a behavior preset index by name. Returns -1 if not found.</p>
+<pre><code>
+int RCCP.GetBehaviorIndexByName(string name)
+</code></pre>
+<h3 id='section-17'>RCCP.GetBehaviorByName</h3>
+<p>Get the full behavior type object by name. Returns null if not found.</p>
+<pre><code>
+RCCP_Settings.BehaviorType RCCP.GetBehaviorByName(string name)
+</code></pre>
+<hr>
+<h2 id='section-18'>Transport</h2>
+<h3 id='section-19'>RCCP.Transport</h3>
+<p>Teleport a vehicle to a new position and rotation.</p>
+<pre><code>
+// Teleport the active player vehicle
+void RCCP.Transport(Vector3 position, Quaternion rotation)
+
+// Teleport any vehicle
+void RCCP.Transport(RCCP_CarController vehicle, Vector3 position, Quaternion rotation, bool resetVelocity)
+</code></pre>
+<hr>
+<h2 id='section-20'>Repair</h2>
+<h3 id='section-21'>RCCP.Repair</h3>
+<p>Repair all damage on a vehicle.</p>
+<pre><code>
+// Repair the active player vehicle
+void RCCP.Repair()
+
+// Repair a specific vehicle
+void RCCP.Repair(RCCP_CarController vehicle)
+</code></pre>
+<hr>
+<h2 id='section-22'>Camera</h2>
+<h3 id='section-23'>RCCP.ChangeCamera</h3>
+<p>Cycle to the next camera mode.</p>
+<pre><code>
+void RCCP.ChangeCamera()
+</code></pre>
+<h3 id='section-24'>Direct Access</h3>
+<pre><code>
+RCCP_Camera camera = RCCP_SceneManager.Instance.activePlayerCamera;
+camera.cameraMode = RCCP_Camera.CameraMode.FPS;
+</code></pre>
+<hr>
+<h2 id='section-25'>Mobile</h2>
+<h3 id='section-26'>RCCP.SetMobileController</h3>
+<p>Set the mobile input method.</p>
+<pre><code>
+void RCCP.SetMobileController(RCCP_Settings.MobileController type)
+</code></pre>
+<p>Options: <code>TouchScreen</code>, <code>Gyro</code>, <code>SteeringWheel</code>, <code>Joystick</code></p>
+<hr>
+<h2 id='section-27'>Recording and Replay</h2>
+<h3 id='section-28'>RCCP.StartStopRecord</h3>
+<p>Toggle vehicle movement recording.</p>
+<pre><code>
+void RCCP.StartStopRecord(RCCP_CarController vehicle)
+</code></pre>
+<h3 id='section-29'>RCCP.StartStopReplay</h3>
+<p>Play back the last recording or a specific clip.</p>
+<pre><code>
+void RCCP.StartStopReplay(RCCP_CarController vehicle)
+void RCCP.StartStopReplay(RCCP_CarController vehicle, RCCP_Records.RecordedClip clip)
+</code></pre>
+<h3 id='section-30'>RCCP.StopRecordReplay</h3>
+<p>Stop any active recording or replay.</p>
+<pre><code>
+void RCCP.StopRecordReplay(RCCP_CarController vehicle)
+</code></pre>
+<hr>
+<h2 id='section-31'>World</h2>
+<h3 id='section-32'>RCCP.CleanSkidmarks</h3>
+<p>Remove tire marks from the ground.</p>
+<pre><code>
+void RCCP.CleanSkidmarks()         // Remove all
+void RCCP.CleanSkidmarks(int index) // Remove specific layer
+</code></pre>
+<hr>
+<h2 id='section-33'>Input Override</h2>
+<p>Override player input to control a vehicle programmatically:</p>
+<pre><code>
+// Create custom inputs
+RCCP_Inputs inputs = new RCCP_Inputs();
+inputs.throttleInput = 1f;     // Full throttle
+inputs.steerInput = -0.5f;     // Half left
+inputs.brakeInput = 0f;
+inputs.handbrakeInput = 0f;
+inputs.nosInput = 0f;
+inputs.clutchInput = 0f;
+
+// Apply to vehicle
+vehicle.Inputs.OverrideInputs(inputs);
+
+// Restore normal input
+vehicle.Inputs.DisableOverrideInputs();
+</code></pre>
+<hr>
+<h2 id='section-34'>Events</h2>
+<p>Subscribe to RCCP events for reactive game logic:</p>
+<pre><code>
+// Vehicle lifecycle
+RCCP_Events.OnRCCPSpawned += (RCCP_CarController vehicle) =&gt; { };
+RCCP_Events.OnRCCPAISpawned += (RCCP_CarController vehicle) =&gt; { };
+RCCP_Events.OnRCCPDestroyed += (RCCP_CarController vehicle) =&gt; { };
+RCCP_Events.OnRCCPAIDestroyed += (RCCP_CarController vehicle) =&gt; { };
+
+// Vehicle changes
+RCCP_Events.OnVehicleChanged += () =&gt; { };
+RCCP_Events.OnVehicleChangedToVehicle += (RCCP_CarController vehicle) =&gt; { };
+
+// Collision
+RCCP_Events.OnRCCPCollision += (RCCP_CarController vehicle, Collision collision) =&gt; { };
+
+// System
+RCCP_Events.OnBehaviorChanged += () =&gt; { };
+RCCP_Events.OnRCCPCameraSpawned += (RCCP_Camera camera) =&gt; { };
+RCCP_Events.OnRCCPUISpawned += (RCCP_UIManager ui) =&gt; { };
+
+// UI notifications
+RCCP_Events.OnRCCPUIInformer += (string message) =&gt; { };
+</code></pre>
+<hr>
+<h2 id='section-35'>Common Patterns</h2>
+<h3 id='section-36'>Spawn Vehicle and Start Driving</h3>
+<pre><code>
+public RCCP_CarController prefab;
+
+void Start() {
+    RCCP_CarController car = RCCP.SpawnRCC(
+        prefab, transform.position, transform.rotation,
+        true, true, true
+    );
+}
+</code></pre>
+<h3 id='section-37'>Switch Player Vehicle</h3>
+<pre><code>
+void SwitchToVehicle(RCCP_CarController newVehicle) {
+    RCCP.RegisterPlayerVehicle(newVehicle, true, true);
+}
+</code></pre>
+<h3 id='section-38'>AI Vehicle With Override Inputs</h3>
+<pre><code>
+void ControlVehicleExternally(RCCP_CarController vehicle) {
+    RCCP.SetExternalControl(vehicle, true);
+    RCCP_Inputs inputs = new RCCP_Inputs();
+    inputs.throttleInput = 0.5f;
+    inputs.steerInput = CalculateSteeringToTarget();
+    vehicle.Inputs.OverrideInputs(inputs);
+}
+</code></pre>
+<h3 id='section-39'>Listen for Collisions</h3>
+<pre><code>
+void OnEnable() {
+    RCCP_Events.OnRCCPCollision += HandleCollision;
+}
+
+void OnDisable() {
+    RCCP_Events.OnRCCPCollision -= HandleCollision;
+}
+
+void HandleCollision(RCCP_CarController vehicle, Collision col) {
+    if (col.relativeVelocity.magnitude &gt; 10f)
+        Debug.Log(&quot;Hard hit on &quot; + vehicle.name);
+}
+</code></pre>
+<h3 id='section-40'>Read Vehicle Telemetry</h3>
+<pre><code>
+void Update() {
+    var car = RCCP_SceneManager.Instance.activePlayerVehicle;
+    if (car == null) return;
+
+    float speed = car.speed;
+    float rpm = car.engineRPM;
+    int gear = car.currentGear;
+    bool abs = car.Stability != null &amp;&amp; car.Stability.ABSEngaged;
+}
+</code></pre>
+<h2 id='section-41'>Next Steps</h2>
+<ul>
+<li><a href='14_LiteVsPro.html'>14_LiteVsPro.md</a> — What changes when you upgrade to Pro</li>
+<li><a href='11_SceneManagement.html'>11_SceneManagement.md</a> — Scene setup and vehicle management</li>
+</ul>
+</div></body></html>

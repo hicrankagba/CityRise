@@ -81,3 +81,7 @@ crashlytics-build.properties
 /[Aa]ssets/CityRise/Scenes/BaslangicKasabasi.unity.meta
 /[Aa]ssets/CityRise/Scenes/TestSokak.unity
 /[Aa]ssets/CityRise/Scenes/TestSokak.unity.meta
+
+# Mixamo kaynak FBX'leri (55 MB'a kadar, gömülü dokulu): yalnızca hazırlama sırasında kullanılır
+/[Aa]ssets/CityRise/ThirdParty/Mixamo/Kaynak/
+/[Aa]ssets/CityRise/ThirdParty/Mixamo/Kaynak.meta

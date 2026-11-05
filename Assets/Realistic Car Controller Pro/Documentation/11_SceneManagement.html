@@ -1,0 +1,180 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>11_SceneManagement</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>Scene Management</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>Scene Management</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>RCCP_SceneManager Properties</a></li>
+<li style='margin-left:20px'><a href='#section-3'>Setting Up a Scene</a></li>
+<li style='margin-left:20px'><a href='#section-4'>Spawning Vehicles</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Via Script (Recommended)</a></li>
+<li style='margin-left:40px'><a href='#section-6'>Via Scene Placement</a></li>
+<li style='margin-left:20px'><a href='#section-7'>Registering and Deregistering Players</a></li>
+<li style='margin-left:40px'><a href='#section-8'>Register</a></li>
+<li style='margin-left:40px'><a href='#section-9'>Deregister</a></li>
+<li style='margin-left:40px'><a href='#section-10'>Switch Between Vehicles</a></li>
+<li style='margin-left:20px'><a href='#section-11'>Teleporting Vehicles</a></li>
+<li style='margin-left:20px'><a href='#section-12'>Vehicle Events</a></li>
+<li style='margin-left:20px'><a href='#section-13'>Managing All Vehicles</a></li>
+<li style='margin-left:20px'><a href='#section-14'>Behavior Presets at Runtime</a></li>
+<li style='margin-left:20px'><a href='#section-15'>Terrain Data</a></li>
+<li style='margin-left:20px'><a href='#section-16'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Overview</h2>
+<p><code>RCCP_SceneManager</code> is the central singleton that manages all vehicles, the camera, and the UI canvas in your scene. It tracks which vehicle is the active player vehicle, maintains a list of all spawned vehicles, and handles vehicle registration/deregistration.</p>
+<h2 id='section-2'>RCCP_SceneManager Properties</h2>
+<table>
+<tr><th>Property</th><th>Type</th><th>Description</th></tr>
+<tr><td><code>activePlayerVehicle</code></td><td>RCCP_CarController</td><td>The current player-controlled vehicle</td></tr>
+<tr><td><code>activePlayerCamera</code></td><td>RCCP_Camera</td><td>The active camera following the player</td></tr>
+<tr><td><code>activePlayerCanvas</code></td><td>RCCP_UIManager</td><td>The active UI canvas</td></tr>
+<tr><td><code>activeMainCamera</code></td><td>Camera</td><td>The Unity main camera</td></tr>
+<tr><td><code>allVehicles</code></td><td>List&amp;lt;RCCP_CarController&amp;gt;</td><td>All vehicles currently in the scene</td></tr>
+</table>
+<p>Access the scene manager anywhere via:</p>
+<pre><code>
+RCCP_SceneManager.Instance
+</code></pre>
+<h2 id='section-3'>Setting Up a Scene</h2>
+<p>Every scene that uses RCCP vehicles needs the following:</p>
+<ol>
+<li><strong>RCCP_SceneManager</strong> — Vehicle registry singleton</li>
+<li><strong>RCCP_SkidmarksManager</strong> — Manages tire marks on the ground</li>
+<li><strong>RCCP_Camera</strong> — Camera system (optional but recommended)</li>
+<li><strong>RCCP_UIManager</strong> — UI canvas (optional but recommended)</li>
+</ol>
+<p>Add all of these via <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; Create &gt; Scene Managers</strong> (for the first two) and the individual create menu items for camera and UI.</p>
+<p>If you skip the manual setup and spawn a vehicle as a player, RCCP will auto-instantiate the camera and UI from the prefabs in RCCP Settings.</p>
+<h2 id='section-4'>Spawning Vehicles</h2>
+<h3 id='section-5'>Via Script (Recommended)</h3>
+<p>Use the static <code>RCCP.SpawnRCC</code> method to instantiate a vehicle from a prefab:</p>
+<pre><code>
+// Spawn as player vehicle (controllable, engine running)
+RCCP_CarController vehicle = RCCP.SpawnRCC(
+    vehiclePrefab,       // Reference to the vehicle prefab
+    spawnPosition,       // Vector3 world position
+    spawnRotation,       // Quaternion rotation
+    registerAsPlayer: true,
+    isControllable: true,
+    engineRunning: true
+);
+</code></pre>
+<pre><code>
+// Spawn as AI vehicle (not player, not controllable)
+RCCP_CarController aiVehicle = RCCP.SpawnRCC(
+    vehiclePrefab,
+    spawnPosition,
+    spawnRotation,
+    registerAsPlayer: false,
+    isControllable: false,
+    engineRunning: true
+);
+</code></pre>
+<h3 id='section-6'>Via Scene Placement</h3>
+<p>You can also place vehicle prefabs directly in the scene hierarchy. If <code>registerLastVehicleAsPlayer</code> is enabled in RCCP Settings, the last vehicle added will automatically become the player vehicle.</p>
+<h2 id='section-7'>Registering and Deregistering Players</h2>
+<p>Only one vehicle can be the active player vehicle at a time. Registering a new player vehicle automatically deregisters the previous one.</p>
+<h3 id='section-8'>Register</h3>
+<pre><code>
+// Register a vehicle as the player
+RCCP.RegisterPlayerVehicle(vehicle);
+
+// Register with options
+RCCP.RegisterPlayerVehicle(vehicle, isControllable: true, engineRunning: true);
+</code></pre>
+<h3 id='section-9'>Deregister</h3>
+<pre><code>
+// Remove the current player vehicle (camera and UI disconnect)
+RCCP.DeRegisterPlayerVehicle();
+</code></pre>
+<h3 id='section-10'>Switch Between Vehicles</h3>
+<pre><code>
+// Switch to a different vehicle
+RCCP.RegisterPlayerVehicle(otherVehicle);
+// The camera and UI automatically follow the new vehicle
+</code></pre>
+<h2 id='section-11'>Teleporting Vehicles</h2>
+<p>Move a vehicle instantly to a new position:</p>
+<pre><code>
+// Teleport the player vehicle
+RCCP.Transport(newPosition, newRotation);
+
+// Teleport any vehicle (with velocity reset)
+RCCP.Transport(vehicle, newPosition, newRotation, resetVelocity: true);
+</code></pre>
+<h2 id='section-12'>Vehicle Events</h2>
+<p>RCCP fires events through the <code>RCCP_Events</code> system when vehicles are spawned, destroyed, or changed:</p>
+<pre><code>
+// Subscribe to vehicle events
+RCCP_Events.OnRCCPSpawned += (vehicle) =&gt; {
+    Debug.Log(&quot;Player vehicle spawned: &quot; + vehicle.name);
+};
+
+RCCP_Events.OnRCCPAISpawned += (vehicle) =&gt; {
+    Debug.Log(&quot;AI vehicle spawned: &quot; + vehicle.name);
+};
+
+RCCP_Events.OnRCCPDestroyed += (vehicle) =&gt; {
+    Debug.Log(&quot;Vehicle destroyed: &quot; + vehicle.name);
+};
+
+RCCP_Events.OnVehicleChanged += () =&gt; {
+    Debug.Log(&quot;Active player vehicle changed&quot;);
+};
+
+RCCP_Events.OnVehicleChangedToVehicle += (vehicle) =&gt; {
+    Debug.Log(&quot;Switched to: &quot; + vehicle.name);
+};
+
+RCCP_Events.OnRCCPCollision += (vehicle, collision) =&gt; {
+    Debug.Log(&quot;Collision: &quot; + collision.relativeVelocity.magnitude);
+};
+</code></pre>
+<h2 id='section-13'>Managing All Vehicles</h2>
+<p>Access the complete vehicle list for gameplay logic:</p>
+<pre><code>
+// Iterate all vehicles
+foreach (RCCP_CarController car in RCCP_SceneManager.Instance.allVehicles) {
+    Debug.Log(car.name + &quot; speed: &quot; + car.speed);
+}
+
+// Count vehicles
+int totalCars = RCCP_SceneManager.Instance.allVehicles.Count;
+</code></pre>
+<h2 id='section-14'>Behavior Presets at Runtime</h2>
+<p>Switch the global driving behavior preset, which affects steering response, stability aids, and drift settings for all vehicles:</p>
+<pre><code>
+// Switch by name
+RCCP.SetBehavior(&quot;Drift&quot;);
+
+// Switch by index
+RCCP.SetBehavior(0);  // First behavior preset
+
+// Get behavior by name
+int index = RCCP.GetBehaviorIndexByName(&quot;Race&quot;);
+</code></pre>
+<h2 id='section-15'>Terrain Data</h2>
+<p><code>RCCP_SceneManager</code> automatically collects terrain data from the scene for ground material detection. The wheel colliders use this data to determine which surface material the tires are on, affecting friction, audio, and particles.</p>
+<h2 id='section-16'>Next Steps</h2>
+<ul>
+<li><a href='12_Settings.html'>12_Settings.md</a> — Global settings and behavior configuration</li>
+<li><a href='13_API.html'>13_API.md</a> — Complete API reference</li>
+</ul>
+</div></body></html>

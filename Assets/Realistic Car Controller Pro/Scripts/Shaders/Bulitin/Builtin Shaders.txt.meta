@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 014600a58ca78c54c80895d10f07dd0b
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Scripts/Shaders/Bulitin/Builtin Shaders.txt
+  uploadId: 870692

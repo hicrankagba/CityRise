@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: b398bdf8d9b7f4644bb91bf580fffc95
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Editor/RCCP_ParticlesEditor.cs
+  uploadId: 870692

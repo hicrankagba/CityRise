@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 47c6ac5e9d3c65b49ac31805d6c31f81
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Resources/RCCP_InputActions.asset
+  uploadId: 870692

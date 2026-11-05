@@ -1,0 +1,230 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>05_VehicleSystems</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>Vehicle Systems</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>Vehicle Systems</a></li>
+<li style='margin-left:20px'><a href='#section-1'>RCCP_Stability</a></li>
+<li style='margin-left:40px'><a href='#section-2'>Stability Aids</a></li>
+<li style='margin-left:40px'><a href='#section-3'>Drift System</a></li>
+<li style='margin-left:40px'><a href='#section-4'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Locked in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-6'>RCCP_AeroDynamics</a></li>
+<li style='margin-left:40px'><a href='#section-7'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-8'>Locked in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-9'>RCCP_Damage</a></li>
+<li style='margin-left:40px'><a href='#section-10'>Damage Types</a></li>
+<li style='margin-left:40px'><a href='#section-11'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-12'>Locked in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-13'>RCCP_FuelTank</a></li>
+<li style='margin-left:40px'><a href='#section-14'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-15'>RCCP_Nos</a></li>
+<li style='margin-left:40px'><a href='#section-16'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-17'>Locked in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-18'>RCCP_Limiter</a></li>
+<li style='margin-left:40px'><a href='#section-19'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-20'>RCCP_Audio</a></li>
+<li style='margin-left:40px'><a href='#section-21'>Audio Sources</a></li>
+<li style='margin-left:40px'><a href='#section-22'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-23'>RCCP_Lights</a></li>
+<li style='margin-left:40px'><a href='#section-24'>Light Types</a></li>
+<li style='margin-left:40px'><a href='#section-25'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-26'>Locked in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-27'>RCCP_Particles</a></li>
+<li style='margin-left:40px'><a href='#section-28'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-29'>RCCP_BodyTilt</a></li>
+<li style='margin-left:40px'><a href='#section-30'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-31'>RCCP_Lod</a></li>
+<li style='margin-left:40px'><a href='#section-32'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-33'>RCCPExhausts / RCCPExhaust</a></li>
+<li style='margin-left:40px'><a href='#section-34'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-35'>RCCP_DetachablePart</a></li>
+<li style='margin-left:40px'><a href='#section-36'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-37'>RCCP_Recorder</a></li>
+<li style='margin-left:40px'><a href='#section-38'>API Access</a></li>
+<li style='margin-left:20px'><a href='#section-39'>RCCP_TrailerAttacher</a></li>
+<li style='margin-left:40px'><a href='#section-40'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-41'>Next Steps</a></li>
+</ul></div>
+<p>Beyond the drivetrain, RCCP vehicles include several auxiliary systems that handle stability, aerodynamics, damage, fuel, nitrous oxide, audio, lighting, particles, and visual effects. All of these systems work fully at runtime in RCCP Lite.</p>
+<hr>
+<h2 id='section-1'>RCCP_Stability</h2>
+<p>The stability system provides electronic driver aids and drift control. It monitors wheel slip, vehicle rotation, and steering input to apply corrective forces.</p>
+<h3 id='section-2'>Stability Aids</h3>
+<table>
+<tr><th>System</th><th>Description</th></tr>
+<tr><td>ABS (Anti-lock Braking System)</td><td>Prevents wheel lockup during braking by pulsing brake pressure</td></tr>
+<tr><td>ESP (Electronic Stability Program)</td><td>Applies individual wheel brakes to correct oversteer/understeer</td></tr>
+<tr><td>TCS (Traction Control System)</td><td>Reduces engine power when wheels spin to maintain traction</td></tr>
+<tr><td>Steering Helper</td><td>Applies corrective steering torque to improve straight-line stability</td></tr>
+<tr><td>Traction Helper</td><td>Applies additional lateral grip forces</td></tr>
+<tr><td>Angular Drag Helper</td><td>Dampens vehicle rotation for more predictable handling</td></tr>
+</table>
+<h3 id='section-3'>Drift System</h3>
+<p>The stability component also includes a complete drift system with force-based drifting, angle limiting, friction reduction, counter-steer recovery, and momentum maintenance. The drift system is configured through behavior presets (see <a href='12_Settings.html'>12_Settings.md</a>).</p>
+<h3 id='section-4'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>ABS</code></td><td>Toggle anti-lock braking</td></tr>
+<tr><td><code>ESP</code></td><td>Toggle electronic stability</td></tr>
+<tr><td><code>TCS</code></td><td>Toggle traction control</td></tr>
+<tr><td><code>steeringHelper</code></td><td>Toggle steering assistance</td></tr>
+<tr><td><code>tractionHelper</code></td><td>Toggle traction assistance</td></tr>
+</table>
+<h3 id='section-5'>Locked in Lite</h3>
+<p>All threshold values, intensity settings, drift parameters, angular drag settings, and force strengths.</p>
+<hr>
+<h2 id='section-6'>RCCP_AeroDynamics</h2>
+<p>Handles aerodynamic forces acting on the vehicle, including downforce (which increases grip at speed), air resistance (drag), wheel resistance, and center of mass management.</p>
+<p>Also includes an auto-reset feature that flips the vehicle right-side-up if it becomes stuck upside down.</p>
+<h3 id='section-7'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>downForce</code></td><td>Aerodynamic downforce applied at speed</td></tr>
+<tr><td><code>autoReset</code></td><td>Automatically flip vehicle if upside down</td></tr>
+</table>
+<h3 id='section-8'>Locked in Lite</h3>
+<p>Center of mass button, dynamic COM, air resistance, wheel resistance, auto-reset timer.</p>
+<hr>
+<h2 id='section-9'>RCCP_Damage</h2>
+<p>A multi-aspect damage system that simulates mesh deformation, wheel damage, light breakage, and body part detachment. Damage can be saved and loaded per vehicle, and repaired at runtime.</p>
+<h3 id='section-10'>Damage Types</h3>
+<table>
+<tr><th>Type</th><th>Description</th></tr>
+<tr><td>Mesh Deformation</td><td>Vertices of body meshes move on collision impact</td></tr>
+<tr><td>Wheel Damage</td><td>Wheels can be damaged, deflated, or detached</td></tr>
+<tr><td>Light Damage</td><td>Headlights and tail lights can break on impact</td></tr>
+<tr><td>Part Damage</td><td>Body panels (bumpers, fenders, doors) can detach</td></tr>
+</table>
+<h3 id='section-11'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>meshDeformation</code></td><td>Toggle mesh deformation</td></tr>
+<tr><td><code>wheelDamage</code></td><td>Toggle wheel damage</td></tr>
+<tr><td><code>lightDamage</code></td><td>Toggle light damage</td></tr>
+<tr><td><code>partDamage</code></td><td>Toggle part detachment</td></tr>
+<tr><td>Repair Now</td><td>Button to repair all damage (play mode only)</td></tr>
+</table>
+<h3 id='section-12'>Locked in Lite</h3>
+<p>Damage thresholds, deformation radius, deformation multiplier, all per-component configuration, mesh/light/part lists, save/load/delete operations.</p>
+<hr>
+<h2 id='section-13'>RCCP_FuelTank</h2>
+<p>Simulates fuel consumption with configurable tank capacity and consumption rates. The fuel level decreases as the engine runs and the vehicle is driven. When fuel runs out, the engine stalls.</p>
+<h3 id='section-14'>Editable in Lite</h3>
+<p>All fuel tank parameters are locked in Lite. The fuel system works at runtime with default values.</p>
+<hr>
+<h2 id='section-15'>RCCP_Nos</h2>
+<p>Nitrous oxide system that provides a temporary torque boost. NOS has a limited supply that depletes during use and regenerates over time.</p>
+<h3 id='section-16'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>amount</code></td><td>Current NOS amount (read at runtime)</td></tr>
+</table>
+<h3 id='section-17'>Locked in Lite</h3>
+<p>NOS torque multiplier, regeneration rate, maximum amount, usage rate.</p>
+<hr>
+<h2 id='section-18'>RCCP_Limiter</h2>
+<p>Speed limiter that can restrict the vehicle's maximum speed on a per-gear basis. Useful for gameplay scenarios that require speed zones or governed vehicles.</p>
+<h3 id='section-19'>Editable in Lite</h3>
+<p>All limiter parameters are locked in Lite.</p>
+<hr>
+<h2 id='section-20'>RCCP_Audio</h2>
+<p>Complete vehicle audio system with separate audio sources for different engine RPM ranges, plus gear shift sounds, turbo whistle, NOS activation, crash impacts, wind noise, brake sounds, and exhaust flames.</p>
+<p>The audio system dynamically blends between low, mid, and high RPM engine clips based on current engine RPM, creating a smooth and realistic engine sound.</p>
+<h3 id='section-21'>Audio Sources</h3>
+<table>
+<tr><th>Source</th><th>Description</th></tr>
+<tr><td>Engine Idle</td><td>Low RPM idle loop</td></tr>
+<tr><td>Engine Low</td><td>Low RPM driving</td></tr>
+<tr><td>Engine Medium</td><td>Mid RPM range</td></tr>
+<tr><td>Engine High</td><td>High RPM / full throttle</td></tr>
+<tr><td>Engine Start</td><td>Starter motor sound</td></tr>
+<tr><td>Gear Shift</td><td>Transmission clunk on shift</td></tr>
+<tr><td>Turbo</td><td>Turbocharger whistle and blow-off</td></tr>
+<tr><td>NOS</td><td>Nitrous activation hiss</td></tr>
+<tr><td>Brake</td><td>Brake squeal under heavy braking</td></tr>
+<tr><td>Wind</td><td>Speed-dependent wind noise</td></tr>
+<tr><td>Crash</td><td>Collision impact sounds</td></tr>
+<tr><td>Exhaust Flame</td><td>Exhaust backfire on deceleration</td></tr>
+</table>
+<h3 id='section-22'>Editable in Lite</h3>
+<p>All audio parameters are locked in Lite. Audio works at runtime with default clips and mixing.</p>
+<hr>
+<h2 id='section-23'>RCCP_Lights</h2>
+<p>Manages all vehicle lighting including headlights, brake lights, reverse lights, turn indicators, and optional neon underglow and police/emergency lights.</p>
+<h3 id='section-24'>Light Types</h3>
+<table>
+<tr><th>Type</th><th>Description</th></tr>
+<tr><td>Headlights (Low Beam)</td><td>Standard forward illumination</td></tr>
+<tr><td>Headlights (High Beam)</td><td>Bright forward illumination</td></tr>
+<tr><td>Brake Lights</td><td>Activate when braking</td></tr>
+<tr><td>Reverse Lights</td><td>Activate in reverse gear</td></tr>
+<tr><td>Left Indicator</td><td>Left turn signal</td></tr>
+<tr><td>Right Indicator</td><td>Right turn signal</td></tr>
+<tr><td>Hazard Lights</td><td>All indicators flash together</td></tr>
+</table>
+<h3 id='section-25'>Editable in Lite</h3>
+<p>Light on/off toggles are controlled via input (L for headlights, Q/E for indicators). The Lights inspector allows navigation to individual light components.</p>
+<h3 id='section-26'>Locked in Lite</h3>
+<p>Light creation, removal, position editing, URP conversion tools.</p>
+<hr>
+<h2 id='section-27'>RCCP_Particles</h2>
+<p>Manages particle effects for wheel slip (tire smoke), contact sparks, brake dust, and surface-dependent effects. The particle system reads from the ground materials database to emit the correct particle type based on the surface the wheels are on.</p>
+<h3 id='section-28'>Editable in Lite</h3>
+<p>All particle parameters are locked in Lite. Particles work at runtime with default configurations.</p>
+<hr>
+<h2 id='section-29'>RCCP_BodyTilt</h2>
+<p>Applies visual body lean/roll during cornering, giving the vehicle a more dynamic appearance during turns. This is purely visual and does not affect physics.</p>
+<h3 id='section-30'>Editable in Lite</h3>
+<p>All body tilt parameters are locked in Lite.</p>
+<hr>
+<h2 id='section-31'>RCCP_Lod</h2>
+<p>Level-of-detail system that reduces rendering complexity at distance. Automatically switches mesh detail levels based on camera distance for better performance.</p>
+<h3 id='section-32'>Editable in Lite</h3>
+<p>All LOD parameters are locked in Lite.</p>
+<hr>
+<h2 id='section-33'>RCCP_Exhausts / RCCP_Exhaust</h2>
+<p>Visual exhaust system with gas particles and optional flame effects. The exhaust flame activates during deceleration (engine braking) for a realistic visual effect.</p>
+<h3 id='section-34'>Editable in Lite</h3>
+<p>All exhaust parameters are locked in Lite.</p>
+<hr>
+<h2 id='section-35'>RCCP_DetachablePart</h2>
+<p>Individual body parts (bumpers, fenders, doors, etc.) that can detach on sufficient collision impact. Each part has configurable break force, joint strength, and detachment behavior.</p>
+<h3 id='section-36'>Editable in Lite</h3>
+<p>Detachable parts are configured through the damage system. Toggle part damage on/off via <code>RCCP_Damage</code>.</p>
+<hr>
+<h2 id='section-37'>RCCP_Recorder</h2>
+<p>Records vehicle movement data (position, rotation, inputs) for playback. Useful for replay systems, ghost cars, or cinematic sequences.</p>
+<h3 id='section-38'>API Access</h3>
+<pre><code>
+RCCP.StartStopRecord(vehicle);    // Toggle recording
+RCCP.StartStopReplay(vehicle);    // Play last recording
+RCCP.StopRecordReplay(vehicle);   // Stop playback
+</code></pre>
+<hr>
+<h2 id='section-39'>RCCP_TrailerAttacher</h2>
+<p>Allows vehicles to attach and tow trailer objects. Handles the physics joint, connection/disconnection, and trailer input forwarding.</p>
+<h3 id='section-40'>Editable in Lite</h3>
+<p>All trailer parameters are locked in Lite. The trailer system works at runtime with default values.</p>
+<h2 id='section-41'>Next Steps</h2>
+<ul>
+<li><a href='06_CameraSystem.html'>06_CameraSystem.md</a> — Camera modes and setup</li>
+<li><a href='04_DrivetrainComponents.html'>04_DrivetrainComponents.md</a> — Engine, gearbox, and drivetrain</li>
+</ul>
+</div></body></html>

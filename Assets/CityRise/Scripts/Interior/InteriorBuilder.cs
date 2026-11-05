@@ -80,16 +80,33 @@ namespace CityRise.Interior
         readonly List<GameObject> furniture = new List<GameObject>();
         readonly List<GameObject> customers = new List<GameObject>();
         readonly List<GameObject> staff = new List<GameObject>();
+        readonly List<GameObject> seated = new List<GameObject>();
+        List<string> realPeople;
+
+        /// <summary>Gerçekçi (Mixamo) karakter anahtarları; yoksa boş liste.</summary>
+        List<string> RealPeople()
+        {
+            if (realPeople != null) return realPeople;
+            realPeople = new List<string>();
+            foreach (var m in lib.models) if (m.prefab != null && m.key.StartsWith("mx/")) realPeople.Add(m.key);
+            return realPeople;
+        }
+
+        string RandomRealPerson() => RealPeople().Count > 0 ? RealPeople()[rng.Next(RealPeople().Count)] : null;
         Vector3? registerSpot;
 
         GameObject Place(string key, float x, float z, Vector3 facing, float y = 0f, float extraScale = 1f)
         {
+            bool isStaff = key == "mm/employee";
+            // Çalışanlar da gerçekçi karakterlerden seçilir (varsa).
+            if (isStaff && RandomRealPerson() is string real) key = real;
             var e = lib.Get(key);
             if (e == null) return null;
-            bool person = key.StartsWith("ch/") || key == "mm/employee";
-            float yaw = Quaternion.LookRotation(facing).eulerAngles.y + (key.StartsWith("ch/") ? 0f : ModelFrontYaw);
-            // Kişiler bir taşıyıcı nesnenin içinde: taşıyıcı yürür, model hafifçe sallanır.
-            var holder = person ? new GameObject(key.StartsWith("ch/") ? "Musteri" : "Calisan").transform : null;
+            bool person = key.StartsWith("ch/") || key.StartsWith("mx/") || isStaff;
+            bool frontIsZ = key.StartsWith("ch/") || key.StartsWith("mx/");
+            float yaw = Quaternion.LookRotation(facing).eulerAngles.y + (frontIsZ ? 0f : ModelFrontYaw);
+            // Kişiler bir taşıyıcı nesnenin içinde: taşıyıcı yürür, model animasyonla hareket eder.
+            var holder = person ? new GameObject(isStaff ? "Calisan" : "Musteri").transform : null;
             if (holder != null)
             {
                 holder.SetParent(root, false);
@@ -100,7 +117,7 @@ namespace CityRise.Interior
             if (holder != null)
             {
                 go.transform.localPosition = Vector3.zero;
-                go.transform.localRotation = Quaternion.Euler(0, key.StartsWith("ch/") ? 0f : ModelFrontYaw, 0);
+                go.transform.localRotation = Quaternion.Euler(0, frontIsZ ? 0f : ModelFrontYaw, 0);
             }
             else
             {
@@ -111,7 +128,7 @@ namespace CityRise.Interior
             foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.On;
             if (holder != null)
             {
-                (key.StartsWith("ch/") ? customers : staff).Add(holder.gameObject);
+                (isStaff ? staff : customers).Add(holder.gameObject);
                 return holder.gameObject;
             }
             if (y < 0.3f) furniture.Add(go);
@@ -170,6 +187,7 @@ namespace CityRise.Interior
                 }
             }
             foreach (var s in staff) s.AddComponent<CityRise.Life.InteriorWanderer>().idleOnly = true;
+            foreach (var s in seated) s.AddComponent<CityRise.Life.InteriorWanderer>().seated = true;
         }
 
         /// <summary>
@@ -295,8 +313,20 @@ namespace CityRise.Interior
             for (int i = 0; i < count; i++)
             {
                 float a = R(0, 360);
-                Place(people[rng.Next(people.Length)], R(xMin, xMax), R(zMin, zMax), new Vector3(Mathf.Sin(a * Mathf.Deg2Rad), 0, Mathf.Cos(a * Mathf.Deg2Rad)));
+                string key = RandomRealPerson() ?? people[rng.Next(people.Length)];
+                Place(key, R(xMin, xMax), R(zMin, zMax), new Vector3(Mathf.Sin(a * Mathf.Deg2Rad), 0, Mathf.Cos(a * Mathf.Deg2Rad)));
             }
+        }
+
+        /// <summary>Sandalyede oturan müşteri (yalnızca gerçekçi karakterlerle; oturma animasyonu gerekir).</summary>
+        void SeatedCustomer(float x, float z, Vector3 facing)
+        {
+            string key = RandomRealPerson();
+            if (key == null) return;
+            var go = Place(key, x - facing.x * 0.12f, z - facing.z * 0.12f, facing);
+            if (go == null) return;
+            customers.Remove(go);
+            seated.Add(go);
         }
 
         // ------------------------------------------------------------ Gerçekçi eşya yardımcıları (Poly Haven, CC0)
@@ -570,6 +600,9 @@ namespace CityRise.Interior
                 Place("ph/gallinera_chair", x - 0.75f, z, Right);
                 Place("ph/gallinera_chair", x + 0.75f, z, Left);
                 Place("ph/carrot_cake", x, z, Front, 0.75f);
+                // Bazı masalarda oturup sohbet eden müşteriler.
+                if (rng.NextDouble() < 0.6) SeatedCustomer(x - 0.75f, z, Right);
+                if (rng.NextDouble() < 0.4) SeatedCustomer(x + 0.75f, z, Left);
             }
             Plants();
             Place("mm/employee", -HalfW + 2.6f, HalfD - 1.4f, Front);

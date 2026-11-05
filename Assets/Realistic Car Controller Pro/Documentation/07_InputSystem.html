@@ -1,0 +1,174 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>07_InputSystem</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>Input System</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>Input System</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>Input Architecture</a></li>
+<li style='margin-left:20px'><a href='#section-3'>Default Controls</a></li>
+<li style='margin-left:40px'><a href='#section-4'>Keyboard</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Gamepad</a></li>
+<li style='margin-left:40px'><a href='#section-6'>Mobile</a></li>
+<li style='margin-left:20px'><a href='#section-7'>Input Processing</a></li>
+<li style='margin-left:40px'><a href='#section-8'>Auto-Reverse</a></li>
+<li style='margin-left:40px'><a href='#section-9'>Counter-Steering</a></li>
+<li style='margin-left:40px'><a href='#section-10'>Steering Limiter</a></li>
+<li style='margin-left:40px'><a href='#section-11'>Throttle Cut During Shifts</a></li>
+<li style='margin-left:40px'><a href='#section-12'>Speed-Based Steering</a></li>
+<li style='margin-left:20px'><a href='#section-13'>Input Overriding</a></li>
+<li style='margin-left:40px'><a href='#section-14'>Override Flags</a></li>
+<li style='margin-left:20px'><a href='#section-15'>Input Rebinding</a></li>
+<li style='margin-left:40px'><a href='#section-16'>UI Integration</a></li>
+<li style='margin-left:20px'><a href='#section-17'>Input Values</a></li>
+<li style='margin-left:20px'><a href='#section-18'>Events</a></li>
+<li style='margin-left:20px'><a href='#section-19'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Overview</h2>
+<p>RCCP's input system supports multiple input methods through a centralized <code>RCCP_InputManager</code> singleton. It handles keyboard, gamepad, mobile touch, gyroscope, and virtual steering wheel input, and is compatible with both Unity's legacy Input Manager and the new Input System package.</p>
+<h2 id='section-2'>Input Architecture</h2>
+<pre><code>
+RCCP_InputManager (singleton, reads hardware input)
+    ↓ provides RCCP_Inputs struct
+RCCP_Input (per-vehicle component, processes and applies inputs)
+    ↓ vehicle-specific values
+RCCP_CarController (uses processed inputs for driving)
+</code></pre>
+<ol>
+<li><strong>RCCP_InputManager</strong> reads raw input from the hardware (keyboard, gamepad, touch screen) and populates an <code>RCCP_Inputs</code> struct with normalized values</li>
+<li><strong>RCCP_Input</strong> (on each vehicle) fetches these values and applies vehicle-specific processing: auto-reverse, steering limiters, counter-steering, throttle cut during shifts</li>
+<li>The processed inputs drive the engine, gearbox, brakes, steering, and other systems</li>
+</ol>
+<h2 id='section-3'>Default Controls</h2>
+<h3 id='section-4'>Keyboard</h3>
+<table>
+<tr><th>Action</th><th>Key</th></tr>
+<tr><td>Accelerate</td><td>W or Up Arrow</td></tr>
+<tr><td>Brake / Reverse</td><td>S or Down Arrow</td></tr>
+<tr><td>Steer Left</td><td>A or Left Arrow</td></tr>
+<tr><td>Steer Right</td><td>D or Right Arrow</td></tr>
+<tr><td>Handbrake</td><td>Space</td></tr>
+<tr><td>NOS</td><td>Left Shift</td></tr>
+<tr><td>Clutch</td><td>Left Ctrl</td></tr>
+<tr><td>Start / Stop Engine</td><td>I</td></tr>
+<tr><td>Headlights (Low)</td><td>L</td></tr>
+<tr><td>Headlights (High)</td><td>K</td></tr>
+<tr><td>Left Indicator</td><td>Q</td></tr>
+<tr><td>Right Indicator</td><td>E</td></tr>
+<tr><td>Hazard Lights</td><td>Z</td></tr>
+<tr><td>Gear Up</td><td>Left Shift (manual)</td></tr>
+<tr><td>Gear Down</td><td>Left Ctrl (manual)</td></tr>
+<tr><td>Change Camera</td><td>C</td></tr>
+<tr><td>Look Back</td><td>B</td></tr>
+<tr><td>Record</td><td>R</td></tr>
+<tr><td>Replay</td><td>T</td></tr>
+</table>
+<h3 id='section-5'>Gamepad</h3>
+<table>
+<tr><th>Action</th><th>Button</th></tr>
+<tr><td>Accelerate</td><td>Right Trigger</td></tr>
+<tr><td>Brake</td><td>Left Trigger</td></tr>
+<tr><td>Steer</td><td>Left Stick (horizontal)</td></tr>
+<tr><td>Handbrake</td><td>A / Cross</td></tr>
+<tr><td>NOS</td><td>B / Circle</td></tr>
+<tr><td>Gear Up</td><td>Right Bumper</td></tr>
+<tr><td>Gear Down</td><td>Left Bumper</td></tr>
+<tr><td>Change Camera</td><td>Y / Triangle</td></tr>
+<tr><td>Look Around</td><td>Right Stick</td></tr>
+</table>
+<p>RCCP automatically detects the connected gamepad type and displays appropriate button icons (Xbox, PlayStation, etc.) via the <code>RCCP_GamepadIcons</code> system.</p>
+<h3 id='section-6'>Mobile</h3>
+<p>RCCP supports four mobile input modes:</p>
+<table>
+<tr><th>Mode</th><th>Description</th></tr>
+<tr><td>TouchScreen</td><td>On-screen buttons for throttle, brake, steering</td></tr>
+<tr><td>Gyro</td><td>Device tilt controls steering, on-screen throttle/brake</td></tr>
+<tr><td>SteeringWheel</td><td>Virtual steering wheel with on-screen pedals</td></tr>
+<tr><td>Joystick</td><td>Virtual joystick for steering, on-screen throttle/brake</td></tr>
+</table>
+<p>Set the mobile controller type via:</p>
+<pre><code>
+RCCP.SetMobileController(RCCP_Settings.MobileController.SteeringWheel);
+</code></pre>
+<p>Or through the RCCP Settings asset.</p>
+<h2 id='section-7'>Input Processing</h2>
+<p>The <code>RCCP_Input</code> component applies several processing steps to raw input before it reaches the vehicle:</p>
+<h3 id='section-8'>Auto-Reverse</h3>
+<p>When using automatic transmission, if the player holds brake while the vehicle is nearly stopped, the vehicle automatically shifts into reverse and the brake input becomes throttle.</p>
+<h3 id='section-9'>Counter-Steering</h3>
+<p>When the vehicle is sliding, a configurable counter-steering factor automatically applies slight corrective steering opposite to the slide direction. This makes the vehicle easier to control without requiring expert input.</p>
+<h3 id='section-10'>Steering Limiter</h3>
+<p>At speeds above approximately 15 km/h, if the wheels are slipping significantly, the maximum steering angle is reduced to prevent violent spins. This works in conjunction with the speed-based steering curve from the behavior preset.</p>
+<h3 id='section-11'>Throttle Cut During Shifts</h3>
+<p>During gear changes, throttle input is temporarily zeroed to simulate the real-world power interruption during a gear shift.</p>
+<h3 id='section-12'>Speed-Based Steering</h3>
+<p>The behavior preset defines a steering curve that reduces the maximum steering angle at higher speeds. This prevents unrealistically sharp turns at highway speeds.</p>
+<h2 id='section-13'>Input Overriding</h2>
+<p>You can bypass the normal input pipeline entirely to control a vehicle from your own script, AI system, or network synchronization:</p>
+<pre><code>
+// Create custom inputs
+RCCP_Inputs customInputs = new RCCP_Inputs();
+customInputs.throttleInput = 0.8f;  // 80% throttle
+customInputs.steerInput = 0.3f;     // Slight right turn
+customInputs.brakeInput = 0f;
+
+// Apply to a vehicle
+vehicle.Inputs.OverrideInputs(customInputs);
+
+// Later, restore normal input
+vehicle.Inputs.DisableOverrideInputs();
+</code></pre>
+<h3 id='section-14'>Override Flags</h3>
+<table>
+<tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>overridePlayerInputs</code></td><td>Skip RCCP_InputManager, use custom RCCP_Inputs</td></tr>
+<tr><td><code>overrideExternalInputs</code></td><td>Skip post-processing (steering limiter, auto-reverse, etc.)</td></tr>
+</table>
+<h2 id='section-15'>Input Rebinding</h2>
+<p>Players can remap controls at runtime. The rebinding system saves and loads custom key mappings automatically if <code>autoSaveLoadInputRebind</code> is enabled in RCCP Settings.</p>
+<h3 id='section-16'>UI Integration</h3>
+<ul>
+<li><code>RCCP_UI_RebindInput</code> — UI component for rebinding a single action</li>
+<li><code>RCCP_UI_RebindInputReset</code> — Resets all bindings to defaults</li>
+<li><code>RCCP_RebindSaveLoad</code> — Handles persistence of rebind data</li>
+</ul>
+<h2 id='section-17'>Input Values</h2>
+<p>All input values are normalized to standard ranges:</p>
+<table>
+<tr><th>Input</th><th>Range</th><th>Description</th></tr>
+<tr><td>Throttle</td><td>0 to 1</td><td>0 = no gas, 1 = full throttle</td></tr>
+<tr><td>Brake</td><td>0 to 1</td><td>0 = no brake, 1 = full brake</td></tr>
+<tr><td>Steering</td><td>-1 to 1</td><td>-1 = full left, 1 = full right</td></tr>
+<tr><td>Handbrake</td><td>0 to 1</td><td>0 = released, 1 = fully engaged</td></tr>
+<tr><td>Clutch</td><td>0 to 1</td><td>0 = released, 1 = fully pressed</td></tr>
+<tr><td>NOS</td><td>0 to 1</td><td>0 = off, 1 = full NOS</td></tr>
+</table>
+<h2 id='section-18'>Events</h2>
+<p>The input system fires events that you can subscribe to:</p>
+<pre><code>
+// Gear shift events
+RCCP_InputManager.OnGearShiftedUp += () =&gt; { /* gear up */ };
+RCCP_InputManager.OnGearShiftedDown += () =&gt; { /* gear down */ };
+</code></pre>
+<h2 id='section-19'>Next Steps</h2>
+<ul>
+<li><a href='08_AISystem.html'>08_AISystem.md</a> — AI driving with input overrides</li>
+<li><a href='13_API.html'>13_API.md</a> — Full scripting API reference</li>
+</ul>
+</div></body></html>

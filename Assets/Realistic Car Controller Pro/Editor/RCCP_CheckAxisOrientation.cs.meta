@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 7f184ecc17ae4d84b96cf9101f1a439f
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 363992
+  packageName: Realistic Car Controller (Free)
+  packageVersion: 2.22_Lite
+  assetPath: Assets/Realistic Car Controller Pro/Editor/RCCP_CheckAxisOrientation.cs
+  uploadId: 870692

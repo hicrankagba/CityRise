@@ -1677,6 +1677,106 @@ namespace CityRise.EditorTools
             gm.interiorLibrary = BuildInteriorLibrary(c, gm.gameObject);
         }
 
+        /// <summary>
+        /// Asset Store'dan eklenen ücretsiz gerçekçi arabalar: model yolu, hedef uzunluk (m) ve
+        /// önünü +Z'ye çeviren açı. Paket projede yoksa atlanır.
+        /// </summary>
+        static readonly (string key, string path, float length, float yaw)[] RealCars =
+        {
+            ("skyline", "Assets/Realistic Car Controller Pro/Models/Prototype Vehicle/Skyline (Prototype)/Model_Skyline by BUMSTRUM(3DMaesen) (Prototype).fbx", 4.5f, 0f),
+            ("pickup", "Assets/Pack_Pickup/Prefabs/Pickup.prefab", 5.2f, 0f),
+            ("supermini", "Assets/SuperminiCarURP/SuperminiCar URP by WITSGaming/SuperminiCarURP/SuperminiCar.fbx", 3.9f, 0f),
+        };
+
+        /// <summary>
+        /// Arabayı oyuna uygun prefab yapar: ölçek (uzunluk), yön, zemine oturtma, fizik ve betikleri ayıklama,
+        /// URP dışı malzemeleri URP Lit'e çevirme.
+        /// </summary>
+        static GameObject RealCarPrefab(string key, string path, float length, float yaw)
+        {
+            var src = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (src == null) return null;
+            string dir = GeneratedDir + "/Arabalar";
+            EnsureFolder(dir);
+            string prefabPath = $"{dir}/{key}_v2.prefab";
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (existing != null) return existing;
+
+            var root = new GameObject("Araba_" + key);
+            var model = Object.Instantiate(src, root.transform);
+            model.name = "Model";
+            // Yalnızca görünüm: çarpıştırıcı, rigidbody ve paket betikleri kaldırılır.
+            foreach (var c in model.GetComponentsInChildren<Component>(true))
+                if (c is Collider || c is Rigidbody || c is MonoBehaviour || c is AudioSource || c is Light || c is ParticleSystem)
+                    Object.DestroyImmediate(c);
+            model.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+            var b = CarBounds(root);
+            float s = length / Mathf.Max(0.01f, b.size.z);
+            model.transform.localScale *= s;
+            b = CarBounds(root);
+            model.transform.position -= new Vector3(b.center.x, b.min.y, b.center.z);
+
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+            {
+                var ms = r.sharedMaterials;
+                for (int i = 0; i < ms.Length; i++)
+                {
+                    var m = ms[i];
+                    if (m == null || m.shader.name.StartsWith("Universal Render Pipeline")) continue;
+                    ms[i] = UrpCopy(m, dir);
+                }
+                r.sharedMaterials = ms;
+                r.shadowCastingMode = ShadowCastingMode.On;
+            }
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            Object.DestroyImmediate(root);
+            return prefab;
+        }
+
+        static Bounds CarBounds(GameObject go)
+        {
+            var rs = go.GetComponentsInChildren<Renderer>();
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            return b;
+        }
+
+        /// <summary>Paketin kendi (URP dışı) malzemesinden renk ve dokuyu alıp URP Lit malzeme üretir.</summary>
+        static Material UrpCopy(Material m, string dir)
+        {
+            string path = $"{dir}/{string.Join("_", m.name.Split(Path.GetInvalidFileNameChars()))}_URP.mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing != null) return existing;
+            var u = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = m.name + "_URP" };
+            AssetDatabase.CreateAsset(u, path);
+            var tex = m.HasProperty("_MainTex") ? m.GetTexture("_MainTex") : (m.HasProperty("_BaseMap") ? m.GetTexture("_BaseMap") : null);
+            if (tex != null) u.SetTexture("_BaseMap", tex);
+            Color col = m.HasProperty("_Color") ? m.GetColor("_Color") : (m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor") : Color.white);
+            u.SetColor("_BaseColor", col);
+            if (m.HasProperty("_BumpMap") && m.GetTexture("_BumpMap") != null) { u.SetTexture("_BumpMap", m.GetTexture("_BumpMap")); u.EnableKeyword("_NORMALMAP"); }
+            float gloss = m.HasProperty("_Glossiness") ? m.GetFloat("_Glossiness") : 0.6f;
+            float metal = m.HasProperty("_Metallic") ? m.GetFloat("_Metallic") : 0.2f;
+            // Araba boyası: parlak, biraz metalik.
+            if (m.shader.name.Contains("Body")) { gloss = Mathf.Max(gloss, 0.8f); metal = Mathf.Max(metal, 0.4f); }
+            u.SetFloat("_Smoothness", gloss);
+            u.SetFloat("_Metallic", metal);
+            if (col.a < 0.95f || m.name.ToLower().Contains("glass"))
+            {
+                u.SetFloat("_Surface", 1f);
+                u.SetFloat("_Blend", 0f);
+                u.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                u.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+                u.SetFloat("_ZWrite", 0f);
+                u.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                u.renderQueue = (int)RenderQueue.Transparent;
+                u.SetOverrideTag("RenderType", "Transparent");
+                u.SetColor("_BaseColor", new Color(col.r * 0.3f, col.g * 0.35f, col.b * 0.4f, Mathf.Min(col.a, 0.5f)));
+            }
+            EditorUtility.SetDirty(u);
+            AssetDatabase.SaveAssets();
+            return u;
+        }
+
         /// <summary>İç görünüm modelleri (Kenney CC0) ve malzemeleri (Poly Haven CC0).</summary>
         static CityRise.Interior.InteriorLibrary BuildInteriorLibrary(Ctx c, GameObject host)
         {
@@ -1700,8 +1800,16 @@ namespace CityRise.EditorTools
             AddFolder("Food", "food/", 0.45f);
             AddFolder("Furniture", "furn/", 0.22f);
             AddFolder("Cars", "car/", 1.15f);
+            foreach (var (key, path, length, yaw) in RealCars)
+            {
+                var car = RealCarPrefab(key, path, length, yaw);
+                if (car != null) lib.models.Add(new CityRise.Interior.InteriorLibrary.Entry { key = "rcar/" + key, prefab = car, scale = 1f });
+            }
             foreach (var kv in PolyHavenModels.Ensure())
                 lib.models.Add(new CityRise.Interior.InteriorLibrary.Entry { key = "ph/" + kv.Key, prefab = kv.Value, scale = 1f });
+            // Gerçekçi insanlar (Mixamo): prefablar zaten 1,72 m boyunda ve Animator'lı.
+            foreach (var p in MixamoSetup.Characters())
+                lib.models.Add(new CityRise.Interior.InteriorLibrary.Entry { key = "mx/" + p.name.Replace("Insan_", ""), prefab = p, scale = 1f });
 
             var tileTex = LoadTexture($"{PolyHavenDir}/Textures/floor_tiles_06_diff_1k.jpg", false);
             var tileNor = LoadTexture($"{PolyHavenDir}/Textures/floor_tiles_06_nor_gl_1k.jpg", true);

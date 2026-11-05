@@ -1,0 +1,138 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>09_Customization</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>Customization and Upgrades</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>Customization and Upgrades</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>Customization Types</a></li>
+<li style='margin-left:40px'><a href='#section-3'>Paint</a></li>
+<li style='margin-left:40px'><a href='#section-4'>Wheels</a></li>
+<li style='margin-left:40px'><a href='#section-5'>Spoilers</a></li>
+<li style='margin-left:40px'><a href='#section-6'>Decals</a></li>
+<li style='margin-left:40px'><a href='#section-7'>Neon Lights</a></li>
+<li style='margin-left:40px'><a href='#section-8'>Sirens</a></li>
+<li style='margin-left:20px'><a href='#section-9'>Performance Upgrades</a></li>
+<li style='margin-left:40px'><a href='#section-10'>Upgrade Types</a></li>
+<li style='margin-left:40px'><a href='#section-11'>Upgrade Levels</a></li>
+<li style='margin-left:40px'><a href='#section-12'>Applying Upgrades via Script</a></li>
+<li style='margin-left:20px'><a href='#section-13'>Customization Managers</a></li>
+<li style='margin-left:20px'><a href='#section-14'>Save and Load</a></li>
+<li style='margin-left:40px'><a href='#section-15'>Deleting Saved Customizations</a></li>
+<li style='margin-left:20px'><a href='#section-16'>Customization UI</a></li>
+<li style='margin-left:20px'><a href='#section-17'>Editable in Lite</a></li>
+<li style='margin-left:20px'><a href='#section-18'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Overview</h2>
+<p>RCCP includes a comprehensive vehicle customization and upgrade system. Vehicles can be painted, fitted with different wheels, equipped with spoilers, decorated with decals, illuminated with neon underglow, and upgraded with performance parts. All customizations are saved automatically and persist across sessions.</p>
+<p>The customization system is managed by <code>RCCP_Customizer</code>, which coordinates several specialized manager components on each vehicle.</p>
+<h2 id='section-2'>Customization Types</h2>
+<h3 id='section-3'>Paint</h3>
+<p>Change the vehicle's body color using the <code>RCCP_VehicleUpgrade_PaintManager</code>. Supports full RGB color selection through UI sliders or preset color buttons.</p>
+<pre><code>
+// Apply a paint color via script
+vehicle.Customizer.PaintManager.Paint(Color.red);
+</code></pre>
+<h3 id='section-4'>Wheels</h3>
+<p>Swap the vehicle's wheels from a registry of available wheel models defined in <code>RCCP_ChangableWheels</code> (loaded from Resources). Each wheel model includes the mesh, material, and collider radius.</p>
+<pre><code>
+// Change wheels by index
+vehicle.Customizer.WheelManager.UpdateWheel(wheelIndex);
+</code></pre>
+<h3 id='section-5'>Spoilers</h3>
+<p>Add or change rear spoilers from a collection of spoiler prefabs. Each spoiler model is a child prefab that gets instantiated on the vehicle.</p>
+<h3 id='section-6'>Decals</h3>
+<p>Apply sticker/decal textures to the vehicle body. The decal placement system allows positioning and rotating decals on the vehicle surface through the <code>RCCP_UI_DecalSetLocation</code> UI component.</p>
+<h3 id='section-7'>Neon Lights</h3>
+<p>Underglow neon lighting with customizable colors. Neon lights are placed under the vehicle body and emit colored light onto the ground surface.</p>
+<h3 id='section-8'>Sirens</h3>
+<p>Emergency/police light effects with multiple siren patterns. Uses the <code>RCCP_PoliceLights</code> component for light animation.</p>
+<h2 id='section-9'>Performance Upgrades</h2>
+<p>Performance upgrades improve vehicle capabilities through a 5-level progression system. Each level increases the relevant parameter by a multiplier.</p>
+<h3 id='section-10'>Upgrade Types</h3>
+<table>
+<tr><th>Upgrade</th><th>Component</th><th>Effect</th></tr>
+<tr><td>Engine</td><td>RCCP_VehicleUpgrade_Engine</td><td>Increases maximum torque via efficiency multiplier (1.15x to 2.0x)</td></tr>
+<tr><td>Speed</td><td>RCCP_VehicleUpgrade_Speed</td><td>Increases maximum speed</td></tr>
+<tr><td>Handling</td><td>RCCP_VehicleUpgrade_Handling</td><td>Improves steering response and cornering</td></tr>
+<tr><td>Brake</td><td>RCCP_VehicleUpgrade_Brake</td><td>Enhances braking power</td></tr>
+</table>
+<h3 id='section-11'>Upgrade Levels</h3>
+<p>Each upgrade type has 5 levels. The upgrade manager tracks the current level and applies the appropriate multiplier:</p>
+<table>
+<tr><th>Level</th><th>Typical Multiplier</th></tr>
+<tr><td>0</td><td>1.0x (stock)</td></tr>
+<tr><td>1</td><td>1.15x</td></tr>
+<tr><td>2</td><td>1.3x</td></tr>
+<tr><td>3</td><td>1.5x</td></tr>
+<tr><td>4</td><td>1.75x</td></tr>
+<tr><td>5</td><td>2.0x</td></tr>
+</table>
+<h3 id='section-12'>Applying Upgrades via Script</h3>
+<pre><code>
+// Upgrade engine to level 3
+vehicle.Customizer.UpgradeManager.UpgradeEngine(3);
+
+// Upgrade brakes to level 2
+vehicle.Customizer.UpgradeManager.UpgradeBrake(2);
+</code></pre>
+<h2 id='section-13'>Customization Managers</h2>
+<p>Each customization type has a dedicated manager component:</p>
+<table>
+<tr><th>Manager</th><th>Responsibility</th></tr>
+<tr><td><code>RCCP_VehicleUpgrade_PaintManager</code></td><td>Paint color application and storage</td></tr>
+<tr><td><code>RCCP_VehicleUpgrade_WheelManager</code></td><td>Wheel model swapping</td></tr>
+<tr><td><code>RCCP_VehicleUpgrade_SpoilerManager</code></td><td>Spoiler installation</td></tr>
+<tr><td><code>RCCP_VehicleUpgrade_DecalManager</code></td><td>Decal placement and management</td></tr>
+<tr><td><code>RCCP_VehicleUpgrade_NeonManager</code></td><td>Neon light configuration</td></tr>
+<tr><td><code>RCCP_VehicleUpgrade_SirenManager</code></td><td>Siren type selection</td></tr>
+<tr><td><code>RCCP_VehicleUpgrade_UpgradeManager</code></td><td>Performance upgrade progression</td></tr>
+<tr><td><code>RCCP_VehicleUpgrade_CustomizationManager</code></td><td>Overall coordination and save/load</td></tr>
+</table>
+<h2 id='section-14'>Save and Load</h2>
+<p>Customizations are automatically saved using <code>PlayerPrefs</code> with a per-vehicle save name. When a vehicle loads, its customization manager reads saved data and applies all previously configured customizations.</p>
+<h3 id='section-15'>Deleting Saved Customizations</h3>
+<pre><code>
+// Reset a vehicle's customization to defaults
+vehicle.Customizer.Delete();
+</code></pre>
+<p>The UI includes a delete button (<code>RCCP_UI_DeleteCustomization</code>) that resets all saved customization data for the current vehicle.</p>
+<h2 id='section-16'>Customization UI</h2>
+<p>RCCP includes a complete customization UI system with panels for each customization type:</p>
+<table>
+<tr><th>UI Component</th><th>Purpose</th></tr>
+<tr><td><code>RCCP_UI_Customizer</code></td><td>Main customization menu controller</td></tr>
+<tr><td><code>RCCP_UI_Color</code></td><td>Color preset buttons</td></tr>
+<tr><td><code>RCCP_ColorPickerBySliders</code></td><td>RGB slider color picker</td></tr>
+<tr><td><code>RCCP_UI_Wheel</code></td><td>Wheel selection buttons</td></tr>
+<tr><td><code>RCCP_UI_Spoiler</code></td><td>Spoiler selection</td></tr>
+<tr><td><code>RCCP_UI_Decal</code></td><td>Decal selection</td></tr>
+<tr><td><code>RCCP_UI_DecalSetLocation</code></td><td>Decal position/rotation editor</td></tr>
+<tr><td><code>RCCP_UI_Neon</code></td><td>Neon color customization</td></tr>
+<tr><td><code>RCCP_UI_Siren</code></td><td>Siren type selection</td></tr>
+<tr><td><code>RCCP_UI_Upgrade</code></td><td>Performance upgrade purchase UI</td></tr>
+</table>
+<h2 id='section-17'>Editable in Lite</h2>
+<p>The customization system works fully at runtime in Lite. All paint, wheel, upgrade, and cosmetic changes function normally. The customization inspector editors have some parameters locked, but the runtime UI and API provide full access to all customization features.</p>
+<h2 id='section-18'>Next Steps</h2>
+<ul>
+<li><a href='10_UISystem.html'>10_UISystem.md</a> — UI system and dashboard</li>
+<li><a href='11_SceneManagement.html'>11_SceneManagement.md</a> — Vehicle spawning and management</li>
+</ul>
+</div></body></html>

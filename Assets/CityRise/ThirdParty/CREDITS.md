@@ -58,3 +58,13 @@ City Kit (Commercial, Suburban, Industrial, Roads), Nature Kit, Mini Market, Foo
 
 ## CC-BY (atıf zorunlu)
 Henüz yok. Sketchfab'dan CC-BY model eklendiğinde yazar adı ve bağlantısı buraya yazılacak.
+
+## Mixamo (Adobe) — https://www.mixamo.com
+İnsan karakterleri (Ch01, Ch02, Ch21, Ch22, Ch23) ve animasyonlar (Idle, Walking, Picking Up Object, Talking On Phone, Sitting Talking).
+Mixamo içerikleri Adobe hesabıyla ücretsiz indirilir; oyunlarda telifsiz kullanılabilir (ham dosya olarak yeniden dağıtılamaz).
+Büyük kaynak FBX'ler depoya konmaz (Mixamo/Kaynak, .gitignore); depoda yalnızca CityRise > Mixamo Karakterlerini Hazırla ile üretilen hafif sürümler var.
+
+## Unity Asset Store (ücretsiz paketler, Standard Unity Asset Store EULA)
+- Realistic Car Controller Pro (Lite) — BoneCracker Games: Skyline prototip araba modeli
+- Pickup — Pack_Pickup
+- SuperminiCar — WITS Gaming (URP sürümü)

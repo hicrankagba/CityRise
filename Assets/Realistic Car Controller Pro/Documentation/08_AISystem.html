@@ -1,0 +1,137 @@
+﻿<!DOCTYPE html><html><head><meta charset='UTF-8'>
+<title>08_AISystem</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+.content { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+h1, h2, h3, h4 { color: #2c3e50; } h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+a { color: #3498db; text-decoration: none; } a:hover { text-decoration: underline; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c7254e; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { border-left: 4px solid #3498db; margin: 1em 0; padding: 0.5em 20px; color: #666; background: #f9f9f9; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }
+ul, ol { margin: 0.5em 0; padding-left: 2em; }
+li { margin: 0.25em 0; }
+.toc { background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 5px; margin-bottom: 30px; }
+.toc h3 { margin-top: 0; } .toc ul { padding-left: 20px; list-style: none; } .toc li { margin: 0.3em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+</style></head><body>
+<div class='content'>
+<h1 id='section-0'>AI System</h1>
+<div class='toc'><h3>Table of Contents</h3><ul>
+<li style='margin-left:0px'><a href='#section-0'>AI System</a></li>
+<li style='margin-left:20px'><a href='#section-1'>Overview</a></li>
+<li style='margin-left:20px'><a href='#section-2'>AI Behavior Modes</a></li>
+<li style='margin-left:40px'><a href='#section-3'>Editable in Lite</a></li>
+<li style='margin-left:40px'><a href='#section-4'>Locked in Lite (Available in Pro)</a></li>
+<li style='margin-left:20px'><a href='#section-5'>Setting Up AI Waypoints</a></li>
+<li style='margin-left:40px'><a href='#section-6'>Waypoint Tips</a></li>
+<li style='margin-left:20px'><a href='#section-7'>Brake Zones</a></li>
+<li style='margin-left:20px'><a href='#section-8'>Dynamic Obstacle Avoidance</a></li>
+<li style='margin-left:20px'><a href='#section-9'>How AI Driving Works</a></li>
+<li style='margin-left:40px'><a href='#section-10'>Steering</a></li>
+<li style='margin-left:40px'><a href='#section-11'>Throttle and Brake</a></li>
+<li style='margin-left:40px'><a href='#section-12'>Stuck Detection</a></li>
+<li style='margin-left:20px'><a href='#section-13'>Creating an AI Vehicle</a></li>
+<li style='margin-left:40px'><a href='#section-14'>Via Script</a></li>
+<li style='margin-left:20px'><a href='#section-15'>AI and Player Vehicles Together</a></li>
+<li style='margin-left:20px'><a href='#section-16'>Next Steps</a></li>
+</ul></div>
+<h2 id='section-1'>Overview</h2>
+<p>RCCP includes a waypoint-based AI driving system that can autonomously control vehicles. The AI driver (<code>RCCP_AI</code>) uses NavMesh pathfinding, PID-based throttle/brake control, and look-ahead steering to navigate waypoints, follow targets, or chase opponents.</p>
+<p>AI vehicles use the same physics and drivetrain as player vehicles — they send inputs through the same <code>RCCP_Input</code> override system, so AI cars behave identically to player-driven cars.</p>
+<h2 id='section-2'>AI Behavior Modes</h2>
+<table>
+<tr><th>Mode</th><th>Description</th></tr>
+<tr><td>FollowWaypoints</td><td>Loops through a waypoint path at normal speed, maintaining safe cornering speeds</td></tr>
+<tr><td>RaceWaypoints</td><td>Aggressively races through waypoints, pushing closer to the speed limit in corners</td></tr>
+<tr><td>FollowTarget</td><td>Follows behind a target Transform at a configurable distance</td></tr>
+<tr><td>ChaseTarget</td><td>Pursues and attempts to intercept a moving target using prediction</td></tr>
+</table>
+<h3 id='section-3'>Editable in Lite</h3>
+<table>
+<tr><th>Parameter</th><th>Description</th></tr>
+<tr><td><code>behaviour</code></td><td>Select one of the four behavior modes</td></tr>
+</table>
+<h3 id='section-4'>Locked in Lite (Available in Pro)</h3>
+<p>Waypoint container assignment, target references, look-ahead distances, road grip factor, max throttle/brake, aggressiveness, steer sensitivity, PID gains (kp, ki, kd), follow distance, prediction time, waypoint reach threshold.</p>
+<h2 id='section-5'>Setting Up AI Waypoints</h2>
+<p>AI vehicles need a waypoint path to follow. To create one:</p>
+<ol>
+<li>In the Unity menu, go to <strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; Create &gt; Add AI Waypoints</strong></li>
+<li>This creates an <code>RCCP_AIWaypointsContainer</code> GameObject in your scene</li>
+<li>Add child GameObjects as individual waypoints (<code>RCCP_Waypoint</code>), positioning them along the desired driving path</li>
+<li>The AI will follow waypoints in order, looping back to the first when it reaches the last</li>
+</ol>
+<h3 id='section-6'>Waypoint Tips</h3>
+<ul>
+<li>Space waypoints 20-50 meters apart on straights, closer together on corners</li>
+<li>Place waypoints at the center of the lane for general driving</li>
+<li>For racing, place waypoints on the racing line (inside of corners)</li>
+<li>Waypoints are reached when the AI gets within the <code>waypointReachThreshold</code> distance (default: 25 meters)</li>
+</ul>
+<h2 id='section-7'>Brake Zones</h2>
+<p>For more realistic AI behavior, you can add brake zones that tell the AI to decelerate before sharp corners:</p>
+<ol>
+<li><strong>Tools &gt; BoneCracker Games &gt; RCCP &gt; Create &gt; Add AI Brake Zones</strong></li>
+<li>Creates an <code>RCCP_AIBrakeZonesContainer</code></li>
+<li>Position brake zone triggers before corners</li>
+</ol>
+<p>The AI automatically calculates safe cornering speeds based on the road grip factor and turn angle, but explicit brake zones provide additional control.</p>
+<h2 id='section-8'>Dynamic Obstacle Avoidance</h2>
+<p>The <code>RCCP_AIDynamicObstacleAvoidance</code> component (optional) adds real-time obstacle detection using raycasts. When the AI detects an obstacle ahead, it steers to avoid it. This handles unexpected objects that aren't part of the waypoint path, such as other vehicles, pedestrians, or debris.</p>
+<h2 id='section-9'>How AI Driving Works</h2>
+<h3 id='section-10'>Steering</h3>
+<p>The AI uses look-ahead steering — it aims toward a point ahead of the vehicle on the waypoint path rather than directly at the current waypoint. The look-ahead distance increases with speed:</p>
+<pre><code>
+lookAheadDistance = minLookAhead + (speed * lookAheadPerKph)
+</code></pre>
+<p>This produces smooth, natural-looking steering rather than jerky corrections.</p>
+<h3 id='section-11'>Throttle and Brake</h3>
+<p>The AI uses a PID controller to regulate speed:</p>
+<ul>
+<li><strong>P (Proportional)</strong>: Responds to the difference between desired and actual speed</li>
+<li><strong>I (Integral)</strong>: Accumulates error over time to eliminate steady-state offset</li>
+<li><strong>D (Derivative)</strong>: Dampens rapid changes to prevent oscillation</li>
+</ul>
+<p>The desired speed is calculated based on the angle of the upcoming turn — sharper turns get lower target speeds.</p>
+<h3 id='section-12'>Stuck Detection</h3>
+<p>The AI monitors whether it's making forward progress. If the vehicle gets stuck (speed near zero for too long), it applies corrective actions: reverse, steer, and attempt to get unstuck.</p>
+<h2 id='section-13'>Creating an AI Vehicle</h2>
+<p>To make a vehicle AI-controlled:</p>
+<ol>
+<li>Ensure the vehicle has an <code>RCCP_AI</code> component (under <code>RCCP_OtherAddons</code>)</li>
+<li>Set <code>externalControl = true</code> on the <code>RCCP_CarController</code></li>
+<li>Assign a waypoint container to the AI component (Pro), or use runtime API</li>
+<li>The AI will override the vehicle's input when active</li>
+</ol>
+<h3 id='section-14'>Via Script</h3>
+<pre><code>
+// Spawn an AI vehicle
+RCCP_CarController aiVehicle = RCCP.SpawnRCC(
+    vehiclePrefab,
+    spawnPosition,
+    spawnRotation,
+    registerAsPlayer: false,
+    isControllable: false,
+    engineRunning: true
+);
+
+// The AI component auto-activates when externalControl is true
+RCCP.SetExternalControl(aiVehicle, true);
+</code></pre>
+<h2 id='section-15'>AI and Player Vehicles Together</h2>
+<p>You can have both player and AI vehicles in the same scene. The <code>RCCP_SceneManager</code> tracks all vehicles in its <code>allVehicles</code> list. Only the registered player vehicle responds to player input; all others can be AI-controlled.</p>
+<pre><code>
+// Get all vehicles in the scene
+List&lt;RCCP_CarController&gt; allCars = RCCP_SceneManager.Instance.allVehicles;
+
+// Only the active player vehicle responds to player input
+RCCP_CarController playerCar = RCCP_SceneManager.Instance.activePlayerVehicle;
+</code></pre>
+<h2 id='section-16'>Next Steps</h2>
+<ul>
+<li><a href='09_Customization.html'>09_Customization.md</a> — Vehicle customization and upgrades</li>
+<li><a href='07_InputSystem.html'>07_InputSystem.md</a> — Input override system used by AI</li>
+</ul>
+</div></body></html>

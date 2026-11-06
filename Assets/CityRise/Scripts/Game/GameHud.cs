@@ -353,6 +353,12 @@ namespace CityRise.Game
             {
                 RefreshInterior();
                 ShowPendingSales();
+                var flow = CityRise.Life.ShopFlow.Active;
+                if (!tipHintShown && flow != null && flow.SomeoneAtRegister)
+                {
+                    tipHintShown = true;
+                    Toast(Loc.T("live.hint"));
+                }
                 productRefresh -= Time.unscaledDeltaTime;
                 if (productRefresh <= 0) { productRefresh = 0.5f; RefreshProductPanel(); }
             }
@@ -673,6 +679,19 @@ namespace CityRise.Game
             RectTransformUtility.ScreenPointToLocalPointInRectangle(popupLayer, sp, null, out var local);
             StartCoroutine(Popup("+" + Loc.Money(price), local + new Vector2(50, 0), new Color(1f, 0.95f, 0.45f), 26));
         }
+
+        /// <summary>Dünyadaki bir noktanın üstünde yükselen yazı (kaçan satış, bahşiş).</summary>
+        public void WorldPopup(Vector3 world, string text, Color color)
+        {
+            var cam = game.ActiveCamera;
+            if (cam == null || popupLayer == null) return;
+            var sp = cam.WorldToScreenPoint(world);
+            if (sp.z < 0) return;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(popupLayer, sp, null, out var local);
+            StartCoroutine(Popup(text, local, color, 26));
+        }
+
+        bool tipHintShown;
 
         readonly Queue<string> pendingSales = new Queue<string>();
         float saleTimer;

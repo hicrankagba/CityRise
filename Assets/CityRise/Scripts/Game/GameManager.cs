@@ -463,6 +463,7 @@ namespace CityRise.Game
             cam.backgroundColor = savedCamera.background;
             RenderSettings.fog = savedCamera.fog;
             if (CityRise.Life.DayNightCycle.Instance != null) CityRise.Life.DayNightCycle.Instance.InteriorOpen = false;
+            Economy.LiveSalesPlotId = -1;
             hud.ExitInterior();
             yield return hud.Fade(0f, 0.3f);
             transitioning = false;
@@ -484,6 +485,16 @@ namespace CityRise.Game
                 interiorStockShown = ratio;
             }
             interior = InteriorBuilder.Build(interiorLibrary, businessId, level, SignMaterial(plot, businessId), InteriorOrigin, owned?.look, products, ratio);
+            // Kendi dükkanında canlı satış: müşteriler ürünü seçer, kasada öder.
+            var layoutInfo = interior.GetComponent<ShopLayout>();
+            Economy.LiveSalesPlotId = -1;
+            if (owned != null && layoutInfo != null && Products.For(owned.businessId).Length > 0)
+            {
+                var flow = interior.AddComponent<CityRise.Life.ShopFlow>();
+                flow.Popup = (pos, text, color) => hud.WorldPopup(pos, text, color);
+                flow.Init(this, owned, layoutInfo, cameraController.cam);
+                Economy.LiveSalesPlotId = owned.plotId;
+            }
             if (frame) FrameInterior();
         }
 

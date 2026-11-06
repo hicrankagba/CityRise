@@ -112,6 +112,7 @@ namespace CityRise.Interior
 
         string RandomRealPerson() => RealPeople().Count > 0 ? RealPeople()[rng.Next(RealPeople().Count)] : null;
         Vector3? registerSpot;
+        Vector3? registerFacing;
 
         GameObject Place(string key, float x, float z, Vector3 facing, float y = 0f, float extraScale = 1f)
         {
@@ -204,6 +205,13 @@ namespace CityRise.Interior
                         if (b.Contains(world)) { c.transform.localPosition = spots[rng.Next(spots.Count)]; break; }
                 }
             }
+            var layout = root.gameObject.AddComponent<ShopLayout>();
+            layout.spots = spots;
+            layout.register = reg;
+            layout.queueDir = registerFacing ?? Front;
+            layout.door = new Vector3(0, 0, -HalfD + 0.4f);
+            layout.customers.AddRange(customers);
+            layout.waiting.AddRange(waiting);
             foreach (var s in staff) s.AddComponent<CityRise.Life.InteriorWanderer>().idleOnly = true;
             foreach (var s in seated) s.AddComponent<CityRise.Life.InteriorWanderer>().seated = true;
             foreach (var s in waiting) s.AddComponent<CityRise.Life.InteriorWanderer>().idleOnly = true;
@@ -1012,6 +1020,7 @@ namespace CityRise.Interior
             AisleSign(x, z, "KASA", new Color(0.85f, 0.3f, 0.15f), alongZ);
             Place("mm/employee", x - f.x * 0.9f, z - f.z * 0.9f, f);
             registerSpot = new Vector3(x + f.x * 0.9f, 0, z + f.z * 0.9f);
+            registerFacing = f;
         }
 
         /// <summary>

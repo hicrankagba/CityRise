@@ -163,10 +163,43 @@ namespace CityRise.Game
         {
             var cam = cameraController != null ? cameraController.cam : Camera.main;
             var ray = cam.ScreenPointToRay(screenPos);
-            if (!new Plane(Vector3.up, Vector3.zero).Raycast(ray, out float enter)) return;
-            var plot = town.PlotAt(ray.GetPoint(enter));
+            // Önce binalar: yüksek bir binanın üst katına dokunulunca zemindeki ışın arkadaki arsaya düşer.
+            var plot = PlotHitByBuilding(ray);
+            if (plot == null)
+            {
+                if (!new Plane(Vector3.up, Vector3.zero).Raycast(ray, out float enter)) return;
+                plot = town.PlotAt(ray.GetPoint(enter));
+            }
             if (plot == null) return;
             OnPlotTapped(plot);
+        }
+
+        /// <summary>
+        /// Dokunma ışınının ilk çarptığı arsa nesnesi (bina, tabela, ağaç; 1,5 m'den yüksek olanlar).
+        /// Fizik çarpıştırıcısı gerekmez: görünür modellerin sınır kutularıyla bakılır.
+        /// </summary>
+        Plot PlotHitByBuilding(Ray ray)
+        {
+            Plot best = null;
+            float bestDist = float.MaxValue;
+            foreach (var kv in views)
+            {
+                var view = kv.Value;
+                if (view == null || !view.gameObject.activeInHierarchy) continue;
+                foreach (var r in view.GetComponentsInChildren<Renderer>())
+                {
+                    var b = r.bounds;
+                    if (b.size.y < 1.5f) continue;
+                    if (b.IntersectRay(ray, out float d) && d < bestDist)
+                    {
+                        var plot = town.layout.FindPlot(kv.Key);
+                        if (plot == null) continue;
+                        bestDist = d;
+                        best = plot;
+                    }
+                }
+            }
+            return best;
         }
 
         public void OnPlotTapped(Plot plot)

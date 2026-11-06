@@ -1961,8 +1961,14 @@ namespace CityRise.EditorTools
                 signFrame = shopSignFrame, sign = SignMaterial(c, text, sw / 0.95f),
                 interiorFloor = shopInFloor, interiorWall = shopInWall, wood = shopWood, window = c.glass,
             };
-            bool big = id == "market" || id == "supermarket";
-            var go = ShopBuilding.Build(parent, "Bina", parent.TransformPoint(localPos), parent.rotation * localRot, size, big ? 6.2f : 5.4f, id, mats);
+            // İşletmeye göre boyut: simit küçük büfe, market geniş ve yüksek; arsada kalan yer ön tarafa açılır.
+            var (wantW, wantD, h) = ShopBuilding.Proportions(id);
+            var fit = new Vector2(Mathf.Min(size.x, wantW), Mathf.Min(size.y, wantD));
+            // Bina arsanın arkasına yaslanır; önde kalan boşluk (masa, kasa vb.) için.
+            var rot = parent.rotation * localRot;
+            var pos = parent.TransformPoint(localPos) - rot * Vector3.forward * ((size.y - fit.y) * 0.5f);
+            var go = ShopBuilding.Build(parent, "Bina", pos, rot, fit, h, id, mats);
+            ShopBuilding.Frontage(go.transform, fit, size.y - fit.y, id, mats);
             return go;
         }
 

@@ -34,6 +34,74 @@ namespace CityRise.EditorTools
             }
         }
 
+        /// <summary>İşletmeye göre istenen genişlik, derinlik ve yükseklik (metre).</summary>
+        public static (float w, float d, float h) Proportions(string id)
+        {
+            switch (id)
+            {
+                case "simit_bufesi": return (4.2f, 3.6f, 4.9f);
+                case "berber": return (5.0f, 4.8f, 5.2f);
+                case "bakkal": return (5.4f, 5.0f, 5.2f);
+                case "manav": return (5.6f, 4.4f, 5.2f);
+                case "eczane": return (6.0f, 5.2f, 5.4f);
+                case "kasap": return (6.0f, 5.2f, 5.4f);
+                case "firin": return (6.4f, 5.4f, 5.6f);
+                case "kafe": return (6.8f, 4.8f, 5.6f);
+                case "market": return (6.8f, 6.0f, 6.2f);
+                case "supermarket": return (15f, 12f, 6.8f);
+                default: return (6.0f, 5.2f, 5.4f);
+            }
+        }
+
+        /// <summary>
+        /// Binanın önünde kalan boşluğa işletmeye göre süs: kafe ve simitte masa-şemsiye,
+        /// manavda meyve kasaları, markette alışveriş arabaları, diğerlerinde saksılar.
+        /// </summary>
+        public static void Frontage(Transform building, Vector2 size, float depth, string id, Materials m)
+        {
+            float hd = size.y * 0.5f, hw = size.x * 0.5f;
+            float z0 = hd + 0.9f;
+            bool room = depth > 1.6f;
+            switch (id)
+            {
+                case "kafe":
+                case "simit_bufesi":
+                    if (!room) break;
+                    foreach (float x in new[] { -hw + 0.9f, hw - 0.9f })
+                    {
+                        float z = z0 + Mathf.Min(depth - 1.4f, 1.6f);
+                        Box(building, "Masa", new Vector3(x, 0.72f, z), new Vector3(0.75f, 0.05f, 0.75f), m.trim);
+                        Box(building, "MasaAyak", new Vector3(x, 0.36f, z), new Vector3(0.07f, 0.72f, 0.07f), m.trim);
+                        Box(building, "SemsiyeDirek", new Vector3(x, 1.25f, z), new Vector3(0.05f, 2.5f, 0.05f), m.trim);
+                        Box(building, "Semsiye", new Vector3(x, 2.45f, z), new Vector3(2.0f, 0.08f, 2.0f), ProductMat(id == "kafe" ? new Color(0.15f, 0.45f, 0.3f) : new Color(0.85f, 0.25f, 0.2f)));
+                        foreach (float dx in new[] { -0.6f, 0.6f })
+                            Box(building, "Tabure", new Vector3(x + dx, 0.24f, z), new Vector3(0.38f, 0.48f, 0.38f), m.wood);
+                    }
+                    break;
+                case "manav":
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float x = -hw + 0.8f + i * (size.x - 1.6f) / 3f;
+                        var colors = Products(id);
+                        Box(building, "KasaSehpa", new Vector3(x, 0.3f, z0 - 0.35f), new Vector3(1.0f, 0.6f, 0.6f), m.wood);
+                        Box(building, "Meyve", new Vector3(x, 0.66f, z0 - 0.35f), new Vector3(0.9f, 0.12f, 0.5f), ProductMat(colors[i % colors.Length]));
+                    }
+                    break;
+                case "market":
+                case "supermarket":
+                    for (int i = 0; i < 3; i++)
+                        Box(building, "AlisverisArabasi", new Vector3(-hw + 0.8f + i * 0.35f, 0.5f, z0 - 0.2f), new Vector3(0.55f, 0.6f, 0.9f), ProductMat(new Color(0.7f, 0.72f, 0.75f)));
+                    break;
+                default:
+                    foreach (float x in new[] { -hw + 0.45f, hw - 0.45f })
+                    {
+                        Box(building, "Saksi", new Vector3(x, 0.3f, z0 - 0.45f), new Vector3(0.6f, 0.6f, 0.6f), m.stone);
+                        Box(building, "Bitki", new Vector3(x, 0.85f, z0 - 0.45f), new Vector3(0.5f, 0.6f, 0.5f), ProductMat(new Color(0.25f, 0.5f, 0.22f)));
+                    }
+                    break;
+            }
+        }
+
         static readonly Dictionary<Color, Material> productMats = new Dictionary<Color, Material>();
 
         /// <summary>Binayı kurar. size: genişlik (x) ve derinlik (z), height: parapet dahil yükseklik.</summary>
@@ -47,8 +115,9 @@ namespace CityRise.EditorTools
             float hw = W * 0.5f, hd = D * 0.5f;
             const float t = 0.25f;            // duvar kalınlığı
             const float plinth = 0.45f;       // camın altındaki taş şerit
-            const float glassTop = 3.45f;     // vitrin camının üstü
-            const float bandBottom = 3.6f, bandTop = 4.75f;
+            // Alçak binada (büfe) cam ve tabela bandı aşağı kayar.
+            float glassTop = Mathf.Min(3.45f, H - 1.95f);   // vitrin camının üstü
+            float bandBottom = glassTop + 0.15f, bandTop = Mathf.Min(glassTop + 1.3f, H - 0.15f);
             const float pil = 0.4f;           // köşe ayakları
 
             // Gövde: arka ve yan duvarlar, ön cephede ayaklar ve cam üstü duvar.
@@ -80,7 +149,7 @@ namespace CityRise.EditorTools
             Box(root, "Kayit", new Vector3(0, 2.95f, gz + 0.04f), new Vector3(gw, 0.08f, 0.1f), m.trim);
             Box(root, "CamUstu", new Vector3(0, glassTop + 0.04f, gz + 0.04f), new Vector3(gw, 0.1f, 0.12f), m.trim);
             // Kapı: ortada, koyu çerçeveli, kolu ve basamağı var.
-            const float dw = 1.4f, dh = 2.6f;
+            float dw = 1.4f, dh = Mathf.Min(2.6f, glassTop - plinth - 0.1f);
             Box(root, "KapiCerceve", new Vector3(0, plinth + dh * 0.5f, gz + 0.06f), new Vector3(dw + 0.16f, dh + 0.12f, 0.08f), m.trim);
             Box(root, "Kapi", new Vector3(0, plinth + dh * 0.5f, gz + 0.1f), new Vector3(dw, dh, 0.03f), m.glass);
             Box(root, "KapiKolu", new Vector3(0.45f, plinth + 1.1f, gz + 0.16f), new Vector3(0.05f, 0.6f, 0.05f), m.stone);
@@ -112,12 +181,12 @@ namespace CityRise.EditorTools
             {
                 float x = sx * (hw - t * 0.5f);
                 float zc = hd - 0.6f - sideLen * 0.5f;
-                Box(root, "YanCam", new Vector3(x + sx * 0.02f, 2.05f, zc), new Vector3(0.03f, 2.3f, sideLen), m.glass);
-                Box(root, "YanCerceveUst", new Vector3(x + sx * 0.05f, 3.24f, zc), new Vector3(0.08f, 0.1f, sideLen + 0.1f), m.trim);
+                Box(root, "YanCam", new Vector3(x + sx * 0.02f, (0.9f + glassTop) * 0.5f, zc), new Vector3(0.03f, glassTop - 0.9f, sideLen), m.glass);
+                Box(root, "YanCerceveUst", new Vector3(x + sx * 0.05f, glassTop, zc), new Vector3(0.08f, 0.1f, sideLen + 0.1f), m.trim);
                 Box(root, "YanCerceveAlt", new Vector3(x + sx * 0.06f, 0.88f, zc), new Vector3(0.12f, 0.1f, sideLen + 0.1f), m.trim);
                 int n = Mathf.Max(1, Mathf.RoundToInt(sideLen / 1.6f));
                 for (int i = 0; i <= n; i++)
-                    Box(root, "YanDikme", new Vector3(x + sx * 0.05f, 2.05f, zc - sideLen * 0.5f + sideLen * i / n), new Vector3(0.08f, 2.3f, 0.08f), m.trim);
+                    Box(root, "YanDikme", new Vector3(x + sx * 0.05f, (0.9f + glassTop) * 0.5f, zc - sideLen * 0.5f + sideLen * i / n), new Vector3(0.08f, glassTop - 0.9f, 0.08f), m.trim);
             }
 
             // Arka ve yan cephelerde pencereler (gece yanar) ve arka kapı: arkadan bakınca da dükkan görünsün.
@@ -158,6 +227,20 @@ namespace CityRise.EditorTools
             Box(root, "SilmeArka", new Vector3(0, bandTopY, -hd - 0.04f), new Vector3(W + 0.08f, 0.14f, 0.08f), m.trim);
             Box(root, "SilmeSol", new Vector3(-hw - 0.04f, bandTopY, 0), new Vector3(0.08f, 0.14f, D + 0.08f), m.trim);
             Box(root, "SilmeSag", new Vector3(hw + 0.04f, bandTopY, 0), new Vector3(0.08f, 0.14f, D + 0.08f), m.trim);
+            // Arka kapının üstünde saçak ve lamba, köşelerde yağmur borusu, duvarda klima, yanında çöp kutuları.
+            float doorX = -hw + W * 0.5f / n;
+            Box(root, "ArkaSacak", new Vector3(doorX, 2.5f, -hd - 0.35f), new Vector3(1.6f, 0.08f, 0.7f), m.trim);
+            Box(root, "ArkaLamba", new Vector3(doorX, 2.7f, -hd - 0.06f), new Vector3(0.25f, 0.15f, 0.12f), m.glow);
+            foreach (float sx in new[] { -1f, 1f })
+                Box(root, "YagmurBorusu", new Vector3(sx * (hw - 0.12f), H * 0.5f, -hd - 0.08f), new Vector3(0.1f, H, 0.1f), m.stone);
+            if (W > 4.5f)
+                Box(root, "DuvarKlimasi", new Vector3(hw - 0.9f, Mathf.Min(H - 0.7f, bandTopY + 0.55f), -hd - 0.25f), new Vector3(0.9f, 0.6f, 0.45f), m.interiorWall);
+            Box(root, "CopKutusu", new Vector3(doorX + 1.2f, 0.55f, -hd - 0.5f), new Vector3(0.7f, 1.1f, 0.7f), ProductMat(new Color(0.2f, 0.42f, 0.25f)));
+            Box(root, "CopKutusu", new Vector3(doorX + 2.0f, 0.55f, -hd - 0.5f), new Vector3(0.7f, 1.1f, 0.7f), ProductMat(new Color(0.25f, 0.3f, 0.45f)));
+            // Duvar dibinde taş kaide (arka ve yanlar).
+            Box(root, "KaideArka", new Vector3(0, 0.25f, -hd - 0.02f), new Vector3(W + 0.04f, 0.5f, 0.06f), m.stone);
+            Box(root, "KaideSol", new Vector3(-hw - 0.02f, 0.25f, 0), new Vector3(0.06f, 0.5f, D + 0.04f), m.stone);
+            Box(root, "KaideSag", new Vector3(hw + 0.02f, 0.25f, 0), new Vector3(0.06f, 0.5f, D + 0.04f), m.stone);
         }
 
         const float bandTopY = 3.95f;

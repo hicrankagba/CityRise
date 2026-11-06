@@ -442,11 +442,93 @@ namespace CityRise.Interior
             return go;
         }
 
+        static Material glassMat;
+
+        /// <summary>Saydam vitrin camı.</summary>
+        static Material Glass()
+        {
+            if (glassMat != null) return glassMat;
+            glassMat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "VitrinCami" };
+            glassMat.SetFloat("_Surface", 1f);
+            glassMat.SetFloat("_Blend", 0f);
+            glassMat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            glassMat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            glassMat.SetFloat("_ZWrite", 0f);
+            glassMat.SetFloat("_Smoothness", 0.95f);
+            glassMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            glassMat.renderQueue = (int)RenderQueue.Transparent;
+            glassMat.SetColor("_BaseColor", new Color(0.8f, 0.92f, 1f, 0.18f));
+            return glassMat;
+        }
+
+        /// <summary>Tezgah: gövde ve üst tabla kutulardan; üst yüzeyin yüksekliğini döndürür. Yürüyenler içinden geçmez.</summary>
+        float Counter(float x, float z, float length, float depth, Color body, Color top)
+        {
+            const float h = 1.0f;
+            furniture.Add(Box("TezgahGovde", new Vector3(x, h * 0.5f - 0.03f, z), new Vector3(length, h - 0.06f, depth), Flat("TezgahGovde", body, 0.35f)));
+            Box("TezgahUst", new Vector3(x, h - 0.03f, z - 0.04f), new Vector3(length + 0.08f, 0.06f, depth + 0.12f), Flat("TezgahUst", top, 0.7f));
+            Box("TezgahSupurgelik", new Vector3(x, 0.05f, z - depth * 0.5f + 0.02f), new Vector3(length, 0.1f, 0.06f), Flat("TezgahSupurgelik", top, 0.4f));
+            return h;
+        }
+
+        /// <summary>Camlı vitrin: ahşap alt dolap, iki katlı cam kutu, içinde ürünler.</summary>
+        void Vitrine(float x, float z, float length, string[] items)
+        {
+            const float depth = 0.7f, baseH = 0.75f, glassH = 0.55f;
+            furniture.Add(Box("VitrinAlt", new Vector3(x, baseH * 0.5f, z), new Vector3(length, baseH, depth), Flat("VitrinAlt", new Color(0.55f, 0.37f, 0.22f), 0.4f)));
+            Box("VitrinTaban", new Vector3(x, baseH + 0.01f, z), new Vector3(length, 0.02f, depth), Flat("VitrinTaban", new Color(0.95f, 0.93f, 0.88f), 0.5f));
+            float mid = baseH + glassH * 0.5f;
+            Box("VitrinRaf", new Vector3(x, mid, z + 0.08f), new Vector3(length - 0.06f, 0.015f, depth * 0.6f), Glass());
+            Box("VitrinOn", new Vector3(x, baseH + glassH * 0.5f, z - depth * 0.5f), new Vector3(length, glassH, 0.01f), Glass());
+            Box("VitrinUst", new Vector3(x, baseH + glassH, z), new Vector3(length, 0.01f, depth), Glass());
+            Box("VitrinYanSol", new Vector3(x - length * 0.5f, baseH + glassH * 0.5f, z), new Vector3(0.01f, glassH, depth), Glass());
+            Box("VitrinYanSag", new Vector3(x + length * 0.5f, baseH + glassH * 0.5f, z), new Vector3(0.01f, glassH, depth), Glass());
+            var metal = Flat("VitrinKenar", new Color(0.75f, 0.75f, 0.73f), 0.8f);
+            Box("VitrinKenarUst", new Vector3(x, baseH + glassH, z - depth * 0.5f), new Vector3(length, 0.025f, 0.025f), metal);
+            // Ürünler: alt katta önde, rafta arkada.
+            int n = Mathf.RoundToInt(length / 0.32f);
+            for (int i = 0; i < n; i++)
+            {
+                float px = x - length * 0.5f + 0.18f + i * (length - 0.36f) / Mathf.Max(1, n - 1);
+                Place(items[i % items.Length], px, z - 0.12f, Front, baseH + 0.02f);
+                if (i % 2 == 0) Place(items[(i + 1) % items.Length], px + 0.1f, z + 0.12f, Front, mid + 0.01f);
+            }
+        }
+
+        /// <summary>Market reyon adları (tabela dokuları sahne kurulurken bunlardan üretilir; sonuncusu manav köşesi).</summary>
+        public static readonly string[] AisleNames = { "GIDA", "TEMİZLİK", "KONSERVE", "İÇECEK", "MEYVE SEBZE" };
+
+        /// <summary>Raf sırasının üstünde asılı reyon tabelası: çerçeve ve iki yüzünde yazı.</summary>
+        void AisleSign(float x, float z, string text, Color color)
+        {
+            const float y = 2.95f, w = 1.7f, h = 0.36f;
+            Box("ReyonTabela", new Vector3(x, y, z), new Vector3(w + 0.08f, h + 0.08f, 0.04f), Flat("ReyonCerceve", new Color(0.1f, 0.1f, 0.12f), 0.4f));
+            var rod = Flat("ReyonAski", new Color(0.3f, 0.3f, 0.3f), 0.6f);
+            Box("Aski", new Vector3(x - w * 0.4f, y + 0.4f, z), new Vector3(0.015f, 0.62f, 0.015f), rod);
+            Box("Aski", new Vector3(x + w * 0.4f, y + 0.4f, z), new Vector3(0.015f, 0.62f, 0.015f), rod);
+            var mat = lib.Sign(text);
+            foreach (var side in new[] { -1f, 1f })
+            {
+                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Object.Destroy(quad.GetComponent<Collider>());
+                quad.name = "ReyonYazi";
+                quad.transform.SetParent(root, false);
+                quad.transform.localPosition = new Vector3(x, y, z + side * 0.022f);
+                // Quad'ın görünen yüzü -Z'ye bakar: ön yüz için +Z ileri, arka yüz için -Z ileri.
+                quad.transform.localRotation = Quaternion.LookRotation(new Vector3(0, 0, -side));
+                quad.transform.localScale = new Vector3(w, h, 1f);
+                var r = quad.GetComponent<Renderer>();
+                if (mat != null) r.sharedMaterial = mat;
+                else r.sharedMaterial = Flat("ReyonYedek", color, 0.3f);
+                r.shadowCastingMode = ShadowCastingMode.Off;
+            }
+        }
+
         /// <summary>Çerçeveli manzara tablosu (koyu ahşap çerçeve, beyaz paspartu).</summary>
         void Picture(bool back, float along, float y, int index)
         {
             if (lib.pictures == null || lib.pictures.Count == 0) return;
-            const float w = 0.62f, h = 0.36f;
+            const float w = 0.74f, h = 0.42f;
             var inward = back ? Front : Left;
             var basePos = back ? new Vector3(along, y, HalfD) : new Vector3(HalfW, y, along);
             Vector3 Size(float a, float hh, float depth) => (back ? Vector3.right : Vector3.forward) * a + Vector3.up * hh + (back ? Vector3.forward : Vector3.right) * depth;
@@ -491,11 +573,11 @@ namespace CityRise.Interior
             bool clock = false;
             for (int i = 0; i < gaps.Count; i++)
             {
-                if (!clock && i == gaps.Count / 2) { WallItem("ph/wall_clock", true, gaps[i], WindowY, 0.55f); clock = true; continue; }
+                if (!clock && i == gaps.Count / 2) { WallItem("ph/wall_clock", true, gaps[i], WindowY, 0.7f); clock = true; continue; }
                 if ((id == "kafe" || id == "firin") && i % 2 == 0) WallItem("ph/industrial_wall_lamp", true, gaps[i], WindowY, 0.45f);
                 else Picture(true, gaps[i], WindowY, pic++);
             }
-            if (!clock) WallItem("ph/wall_clock", true, gaps.Count > 0 ? gaps[0] : 0f, WindowY, 0.55f);
+            if (!clock) WallItem("ph/wall_clock", true, gaps.Count > 0 ? gaps[0] : 0f, WindowY, 0.7f);
             // Sağ duvar: pencere araları tablolar.
             for (float z = -HalfD + 1.4f; z < HalfD - 1f; z += 2.6f)
             {
@@ -737,6 +819,15 @@ namespace CityRise.Interior
                     FillShelf(Place("ph/steel_frame_shelves_01", rx + 0.55f, z - 0.27f, Front), Groceries);
                 }
             }
+            // Reyon tabelaları: her raf sırasının üstünde asılı.
+            var aisles = AisleNames;
+            for (int r = 0; r < rows; r++)
+            {
+                float z = HalfD - 2.6f - r * 2.3f;
+                if (z < -HalfD + 3f) break;
+                AisleSign(((-HalfW + 4.2f) + (HalfW - 2.6f)) * 0.5f + 0.3f, z, aisles[r % (aisles.Length - 1)], new Color(0.2f, 0.42f, 0.7f));
+            }
+            AisleSign(-HalfW + 1.6f, HalfD - 3f, "MEYVE SEBZE", new Color(0.3f, 0.6f, 0.3f));
             // Manav köşesi: masalar üstünde meyve-sebze kasaları.
             int tables = Mathf.Clamp(1 + level / 2, 1, 3) + (super ? 1 : 0);
             for (int i = 0; i < tables; i++)
@@ -817,7 +908,9 @@ namespace CityRise.Interior
                 float basketTop = TopY(Place("ph/wicker_basket_02", x, -0.2f, Front, top));
                 Produce(x, -0.2f, Mathf.Lerp(top, basketTop, 0.6f), new[] { "ph/hamburger_buns", "ph/croissant" }, 3);
             }
-            Place("mm/employee", 0f, 1.2f, Front);
+            // Camlı ekmek vitrini; arkasında satıcı.
+            Vitrine(0.4f, 0.9f, 2.4f, new[] { "ph/croissant", "ph/hamburger_buns", "ph/carrot_cake" });
+            Place("mm/employee", 0.4f, 1.75f, Front);
             Register(HalfW - 1.6f, -HalfD + 1.3f, Left);
             Customers(1 + level / 2, -HalfW + 1f, HalfW - 3f, -HalfD + 0.8f, -1.5f);
         }
@@ -854,8 +947,11 @@ namespace CityRise.Interior
         void Kafe(int level)
         {
             Place("ph/CoffeeCart_01", -HalfW + 1.4f, HalfD - 0.7f, Front);
-            float counterTop = TopY(Place("ph/WoodenTable_01", 0.5f, HalfD - 0.6f, Front, 0f, 1.3f));
-            Produce(0.5f, HalfD - 0.6f, counterTop, new[] { "ph/carrot_cake", "ph/croissant" }, 4);
+            // Bar tezgahı: ahşap gövde, koyu üst tabla, önünde tabureler, üstünde pastalar.
+            float counterTop = Counter(0.9f, HalfD - 1.0f, 3.2f, 0.7f, new Color(0.3f, 0.19f, 0.12f), new Color(0.12f, 0.1f, 0.09f));
+            for (int i = 0; i < 3; i++) Place("ph/carrot_cake", -0.2f + i * 1.1f, HalfD - 1.0f, Front, counterTop);
+            Produce(1.8f, HalfD - 1.0f, counterTop, new[] { "ph/croissant" }, 3);
+            for (int i = 0; i < 3; i++) Place("ph/metal_stool_01", -0.3f + i * 1.2f, HalfD - 1.75f, Back);
             FillShelf(Place("ph/painted_wooden_shelves", HalfW - 0.5f, HalfD - 0.3f, Front), Breads, 0.9f);
             int tables = Mathf.Clamp(2 + level / 2, 2, 5);
             for (int i = 0; i < tables; i++)
@@ -870,8 +966,8 @@ namespace CityRise.Interior
                 if (rng.NextDouble() < 0.4) SeatedCustomer(x + 0.75f, z, Left);
             }
             Plants();
-            Place("mm/employee", -HalfW + 2.6f, HalfD - 1.4f, Front);
-            registerSpot = new Vector3(0.5f, 0, HalfD - 1.2f);
+            Place("mm/employee", 0.9f, HalfD - 0.35f, Front);
+            registerSpot = new Vector3(2.1f, 0, HalfD - 1.8f);
             Customers(1 + level, -HalfW + 1f, HalfW - 1f, -HalfD + 0.8f, -HalfD + 1.6f);
         }
 

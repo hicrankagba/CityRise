@@ -34,6 +34,15 @@ namespace CityRise.Interior
         public Material lightPanel;
         [Tooltip("Duvar tablolarının resimleri (Poly Haven CC0 manzara görüntüleri).")]
         public List<Material> pictures = new List<Material>();
+        [Tooltip("Reyon tabelaları: yazı ve hazır malzemesi (sırası aynı).")]
+        public List<string> signTexts = new List<string>();
+        public List<Material> signMaterials = new List<Material>();
+
+        public Material Sign(string text)
+        {
+            int i = signTexts.IndexOf(text);
+            return i >= 0 && i < signMaterials.Count ? signMaterials[i] : null;
+        }
 
         readonly Dictionary<string, Entry> lookup = new Dictionary<string, Entry>();
 

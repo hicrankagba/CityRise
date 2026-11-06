@@ -102,6 +102,7 @@ namespace CityRise.EditorTools
                 EnsureFolder(Root + "/Scenes");
 
                 var c = new Ctx { night = night, dynamic = !night };
+                shopGlass = null;
                 c.layout = LoadOrCreateLayout();
                 c.g = c.layout.grid;
                 c.openArea = OpenArea(c.g);
@@ -426,6 +427,16 @@ namespace CityRise.EditorTools
             switch (p.type)
             {
                 case PlotType.Business:
+                {
+                    // Dükkanın kendisi bina: camlı vitrin cephesi, büyük tabela.
+                    var f = Plot.FacingDirection(p.facing);
+                    var front = new Vector3(f.x, 0, f.y);
+                    float along = (f.x != 0 ? p.cells.width : p.cells.height) * c.g.cellSize;
+                    float side = (f.x != 0 ? p.cells.height : p.cells.width) * c.g.cellSize;
+                    var building = ShopBuildingFor(c, parent, p.occupantId, center - front * 0.5f, Quaternion.LookRotation(front), new Vector2(side - 1.2f, along - 2.6f));
+                    building.name = p.occupantId;
+                    break;
+                }
                 case PlotType.Civic:
                 {
                     var building = Spawn(c, StylePath(p.styleId), parent, center, YawFor(p.facing), CityScale);
@@ -1053,6 +1064,9 @@ namespace CityRise.EditorTools
                     Pair(day, WindowGlowMap(kit, day.GetTexture("_BaseMap") as Texture2D), new Color(1f, 0.66f, 0.32f) * 1.1f);
             Pair(c.glass, null, new Color(1f, 0.68f, 0.35f) * 1.1f);
             Pair(c.lampGlow, null, new Color(1f, 0.78f, 0.45f) * 6f);
+            // Dükkan vitrinlerinin arkası gece aydınlık görünsün.
+            Pair(shopInWall, null, new Color(1f, 0.85f, 0.6f) * 0.9f);
+            Pair(shopInFloor, null, new Color(1f, 0.85f, 0.6f) * 0.35f);
 
             cycle.daySky = RenderSettings.skybox;
             cycle.dayVolume = Object.FindFirstObjectByType<Volume>();
@@ -1727,13 +1741,11 @@ namespace CityRise.EditorTools
                 pave.transform.localRotation = Quaternion.Euler(90f, 0, 0);
                 pave.GetComponent<Renderer>().sharedMaterial = c.paving;
 
-                // Bina önü +Z'ye baksın (oyunda arsanın yönüne çevrilir).
-                var building = Spawn(c, StylePath(def.styleId), root.transform, Vector3.zero, 180f, CityScale * (def.footprint.x > 1 ? 1.15f : 1f));
+                // Bina önü +Z'ye baksın (oyunda arsanın yönüne çevrilir). Dükkanın kendisi bina.
+                float cs = c.g.cellSize;
+                var building = ShopBuildingFor(c, root.transform, def.id, new Vector3(0, 0, -0.5f), Quaternion.identity,
+                    new Vector2(def.footprint.x * cs - 1.2f, def.footprint.y * cs - 2.6f));
                 building.name = "Bina";
-                int hash = Mathf.Abs(def.id.GetHashCode());
-                var wall = BrickFor(def.id) ? c.bricks[hash % c.bricks.Length] : c.plasters[hash % c.plasters.Length];
-                SkinBuilding(c, building, "CityCommercial", wall, c.roofTiles);
-                ShopSign(c, building.transform, root.transform, Vector3.forward, def.signText);
                 foreach (var t in root.GetComponentsInChildren<Transform>(true)) t.gameObject.isStatic = false;
                 root.SetActive(false);
                 gm.templates.Add(new GameManager.BusinessTemplate { businessId = def.id, template = root });
@@ -1913,6 +1925,45 @@ namespace CityRise.EditorTools
             lib.soil = TexturedMat("Ic_Toprak", soilTex, soilNor, new Color(0.9f, 0.85f, 0.8f), 2f);
             lib.glass = SimpleMat("Ic_Pencere", new Color(0.62f, 0.78f, 0.92f), 0.95f);
             return lib;
+        }
+
+        static Material shopGlass, shopTrim, shopSignFrame, shopInFloor, shopInWall, shopWood;
+
+        /// <summary>İşletmenin dükkan binası (ShopBuilding): duvar rengi işletmeye göre, tabela yazısı tabela malzemesiyle.</summary>
+        static GameObject ShopBuildingFor(Ctx c, Transform parent, string id, Vector3 localPos, Quaternion localRot, Vector2 size)
+        {
+            if (shopGlass == null)
+            {
+                shopGlass = SimpleMat("VitrinCami", new Color(0.78f, 0.88f, 0.95f, 0.22f), 0.96f, m =>
+                {
+                    m.SetFloat("_Surface", 1f);
+                    m.SetFloat("_Blend", 0f);
+                    m.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                    m.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+                    m.SetFloat("_ZWrite", 0f);
+                    m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    m.renderQueue = (int)RenderQueue.Transparent;
+                    m.SetOverrideTag("RenderType", "Transparent");
+                });
+                shopTrim = SimpleMat("DukkanCerceve", new Color(0.16f, 0.17f, 0.19f), 0.45f);
+                shopSignFrame = SimpleMat("DukkanTabelaBandi", new Color(0.1f, 0.16f, 0.26f), 0.35f);
+                shopInFloor = SimpleMat("DukkanIcZemin", new Color(0.82f, 0.78f, 0.72f), 0.4f);
+                shopInWall = SimpleMat("DukkanIcDuvar", new Color(1f, 0.95f, 0.85f), 0.1f);
+                shopWood = SimpleMat("DukkanAhsap", new Color(0.5f, 0.33f, 0.2f), 0.3f);
+            }
+            int hash = Mathf.Abs(id.GetHashCode());
+            var wall = BrickFor(id) ? c.bricks[hash % c.bricks.Length] : c.plasters[hash % c.plasters.Length];
+            string text = SignFor(id);
+            float sw = Mathf.Min(size.x - 1.2f, 7.5f);
+            var mats = new ShopBuilding.Materials
+            {
+                wall = wall, trim = shopTrim, stone = c.stone, glass = shopGlass, glow = c.lampGlow,
+                signFrame = shopSignFrame, sign = SignMaterial(c, text, sw / 0.95f),
+                interiorFloor = shopInFloor, interiorWall = shopInWall, wood = shopWood, window = c.glass,
+            };
+            bool big = id == "market" || id == "supermarket";
+            var go = ShopBuilding.Build(parent, "Bina", parent.TransformPoint(localPos), parent.rotation * localRot, size, big ? 6.2f : 5.4f, id, mats);
+            return go;
         }
 
         /// <summary>Binanın ön yüzüne, kapının üstüne isim tabelası.</summary>

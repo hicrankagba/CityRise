@@ -37,6 +37,32 @@ namespace CityRise.Game
             }
         }
 
+        /// <summary>Komşu dükkanları: işletmeye göre sabit renkli tente (sokak canlı görünsün).</summary>
+        public static void ApplyDefault(Transform plotView, string businessId)
+        {
+            if (plotView == null || string.IsNullOrEmpty(businessId)) return;
+            int index = Mathf.Abs(businessId.GetHashCode()) % ShopOptions.Awnings.Length;
+            foreach (var sign in FindAll(plotView, "Tabela"))
+            {
+                var face = sign.Find("Yazi");
+                if (face != null) Awning(sign, face, index);
+            }
+        }
+
+        /// <summary>Vitrin camı sahneden yüklenince saydamlık anahtar kelimesini kaybedebiliyor; açık olsun.</summary>
+        public static void FixGlass(Transform root)
+        {
+            var done = new HashSet<Material>();
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+                foreach (var m in r.sharedMaterials)
+                    if (m != null && m.name.StartsWith("VitrinCami") && done.Add(m))
+                    {
+                        m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                        m.renderQueue = (int)RenderQueue.Transparent;
+                        m.SetOverrideTag("RenderType", "Transparent");
+                    }
+        }
+
         static IEnumerable<Transform> FindAll(Transform root, string name)
         {
             foreach (var t in root.GetComponentsInChildren<Transform>(true))

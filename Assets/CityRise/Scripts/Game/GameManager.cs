@@ -92,6 +92,12 @@ namespace CityRise.Game
             ApplyStage(profile.stage, null);
             foreach (var owned in profile.businesses)
                 if (!owned.acquired) ShowBusiness(layout.FindPlot(owned.plotId), owned, animate: false);
+            ShopExterior.FixGlass(plotsRoot);
+            foreach (var t in templates) if (t.template != null) ShopExterior.FixGlass(t.template.transform);
+            // Komşu dükkanlarına renkli tente.
+            foreach (var plot in layout.plots)
+                if (plot.type == PlotType.Business && profile.Find(plot.id) == null && views.TryGetValue(plot.id, out var nv))
+                    ShopExterior.ApplyDefault(nv.transform, plot.occupantId);
             // Oyuncunun seçtiği tabela rengi ve tente (komşudan alınan dükkanlar dahil).
             foreach (var owned in profile.businesses)
                 if (views.TryGetValue(owned.plotId, out var ov)) ShopExterior.Apply(ov.transform, owned);

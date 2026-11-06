@@ -211,7 +211,7 @@ namespace CityRise.Interior
             return go;
         }
 
-        static Mesh MetricBox(Vector3 size)
+        public static Mesh MetricBox(Vector3 size)
         {
             var verts = new List<Vector3>();
             var normals = new List<Vector3>();

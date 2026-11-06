@@ -52,6 +52,7 @@ namespace CityRise.Interior
             go.transform.position = origin;
             var size = RoomSize(businessId, level);
             var b = new InteriorBuilder(lib, go.transform, size, businessId.GetHashCode() ^ level);
+            b.style = StyleFor(businessId);
             b.Shell(signMaterial);
             switch (businessId)
             {
@@ -68,6 +69,7 @@ namespace CityRise.Interior
                 case "belediye": b.Belediye(level); break;
                 default: b.Bakkal(level); break;
             }
+            b.Decorate(businessId);
             b.Lights();
             b.Animate();
             return go;
@@ -255,13 +257,25 @@ namespace CityRise.Interior
             // Toprak ve beton temel kesiti.
             Box("Toprak", new Vector3(0, -1.25f, 0), new Vector3(w + 0.9f, 2.1f, d + 0.9f), lib.soil);
             Box("Temel", new Vector3(0, -0.3f, 0), new Vector3(w + 0.5f, 0.45f, d + 0.5f), lib.concrete);
-            var floor = Box("Zemin", new Vector3(0, -0.05f, 0), new Vector3(w, 0.1f, d), lib.floorTiles);
+            var floorMat = style.floor == FloorKind.Parquet && lib.floorParquet != null ? lib.floorParquet
+                : style.floor == FloorKind.Planks && lib.floorPlanks != null ? lib.floorPlanks : lib.floorTiles;
+            var floor = Box("Zemin", new Vector3(0, -0.05f, 0), new Vector3(w, 0.1f, d), floorMat);
             floor.name = "KaroZemin";
 
             // Arka duvarlar (yüksek, pencereli), ön duvarlar (alçak kesik).
             float t = 0.22f;
-            Box("ArkaDuvar", new Vector3(0, WallHeight * 0.5f, HalfD + t * 0.5f), new Vector3(w + 2 * t, WallHeight, t), lib.wallInside);
-            Box("SagDuvar", new Vector3(HalfW + t * 0.5f, WallHeight * 0.5f, 0), new Vector3(t, WallHeight, d), lib.wallInside);
+            var wallMat = Tinted(lib.wallInside, style.wall);
+            Box("ArkaDuvar", new Vector3(0, WallHeight * 0.5f, HalfD + t * 0.5f), new Vector3(w + 2 * t, WallHeight, t), wallMat);
+            Box("SagDuvar", new Vector3(HalfW + t * 0.5f, WallHeight * 0.5f, 0), new Vector3(t, WallHeight, d), wallMat);
+            // Lambri (duvarın alt bandı), üstünde ince çıta ve süpürgelik.
+            var panel = Flat("Lambri", style.wainscot, 0.35f);
+            var trim = Flat("Cita", style.trim, 0.45f);
+            Box("ArkaLambri", new Vector3(0, WainscotHeight * 0.5f, HalfD - 0.012f), new Vector3(w, WainscotHeight, 0.025f), panel);
+            Box("SagLambri", new Vector3(HalfW - 0.012f, WainscotHeight * 0.5f, 0), new Vector3(0.025f, WainscotHeight, d), panel);
+            Box("ArkaCita", new Vector3(0, WainscotHeight, HalfD - 0.025f), new Vector3(w, 0.05f, 0.05f), trim);
+            Box("SagCita", new Vector3(HalfW - 0.025f, WainscotHeight, 0), new Vector3(0.05f, 0.05f, d), trim);
+            Box("ArkaSupurgelik", new Vector3(0, 0.06f, HalfD - 0.03f), new Vector3(w, 0.12f, 0.06f), trim);
+            Box("SagSupurgelik", new Vector3(HalfW - 0.03f, 0.06f, 0), new Vector3(0.06f, 0.12f, d), trim);
             Box("OnDuvar", new Vector3(0, 0.3f, -HalfD - t * 0.5f), new Vector3(w + 2 * t, 0.6f, t), lib.wallBrick);
             Box("SolDuvar", new Vector3(-HalfW - t * 0.5f, 0.3f, 0), new Vector3(t, 0.6f, d), lib.wallBrick);
             // Duvar üstlerinde koyu kesit çizgisi (görseldeki gibi).
@@ -270,11 +284,9 @@ namespace CityRise.Interior
             Box("OnKesit", new Vector3(0, 0.63f, -HalfD - t * 0.5f), new Vector3(w + 2 * t, 0.06f, t + 0.02f), lib.wallCap);
             Box("SolKesit", new Vector3(-HalfW - t * 0.5f, 0.63f, 0), new Vector3(t + 0.02f, 0.06f, d + 2 * t), lib.wallCap);
 
-            // Pencere şeritleri.
-            for (float x = -HalfW + 1.4f; x < HalfW - 1f; x += 2.6f)
-                Box("Pencere", new Vector3(x + 0.8f, 2.45f, HalfD - 0.01f), new Vector3(1.8f, 0.9f, 0.02f), lib.glass);
-            for (float z = -HalfD + 1.4f; z < HalfD - 1f; z += 2.6f)
-                Box("Pencere", new Vector3(HalfW - 0.01f, 2.45f, z + 0.8f), new Vector3(0.02f, 0.9f, 1.8f), lib.glass);
+            // Pencereler: çerçeveli, ortası kayıtlı, altında denizlik.
+            for (float x = -HalfW + 1.4f; x < HalfW - 1f; x += 2.6f) Window(new Vector3(x + 0.8f, WindowY, HalfD), Vector3.right, Front);
+            for (float z = -HalfD + 1.4f; z < HalfD - 1f; z += 2.6f) Window(new Vector3(HalfW, WindowY, z + 0.8f), Vector3.forward, Left);
 
             // Tabela: arka duvarın üstünde.
             if (signMaterial != null)
@@ -291,15 +303,243 @@ namespace CityRise.Interior
             }
         }
 
+        const float WainscotHeight = 1.0f;
+        const float WindowY = 2.45f;
+
+        /// <summary>Duvar penceresi: cam, dört kenar çerçeve, orta kayıt ve denizlik. inward: odaya doğru.</summary>
+        void Window(Vector3 center, Vector3 along, Vector3 inward)
+        {
+            const float ww = 1.8f, wh = 0.9f, f = 0.07f;
+            var frame = Flat("PencereCercevesi", style.frame, 0.4f);
+            Vector3 Size(float a, float h, float depth) => along * a + Vector3.up * h + new Vector3(Mathf.Abs(inward.x), 0, Mathf.Abs(inward.z)) * depth;
+            var glassPos = center + inward * 0.012f;
+            Box("Pencere", glassPos, Size(ww, wh, 0.02f), lib.glass);
+            Box("CerceveUst", glassPos + Vector3.up * (wh * 0.5f) + inward * 0.02f, Size(ww + f, f, 0.05f), frame);
+            Box("CerceveAlt", glassPos - Vector3.up * (wh * 0.5f) + inward * 0.02f, Size(ww + f, f, 0.05f), frame);
+            Box("CerceveSol", glassPos - along * (ww * 0.5f) + inward * 0.02f, Size(f, wh + f, 0.05f), frame);
+            Box("CerceveSag", glassPos + along * (ww * 0.5f) + inward * 0.02f, Size(f, wh + f, 0.05f), frame);
+            Box("Kayit", glassPos + inward * 0.02f, Size(0.04f, wh, 0.04f), frame);
+            Box("Denizlik", glassPos - Vector3.up * (wh * 0.5f + 0.05f) + inward * 0.07f, Size(ww + 0.2f, 0.05f, 0.14f), frame);
+        }
+
+        // ------------------------------------------------------------ İç mekân stili
+
+        enum FloorKind { Tiles, Parquet, Planks }
+
+        class Style
+        {
+            public FloorKind floor = FloorKind.Tiles;
+            public Color wall = new Color(1f, 0.95f, 0.86f);
+            public Color wainscot = new Color(0.55f, 0.38f, 0.24f);
+            public Color trim = new Color(0.32f, 0.21f, 0.13f);
+            public Color frame = new Color(0.95f, 0.94f, 0.9f);
+            /// <summary>Tavandan sarkan lamba modeli.</summary>
+            public string lamp = "ph/modern_ceiling_lamp_01";
+        }
+
+        Style style = new Style();
+
+        /// <summary>İşletme türüne göre zemin, duvar ve lambri renkleri.</summary>
+        static Style StyleFor(string id)
+        {
+            var s = new Style();
+            switch (id)
+            {
+                case "kafe":
+                    s.floor = FloorKind.Parquet; s.wall = new Color(0.96f, 0.88f, 0.76f);
+                    s.wainscot = new Color(0.36f, 0.24f, 0.16f); s.trim = new Color(0.22f, 0.15f, 0.1f);
+                    s.frame = new Color(0.2f, 0.2f, 0.22f); s.lamp = "ph/hanging_industrial_lamp";
+                    break;
+                case "firin":
+                case "simit_bufesi":
+                    s.floor = FloorKind.Planks; s.wall = new Color(1f, 0.9f, 0.74f);
+                    s.wainscot = new Color(0.62f, 0.42f, 0.26f); s.lamp = "ph/hanging_industrial_lamp";
+                    break;
+                case "berber":
+                    s.floor = FloorKind.Parquet; s.wall = new Color(0.82f, 0.87f, 0.9f);
+                    s.wainscot = new Color(0.95f, 0.95f, 0.93f); s.trim = new Color(0.25f, 0.27f, 0.3f);
+                    break;
+                case "eczane":
+                    s.wall = new Color(0.97f, 0.98f, 0.97f); s.wainscot = new Color(0.62f, 0.83f, 0.74f);
+                    s.trim = new Color(0.85f, 0.87f, 0.86f);
+                    break;
+                case "kasap":
+                    s.wall = new Color(0.97f, 0.96f, 0.94f); s.wainscot = new Color(0.86f, 0.3f, 0.26f);
+                    s.trim = new Color(0.6f, 0.15f, 0.13f);
+                    break;
+                case "manav":
+                    s.floor = FloorKind.Planks; s.wall = new Color(0.93f, 0.96f, 0.84f);
+                    s.wainscot = new Color(0.4f, 0.55f, 0.3f); s.trim = new Color(0.28f, 0.38f, 0.2f);
+                    break;
+                case "belediye":
+                    s.floor = FloorKind.Parquet; s.wall = new Color(0.94f, 0.92f, 0.88f);
+                    s.wainscot = new Color(0.45f, 0.3f, 0.2f);
+                    break;
+                case "market":
+                case "supermarket":
+                case "bakkal":
+                    s.wall = new Color(0.97f, 0.96f, 0.92f); s.wainscot = new Color(0.3f, 0.45f, 0.65f);
+                    s.trim = new Color(0.2f, 0.3f, 0.45f);
+                    break;
+            }
+            return s;
+        }
+
+        static readonly Dictionary<string, Material> matCache = new Dictionary<string, Material>();
+
+        /// <summary>Düz renkli malzeme (aynı renk tekrar istenirse aynısı verilir).</summary>
+        static Material Flat(string name, Color c, float smooth)
+        {
+            string key = $"{name}{c}{smooth}";
+            if (matCache.TryGetValue(key, out var m) && m != null) return m;
+            m = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = name, color = c };
+            m.SetFloat("_Smoothness", smooth);
+            return matCache[key] = m;
+        }
+
+        /// <summary>Dokulu malzemenin renk tonlu kopyası (duvar boyası).</summary>
+        static Material Tinted(Material src, Color c)
+        {
+            if (src == null) return null;
+            string key = $"{src.name}{c}";
+            if (matCache.TryGetValue(key, out var m) && m != null) return m;
+            m = new Material(src) { name = src.name + "_ton" };
+            m.SetColor("_BaseColor", c);
+            return matCache[key] = m;
+        }
+
+        // ------------------------------------------------------------ Süsleme
+
+        static Bounds WorldBounds(GameObject go)
+        {
+            var rs = go.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return new Bounds(go.transform.position, Vector3.zero);
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            return b;
+        }
+
+        /// <summary>Nesnenin üst yüzeyinin oda zeminine göre yüksekliği.</summary>
+        float TopY(GameObject go) => go == null ? 0.75f : WorldBounds(go).max.y - root.position.y;
+
+        /// <summary>
+        /// Duvara asılan süs (saat, tablo, aplik): duvara yaslanır, en büyük kenarı maxSize'ı geçmez.
+        /// back = true: arka duvar (x boyunca), false: sağ duvar (z boyunca).
+        /// </summary>
+        GameObject WallItem(string key, bool back, float along, float y, float maxSize)
+        {
+            var go = Place(key, back ? along : HalfW - 0.3f, back ? HalfD - 0.3f : along, back ? Front : Left, y);
+            if (go == null) return null;
+            var b = WorldBounds(go);
+            float big = Mathf.Max(b.size.x, b.size.y, b.size.z);
+            if (big > maxSize) go.transform.localScale *= maxSize / big;
+            b = WorldBounds(go);
+            var wallPoint = root.TransformPoint(back ? new Vector3(0, 0, HalfD) : new Vector3(HalfW, 0, 0));
+            var shift = back ? new Vector3(0, y - (b.center.y - root.position.y), wallPoint.z - b.max.z - 0.005f)
+                             : new Vector3(wallPoint.x - b.max.x - 0.005f, y - (b.center.y - root.position.y), 0);
+            go.transform.position += shift;
+            furniture.Remove(go);
+            return go;
+        }
+
+        /// <summary>Çerçeveli manzara tablosu (koyu ahşap çerçeve, beyaz paspartu).</summary>
+        void Picture(bool back, float along, float y, int index)
+        {
+            if (lib.pictures == null || lib.pictures.Count == 0) return;
+            const float w = 0.62f, h = 0.36f;
+            var inward = back ? Front : Left;
+            var basePos = back ? new Vector3(along, y, HalfD) : new Vector3(HalfW, y, along);
+            Vector3 Size(float a, float hh, float depth) => (back ? Vector3.right : Vector3.forward) * a + Vector3.up * hh + (back ? Vector3.forward : Vector3.right) * depth;
+            Box("TabloCerceve", basePos + inward * 0.02f, Size(w + 0.12f, h + 0.12f, 0.04f), Flat("TabloCerceve", new Color(0.18f, 0.12f, 0.08f), 0.5f));
+            Box("Paspartu", basePos + inward * 0.042f, Size(w + 0.05f, h + 0.05f, 0.004f), Flat("Paspartu", new Color(0.95f, 0.94f, 0.9f), 0.2f));
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Object.Destroy(quad.GetComponent<Collider>());
+            quad.name = "Tablo";
+            quad.transform.SetParent(root, false);
+            quad.transform.localPosition = basePos + inward * 0.046f;
+            quad.transform.localRotation = Quaternion.LookRotation(-inward);
+            quad.transform.localScale = new Vector3(w, h, 1f);
+            var r = quad.GetComponent<Renderer>();
+            r.sharedMaterial = lib.pictures[Mathf.Abs(index) % lib.pictures.Count];
+            r.shadowCastingMode = ShadowCastingMode.Off;
+        }
+
+        /// <summary>Tavandan sarkan lamba: alt ucu 2,75 m'de.</summary>
+        void HangingLamp(float x, float z)
+        {
+            var go = Place(style.lamp, x, z, Front, 2f);
+            if (go == null) return;
+            var b = WorldBounds(go);
+            if (b.size.y > 1.1f) go.transform.localScale *= 1.1f / b.size.y;
+            b = WorldBounds(go);
+            go.transform.position += Vector3.up * (root.position.y + 2.75f - b.min.y);
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
+            furniture.Remove(go);
+        }
+
+        /// <summary>
+        /// Duvar süsleri ve lambalar: pencere aralarına saat ve tablolar, tavana lambalar, köşelere saksı bitkisi,
+        /// yeme-içme dükkanlarının girişine kara tahta menü.
+        /// </summary>
+        void Decorate(string id)
+        {
+            // Arka duvarda pencereler arası boşluklar (pencere genişliği 1,8, aralık 2,6).
+            var gaps = new List<float>();
+            for (float x = -HalfW + 1.4f; x < HalfW - 1f; x += 2.6f) gaps.Add(x + 0.8f + 1.3f);
+            gaps.RemoveAll(g => g > HalfW - 0.6f);
+            int pic = rng.Next(100);
+            bool clock = false;
+            for (int i = 0; i < gaps.Count; i++)
+            {
+                if (!clock && i == gaps.Count / 2) { WallItem("ph/wall_clock", true, gaps[i], WindowY, 0.55f); clock = true; continue; }
+                if ((id == "kafe" || id == "firin") && i % 2 == 0) WallItem("ph/industrial_wall_lamp", true, gaps[i], WindowY, 0.45f);
+                else Picture(true, gaps[i], WindowY, pic++);
+            }
+            if (!clock) WallItem("ph/wall_clock", true, gaps.Count > 0 ? gaps[0] : 0f, WindowY, 0.55f);
+            // Sağ duvar: pencere araları tablolar.
+            for (float z = -HalfD + 1.4f; z < HalfD - 1f; z += 2.6f)
+            {
+                float g = z + 0.8f + 1.3f;
+                if (g > HalfD - 0.6f) break;
+                Picture(false, g, WindowY, pic++);
+            }
+            // Saksı bitkisi: boş bir köşe bulunursa.
+            foreach (var spot in new[] { new Vector2(HalfW - 0.45f, -HalfD + 1.3f), new Vector2(HalfW - 0.45f, 0f), new Vector2(-HalfW + 0.45f, 0.5f) })
+                if (IsFree(spot.x, spot.y, 0.6f)) { Place("ph/potted_plant_04", spot.x, spot.y, Left); break; }
+            // Kara tahta menü: yeme-içme dükkanları, girişe yakın.
+            if (id == "kafe" || id == "firin" || id == "simit_bufesi" || id == "manav")
+                foreach (var spot in new[] { new Vector2(-HalfW + 0.7f, -HalfD + 1.6f), new Vector2(0.5f - HalfW * 0.3f, -HalfD + 0.7f), new Vector2(HalfW - 0.8f, -HalfD + 2.2f) })
+                    if (IsFree(spot.x, spot.y, 0.7f)) { Place("ph/standing_chalkboard_01", spot.x, spot.y, Front + Right * 0.6f); break; }
+        }
+
+        /// <summary>Bu noktanın çevresinde mobilya ya da kişi yok mu?</summary>
+        bool IsFree(float x, float z, float radius)
+        {
+            var p = new Vector3(x, 0, z);
+            foreach (var f in furniture)
+            {
+                if (f == null) continue;
+                var b = WorldBounds(f);
+                var lb = new Bounds(root.InverseTransformPoint(b.center), b.size);
+                lb.Expand(new Vector3(radius * 2, 10f, radius * 2));
+                if (lb.Contains(p + Vector3.up * 0.5f)) return false;
+            }
+            foreach (var list in new[] { staff, customers, seated, waiting })
+                foreach (var c in list)
+                    if (c != null && Vector2.Distance(new Vector2(c.transform.localPosition.x, c.transform.localPosition.z), new Vector2(x, z)) < radius + 0.3f) return false;
+            return true;
+        }
+
         void Lights()
         {
-            int nx = Mathf.Max(1, Mathf.RoundToInt(size.x / 6f)), nz = Mathf.Max(1, Mathf.RoundToInt(size.y / 6f));
+            int nx = Mathf.Max(1, Mathf.RoundToInt(size.x / 4f)), nz = Mathf.Max(1, Mathf.RoundToInt(size.y / 4.5f));
             for (int i = 0; i < nx; i++)
             for (int j = 0; j < nz; j++)
             {
                 var go = new GameObject("TavanIsigi");
                 go.transform.SetParent(root, false);
                 go.transform.localPosition = new Vector3(-HalfW + size.x * (i + 0.5f) / nx, 3.6f, -HalfD + size.y * (j + 0.5f) / nz);
+                HangingLamp(go.transform.localPosition.x, go.transform.localPosition.z);
                 var l = go.AddComponent<Light>();
                 l.type = LightType.Point;
                 l.color = new Color(1f, 0.9f, 0.78f);
@@ -572,9 +812,10 @@ namespace CityRise.Interior
             for (int i = 0; i < 3; i++)
             {
                 float x = -HalfW + 1.5f + i * 1.2f;
-                Place("ph/WoodenTable_01", x, -0.2f, Front, 0f, 0.65f);
-                Place("ph/wicker_basket_02", x, -0.2f, Front, 0.69f);
-                Produce(x, -0.2f, 0.78f, new[] { "ph/hamburger_buns", "ph/croissant" }, 3);
+                // Yükseklikler modelden ölçülür: sepet masanın, ekmekler sepetin üstünde.
+                float top = TopY(Place("ph/WoodenTable_01", x, -0.2f, Front, 0f, 0.9f));
+                float basketTop = TopY(Place("ph/wicker_basket_02", x, -0.2f, Front, top));
+                Produce(x, -0.2f, Mathf.Lerp(top, basketTop, 0.6f), new[] { "ph/hamburger_buns", "ph/croissant" }, 3);
             }
             Place("mm/employee", 0f, 1.2f, Front);
             Register(HalfW - 1.6f, -HalfD + 1.3f, Left);
@@ -583,11 +824,11 @@ namespace CityRise.Interior
 
         void Simit(int level)
         {
-            Place("ph/WoodenTable_01", -0.6f, -0.4f, Front, 0f, 1.1f);
+            float top = TopY(Place("ph/WoodenTable_01", -0.6f, -0.4f, Front, 0f, 1.1f));
             for (int i = 0; i < 3; i++)
             {
-                Place("ph/wicker_basket_02", -1.4f + i * 0.6f, -0.4f, Front, 0.6f);
-                Produce(-1.4f + i * 0.6f, -0.4f, 0.69f, new[] { "ph/hamburger_buns", "ph/croissant" }, 3);
+                float basketTop = TopY(Place("ph/wicker_basket_02", -1.4f + i * 0.6f, -0.4f, Front, top));
+                Produce(-1.4f + i * 0.6f, -0.4f, Mathf.Lerp(top, basketTop, 0.6f), new[] { "ph/hamburger_buns", "ph/croissant" }, 3);
             }
             Place("ph/CoffeeCart_01", HalfW - 1.4f, HalfD - 0.7f, Front);
             FillShelf(Place("ph/painted_wooden_shelves", -HalfW + 0.5f, HalfD - 0.3f, Front), Breads, 0.9f);
@@ -613,17 +854,17 @@ namespace CityRise.Interior
         void Kafe(int level)
         {
             Place("ph/CoffeeCart_01", -HalfW + 1.4f, HalfD - 0.7f, Front);
-            Place("ph/WoodenTable_01", 0.5f, HalfD - 0.6f, Front, 0f, 1.3f);
-            Produce(0.5f, HalfD - 0.6f, 0.71f, new[] { "ph/carrot_cake", "ph/croissant" }, 4);
+            float counterTop = TopY(Place("ph/WoodenTable_01", 0.5f, HalfD - 0.6f, Front, 0f, 1.3f));
+            Produce(0.5f, HalfD - 0.6f, counterTop, new[] { "ph/carrot_cake", "ph/croissant" }, 4);
             FillShelf(Place("ph/painted_wooden_shelves", HalfW - 0.5f, HalfD - 0.3f, Front), Breads, 0.9f);
             int tables = Mathf.Clamp(2 + level / 2, 2, 5);
             for (int i = 0; i < tables; i++)
             {
                 float x = -HalfW + 1.8f + (i % 3) * 2.4f, z = -0.6f - (i / 3) * 2.0f;
-                Place("ph/round_wooden_table_02", x, z, Front);
+                float tableTop = TopY(Place("ph/round_wooden_table_02", x, z, Front));
                 Place("ph/gallinera_chair", x - 0.75f, z, Right);
                 Place("ph/gallinera_chair", x + 0.75f, z, Left);
-                Place("ph/carrot_cake", x, z, Front, 0.75f);
+                Place("ph/carrot_cake", x, z, Front, tableTop);
                 // Bazı masalarda oturup sohbet eden müşteriler.
                 if (rng.NextDouble() < 0.6) SeatedCustomer(x - 0.75f, z, Right);
                 if (rng.NextDouble() < 0.4) SeatedCustomer(x + 0.75f, z, Left);

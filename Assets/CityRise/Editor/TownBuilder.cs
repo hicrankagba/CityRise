@@ -1825,7 +1825,20 @@ namespace CityRise.EditorTools
             var soilNor = LoadTexture($"{PolyHavenDir}/Textures/excavated_soil_wall_nor_gl_1k.jpg", true);
             var plasterTex = LoadTexture($"{PolyHavenDir}/Textures/painted_plaster_wall_diff_2k.jpg", false);
             var plasterNor = LoadTexture($"{PolyHavenDir}/Textures/painted_plaster_wall_nor_gl_2k.jpg", true);
-            lib.floorTiles = TexturedMat("Ic_Karo", tileTex, tileNor, new Color(1f, 0.98f, 0.95f), 4f);
+            // Karo dokusunda 4×4 karo var: 2,4 m'lik döşeme = 60 cm karo.
+            lib.floorTiles = TexturedMat("Ic_Karo", tileTex, tileNor, new Color(1f, 0.98f, 0.95f), 2.4f);
+            var parquetTex = LoadTexture($"{PolyHavenDir}/Textures/herringbone_parquet_diff_1k.jpg", false);
+            if (parquetTex != null) lib.floorParquet = TexturedMat("Ic_Parke", parquetTex, LoadTexture($"{PolyHavenDir}/Textures/herringbone_parquet_nor_gl_1k.jpg", true), Color.white, 2f);
+            var plankTex = LoadTexture($"{PolyHavenDir}/Textures/plank_flooring_02_diff_1k.jpg", false);
+            if (plankTex != null) lib.floorPlanks = TexturedMat("Ic_Tahta", plankTex, LoadTexture($"{PolyHavenDir}/Textures/plank_flooring_02_nor_gl_1k.jpg", true), new Color(0.78f, 0.74f, 0.72f), 2.5f);
+            // Duvar tabloları: Poly Haven (CC0) gökyüzü görüntülerinin manzara kısmı.
+            lib.pictures.Clear();
+            if (AssetDatabase.IsValidFolder($"{PolyHavenDir}/Tablolar"))
+                foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { $"{PolyHavenDir}/Tablolar" }))
+                {
+                    var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(guid));
+                    lib.pictures.Add(SimpleMat("Ic_Tablo_" + tex.name, Color.white, 0.25f, m => m.SetTexture("_BaseMap", tex)));
+                }
             lib.wallInside = TexturedMat("Ic_Duvar", plasterTex, plasterNor, new Color(1f, 0.95f, 0.86f), 2f);
             lib.wallBrick = c.bricks[0];
             lib.wallCap = SimpleMat("Ic_KesitCizgisi", new Color(0.08f, 0.08f, 0.1f), 0.1f);

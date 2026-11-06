@@ -52,6 +52,15 @@ Gökyüzü (HDRI), zemin/duvar/çatı/yaprak/çiçek dokuları ve aşağıdaki d
 | Wooden Display Shelves 01 | James Ray Cock | https://polyhaven.com/a/wooden_display_shelves_01 |
 | Worn Metal Rack | Luca B | https://polyhaven.com/a/worn_metal_rack |
 | Yellow Onion | Kuutti Siitonen | https://polyhaven.com/a/yellow_onion |
+| Wall Clock | PierreB3D | https://polyhaven.com/a/wall_clock |
+| Potted Plant 04 | James Ray Cock | https://polyhaven.com/a/potted_plant_04 |
+| Modern Ceiling Lamp 01 | James Ray Cock | https://polyhaven.com/a/modern_ceiling_lamp_01 |
+| Hanging Industrial Lamp | Kuutti Siitonen | https://polyhaven.com/a/hanging_industrial_lamp |
+| Standing Chalkboard 01 | ParzivalCG | https://polyhaven.com/a/standing_chalkboard_01 |
+| Industrial Wall Lamp | Kuutti Siitonen | https://polyhaven.com/a/industrial_wall_lamp |
+
+Dokular (Poly Haven, CC0): Herringbone Parquet, Plank Flooring 02 (iç mekân zeminleri).
+Duvar tabloları: Poly Haven HDRI önizleme görüntülerinden kırpılmış manzaralar (CC0): Kloppenheim 06, Meadow 2, Qwantani Dusk 2, Rural Asphalt Road, Spruit Sunrise, Table Mountain 1.
 
 ## Kenney (CC0 1.0) — https://kenney.nl
 City Kit (Commercial, Suburban, Industrial, Roads), Nature Kit, Mini Market, Food Kit, Furniture Kit, Mini Characters, Car Kit. Ayrıntı: ThirdParty/Kenney/README.txt

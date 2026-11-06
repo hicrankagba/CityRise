@@ -23,6 +23,8 @@ namespace CityRise.Interior
 
         [Header("Malzemeler")]
         public Material floorTiles;
+        public Material floorParquet;
+        public Material floorPlanks;
         public Material wallInside;
         public Material wallBrick;
         public Material wallCap;
@@ -30,6 +32,8 @@ namespace CityRise.Interior
         public Material soil;
         public Material glass;
         public Material lightPanel;
+        [Tooltip("Duvar tablolarının resimleri (Poly Haven CC0 manzara görüntüleri).")]
+        public List<Material> pictures = new List<Material>();
 
         readonly Dictionary<string, Entry> lookup = new Dictionary<string, Entry>();
 

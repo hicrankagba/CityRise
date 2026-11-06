@@ -40,6 +40,8 @@ namespace CityRise.Game
         public Transform wildernessRoot;
         public GameObject forSaleSignTemplate;
         public List<BusinessTemplate> templates = new List<BusinessTemplate>();
+        [Tooltip("Bu sahneyi kuran kurulum sürümü (eskiyse editör Play'de yeniden kurar).")]
+        public int builtVersion;
         public InteriorLibrary interiorLibrary;
 
         /// <summary>İç görünümün kurulduğu yer: şehirden uzakta, kamera şehri görmesin.</summary>

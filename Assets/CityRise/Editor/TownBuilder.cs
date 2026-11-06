@@ -24,11 +24,17 @@ namespace CityRise.EditorTools
     /// </summary>
     public static class TownBuilder
     {
+        /// <summary>
+        /// Kasaba kurulumunun sürümü. Kurulumu değiştiren her güncellemede artırılır; sahnedeki kasaba
+        /// eskiyse Play'e basınca kendiliğinden yeniden kurulur (bkz. KasabaGuncelligi).
+        /// </summary>
+        public const int BuildVersion = 8;
+
         const string Root = "Assets/CityRise";
         const string GeneratedDir = Root + "/Generated/Kasaba";
         const string DataDir = Root + "/Data";
         const string LayoutPath = DataDir + "/BaslangicKasabasi.asset";
-        const string ScenePath = Root + "/Scenes/BaslangicKasabasi.unity";
+        public const string ScenePath = Root + "/Scenes/BaslangicKasabasi.unity";
         const string KenneyDir = Root + "/ThirdParty/Kenney";
         const string PolyHavenDir = Root + "/ThirdParty/PolyHaven";
 
@@ -1714,6 +1720,7 @@ namespace CityRise.EditorTools
         {
             var templatesRoot = Group(c.root, "Sablonlar");
             var gm = new GameObject("Oyun").AddComponent<GameManager>();
+            gm.builtVersion = BuildVersion;
             gm.layoutAsset = c.layout;
             gm.config = c.config;
             gm.catalog = c.catalog;

@@ -23,6 +23,7 @@ namespace CityRise.Game
         Button collectButton, upgradeButton, buyButton, editButton, productsButton;
         RectTransform productPanel, productGrid, popupLayer;
         Text productInfo;
+        Button depotButton;
         float productRefresh;
         bool openProductsOnEnter;
         readonly Dictionary<int, float> lastCityPopup = new Dictionary<int, float>();
@@ -374,7 +375,7 @@ namespace CityRise.Game
             if (cam == null) return;
             foreach (var owned in eco.profile.businesses)
             {
-                bool empty = owned.TotalStock() == 0;
+                bool empty = owned.TotalStock() == 0 && owned.DepotTotal() == 0 && owned.deliveries.Count == 0;
                 bool show = (empty || owned.stored >= Mathf.Max(1f, (float)eco.NetPerHour(owned) / 60f)) && !IsModalOpen;
                 coins.TryGetValue(owned.plotId, out var button);
                 if (!show)
@@ -442,8 +443,23 @@ namespace CityRise.Game
             }, 24);
             ((RectTransform)fill.transform).Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-176, -12), new Vector2(200, 64));
             fill.GetComponentInChildren<Text>().color = UIKit.TextDark;
-            productInfo = UIKit.Label("Bilgi", productPanel, "", 22, new Color(1, 1, 1, 0.75f), TextAnchor.UpperLeft);
-            productInfo.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -80), new Vector2(690, 60));
+            productInfo = UIKit.Label("Bilgi", productPanel, "", 21, new Color(1, 1, 1, 0.8f), TextAnchor.UpperLeft);
+            productInfo.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -80), new Vector2(380, 60));
+            // Depo: doluluk, "Rafa diz", depoyu büyüt.
+            var shelve = UIKit.Button("RafaDiz", productPanel, Loc.T("prod.shelve"), new Color(0.2f, 0.5f, 0.75f), () =>
+            {
+                if (interiorPlot == null) return;
+                if (eco.RefillNow(interiorPlot.id) == 0) Toast(Loc.T("prod.shelve.none"));
+                RefreshProductPanel();
+            }, 20);
+            ((RectTransform)shelve.transform).Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-180, -84), new Vector2(150, 52));
+            depotButton = UIKit.Button("DepoBuyut", productPanel, "", new Color(0.55f, 0.4f, 0.75f), () =>
+            {
+                if (interiorPlot == null) return;
+                if (!eco.UpgradeDepot(interiorPlot.id)) Toast(Loc.T("edit.nocash"));
+                RefreshProductPanel();
+            }, 18);
+            ((RectTransform)depotButton.transform).Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -84), new Vector2(160, 52));
             productGrid = UIKit.Rect("Urunler", productPanel);
             productGrid.anchorMin = Vector2.zero;
             productGrid.anchorMax = Vector2.one;
@@ -454,6 +470,7 @@ namespace CityRise.Game
             popupLayer = UIKit.Rect("SatisYazilari", root).Stretch();
             eco.Sold += OnSold;
             eco.SoldOut += b => Toast(Loc.T("prod.soldout", Loc.T("business." + b.businessId)));
+            eco.DeliveryArrived += (b, p, n) => { if (p != null) Toast(Loc.T("prod.arrived", Loc.T("business." + b.businessId), n, p.name)); };
         }
 
         void OpenProductPanel()
@@ -472,9 +489,12 @@ namespace CityRise.Game
             for (int i = productGrid.childCount - 1; i >= 0; i--) Destroy(productGrid.GetChild(i).gameObject);
             productGrid.DetachChildren();
             int cap = eco.StockCapacity(b);
-            productInfo.text = Loc.T("prod.hint", Mathf.RoundToInt((float)eco.SalesPerHour(b)), cap);
+            productInfo.text = Loc.T("prod.depot", b.DepotTotal(), eco.DepotCapacity(b), b.OnTheWayTotal(), Mathf.RoundToInt((float)eco.SalesPerHour(b)));
+            bool maxDepot = b.depotLevel >= Products.MaxDepotLevel;
+            depotButton.SetText(maxDepot ? Loc.T("prod.depot.max") : Loc.T("prod.depot.up", Loc.Money(Products.DepotUpgradeCost(b.depotLevel))));
+            depotButton.interactable = !maxDepot && eco.CanUpgradeDepot(b);
             var list = Products.For(b.businessId);
-            const float cw = 172, ch = 222, gap = 8;
+            const float cw = 172, ch = 248, gap = 8;
             for (int i = 0; i < list.Length; i++)
             {
                 var p = list[i];
@@ -484,32 +504,56 @@ namespace CityRise.Game
                     .Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(col * (cw + gap), -row * (ch + gap)), new Vector2(cw, ch));
                 var icon = new GameObject("Resim", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
                 icon.transform.SetParent(card, false);
-                icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -8), new Vector2(96, 96));
+                icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -6), new Vector2(92, 92));
                 icon.texture = ProductIcons.Get(game.interiorLibrary, p.model);
                 icon.raycastTarget = false;
                 UIKit.Label("Ad", card, p.name, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold)
-                    .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -106), new Vector2(cw - 8, 26));
+                    .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -100), new Vector2(cw - 8, 26));
                 UIKit.Label("Fiyat", card, Loc.T("prod.price", Loc.Money(p.price), Loc.Money(p.cost)), 17, new Color(1, 1, 1, 0.75f), TextAnchor.MiddleCenter)
-                    .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -132), new Vector2(cw - 8, 22));
+                    .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -124), new Vector2(cw - 8, 22));
                 // Stok çubuğu.
-                var bar = UIKit.Box("Stok", card, new Color(1, 1, 1, 0.15f)).rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -156), new Vector2(cw - 20, 18));
+                var bar = UIKit.Box("Stok", card, new Color(1, 1, 1, 0.15f)).rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -148), new Vector2(cw - 20, 18));
                 var fillBar = UIKit.Box("Dolu", bar, count == 0 ? new Color(0.9f, 0.3f, 0.25f) : UIKit.Green).rectTransform;
                 fillBar.anchorMin = Vector2.zero;
                 fillBar.anchorMax = new Vector2(Mathf.Clamp01(count / (float)cap), 1);
                 fillBar.offsetMin = fillBar.offsetMax = Vector2.zero;
-                UIKit.Label("Sayi", bar, $"{count} / {cap}", 14, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold).rectTransform.Stretch();
+                UIKit.Label("Sayi", bar, Loc.T("prod.shelf", count, cap), 14, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold).rectTransform.Stretch();
+                int way = b.OnTheWay(p.id);
+                UIKit.Label("Depo", card, way > 0 ? Loc.T("prod.depotway", b.DepotCount(p.id), way, ArrivalText(b, p.id)) : Loc.T("prod.depotone", b.DepotCount(p.id)), 15, new Color(1, 1, 1, 0.8f), TextAnchor.MiddleCenter)
+                    .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -172), new Vector2(cw - 6, 22));
                 long cost = eco.RestockCost(b, p, out int amount);
+                long fast = eco.RestockCost(b, p, out _, true);
                 bool can = amount > 0 && eco.profile.cash >= cost;
+                bool canFast = amount > 0 && eco.profile.cash >= fast;
                 string id = p.id;
-                var order = UIKit.Button("Siparis", card, amount <= 0 ? Loc.T("prod.full") : Loc.T("prod.order", amount, Loc.Money(cost)), can ? UIKit.Green : UIKit.Grey, () =>
+                var order = UIKit.Button("Siparis", card, amount <= 0 ? Loc.T("prod.depotfull") : Loc.T("prod.order", amount, Loc.Money(cost)), can ? UIKit.Green : UIKit.Grey, () =>
                 {
                     if (interiorPlot == null) return;
                     if (!eco.Restock(interiorPlot.id, id)) Toast(Loc.T("edit.nocash"));
+                    else Toast(Loc.T("prod.ordered", Mathf.RoundToInt((float)Products.NormalDeliverySeconds)));
                     RefreshProductPanel();
-                }, 17);
-                ((RectTransform)order.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(cw - 16, 40));
+                }, 16);
+                ((RectTransform)order.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(6, 8), new Vector2(cw - 66, 40));
                 order.interactable = can;
+                var express = UIKit.Button("Hizli", card, Loc.T("prod.fast"), canFast ? UIKit.Accent : UIKit.Grey, () =>
+                {
+                    if (interiorPlot == null) return;
+                    if (!eco.Restock(interiorPlot.id, id, true)) Toast(Loc.T("edit.nocash"));
+                    else Toast(Loc.T("prod.ordered.fast", Loc.Money(fast)));
+                    RefreshProductPanel();
+                }, 15);
+                ((RectTransform)express.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-6, 8), new Vector2(54, 40));
+                express.GetComponentInChildren<Text>().color = UIKit.TextDark;
+                express.interactable = canFast;
             }
+        }
+
+        static string ArrivalText(OwnedBusiness b, string productId)
+        {
+            long soonest = long.MaxValue;
+            foreach (var d in b.deliveries) if (d.id == productId && d.arriveTicks < soonest) soonest = d.arriveTicks;
+            double secs = System.Math.Max(0, (new System.DateTime(soonest, System.DateTimeKind.Utc) - System.DateTime.UtcNow).TotalSeconds);
+            return Mathf.CeilToInt((float)secs) + " sn";
         }
 
         /// <summary>Satış: dükkanın içindeysen kasanın üstünde "+$fiyat ürün", şehirde binanın üstünde "+$".</summary>

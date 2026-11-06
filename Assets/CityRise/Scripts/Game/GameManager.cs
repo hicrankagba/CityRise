@@ -138,6 +138,7 @@ namespace CityRise.Game
             gameObject.AddComponent<TutorialGuide>().Init(this, hud, hud.Root);
             Life = new GameObject("SehirHayati").AddComponent<CityRise.Life.CityLife>();
             Life.Init(this);
+            gameObject.AddComponent<CityRise.Life.DeliveryTrucks>().Init(this);
 
             double hoursAway = (DateTime.UtcNow - new DateTime(profile.lastSaveUtcTicks, DateTimeKind.Utc)).TotalHours;
             if (profile.businesses.Count > 0 && hoursAway > 0.02)

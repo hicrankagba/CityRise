@@ -27,6 +27,17 @@ namespace CityRise.Progression
         public int count;
     }
 
+    /// <summary>Yoldaki tedarik siparişi: varış zamanı (UTC tick) gelince depoya girer.</summary>
+    [Serializable]
+    public class Delivery
+    {
+        public string id;
+        public int amount;
+        public long arriveTicks;
+        public long orderTicks;
+        public bool express;
+    }
+
     /// <summary>
     /// Ürün listesi: her işletme türü gerçek ürünler satar. Ürün raftaysa müşteriler alır, satış parası kasaya girer;
     /// stok biterse satış durur, oyuncu tedarikçiden yeniden sipariş verir (alış fiyatını öder).
@@ -148,5 +159,18 @@ namespace CityRise.Progression
 
         /// <summary>Tek siparişte gelen miktar.</summary>
         public const int Batch = 20;
+
+        /// <summary>Depo kapasitesi (toplam ürün): depo seviyesiyle büyür.</summary>
+        public static int DepotCapacity(int depotLevel) => 60 + 40 * depotLevel;
+        public static long DepotUpgradeCost(int depotLevel) => 400L * (depotLevel + 1) * (depotLevel + 1);
+        public const int MaxDepotLevel = 8;
+
+        /// <summary>Normal kamyonla teslimat süresi (sn) ve hızlı teslimat süresi/ek ücreti.</summary>
+        public const double NormalDeliverySeconds = 90;
+        public const double ExpressDeliverySeconds = 15;
+        public const double ExpressMultiplier = 1.5;
+
+        /// <summary>Çalışanın depodan rafa taşıma hızı (ürün/sn).</summary>
+        public const double RefillPerSecond = 0.5;
     }
 }

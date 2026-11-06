@@ -39,6 +39,10 @@ namespace CityRise.Progression
         public event Action<OwnedBusiness> StockChanged;
         /// <summary>Dükkanın stoğu tamamen bitti.</summary>
         public event Action<OwnedBusiness> SoldOut;
+        /// <summary>Tedarik kamyonu geldi (dükkan, ürün, adet).</summary>
+        public event Action<OwnedBusiness, Product, int> DeliveryArrived;
+        /// <summary>Sipariş verildi (kamyon yola çıktı).</summary>
+        public event Action<OwnedBusiness, Delivery> DeliveryOrdered;
 
         public CityEconomy(PlayerProfile profile, ProgressionConfig config, BusinessCatalog catalog, CityLayout layout)
         {
@@ -181,7 +185,10 @@ namespace CityRise.Progression
             if (b.stockGiven) return;
             b.stockGiven = true;
             foreach (var p in Products.For(b.businessId))
+            {
                 if (b.Count(p.id) < Products.Batch) b.Add(p.id, Products.Batch - b.Count(p.id));
+                if (b.DepotCount(p.id) < 10) b.AddDepot(p.id, 10 - b.DepotCount(p.id));
+            }
         }
 
         /// <summary>Eski kayıtlarda stok yoksa bir kez başlangıç stoğu verilir.</summary>
@@ -190,38 +197,135 @@ namespace CityRise.Progression
             foreach (var b in profile.businesses) GiveStarterStock(b);
         }
 
-        public long RestockCost(OwnedBusiness b, Product p, out int amount)
+        public int DepotCapacity(OwnedBusiness b) => Products.DepotCapacity(b.depotLevel);
+
+        /// <summary>Depoda (yoldakiler dahil) boş yer.</summary>
+        public int DepotFree(OwnedBusiness b) => Math.Max(0, DepotCapacity(b) - b.DepotTotal() - b.OnTheWayTotal());
+
+        /// <summary>Bir parti siparişin miktarı ve fiyatı (depoda yer kadar).</summary>
+        public long RestockCost(OwnedBusiness b, Product p, out int amount, bool express = false)
         {
-            amount = Math.Min(Products.Batch, StockCapacity(b) - b.Count(p.id));
-            return Math.Max(0, amount) * p.cost;
+            amount = Math.Min(Products.Batch, DepotFree(b));
+            long cost = Math.Max(0, amount) * p.cost;
+            return express ? (long)Math.Ceiling(cost * Products.ExpressMultiplier) : cost;
         }
 
-        /// <summary>Tedarikçiden bir parti ürün sipariş eder (alış fiyatı ödenir, raf anında dolar).</summary>
-        public bool Restock(int plotId, string productId)
+        /// <summary>Tedarikçiden bir parti ürün sipariş eder: para ödenir, kamyon yola çıkar, varınca depoya girer.</summary>
+        public bool Restock(int plotId, string productId, bool express = false)
         {
             var b = profile.Find(plotId);
             if (b == null) return false;
             var p = Products.Find(b.businessId, productId);
             if (p == null) return false;
-            long cost = RestockCost(b, p, out int amount);
+            long cost = RestockCost(b, p, out int amount, express);
             if (amount <= 0 || profile.cash < cost) return false;
             profile.cash -= cost;
             profile.stats.totalSpent += cost;
-            b.Add(p.id, amount);
+            var now = DateTime.UtcNow;
+            double secs = express ? Products.ExpressDeliverySeconds : Products.NormalDeliverySeconds;
+            // Aynı dükkana birden çok sipariş tek kamyonla gelir: varış en son siparişe göre değil, ayrı ayrı.
+            var d = new Delivery { id = p.id, amount = amount, express = express, orderTicks = now.Ticks, arriveTicks = now.AddSeconds(secs).Ticks };
+            b.deliveries.Add(d);
+            DeliveryOrdered?.Invoke(b, d);
             StockChanged?.Invoke(b);
             Changed?.Invoke();
             return true;
         }
 
-        /// <summary>Bütün rafları doldurur (para yettiği kadar, sırayla).</summary>
-        public int RestockAll(int plotId)
+        /// <summary>Her ürün için bir parti sipariş eder (para ve depo yettiği kadar).</summary>
+        public int RestockAll(int plotId, bool express = false)
         {
             var b = profile.Find(plotId);
             if (b == null) return 0;
             int n = 0;
             foreach (var p in Products.For(b.businessId))
-                if (Restock(plotId, p.id)) n++;
+                if (Restock(plotId, p.id, express)) n++;
             return n;
+        }
+
+        public bool CanUpgradeDepot(OwnedBusiness b) => b.depotLevel < Products.MaxDepotLevel && profile.cash >= Products.DepotUpgradeCost(b.depotLevel);
+
+        public bool UpgradeDepot(int plotId)
+        {
+            var b = profile.Find(plotId);
+            if (b == null || !CanUpgradeDepot(b)) return false;
+            long cost = Products.DepotUpgradeCost(b.depotLevel);
+            profile.cash -= cost;
+            profile.stats.totalSpent += cost;
+            b.depotLevel++;
+            AddXp(Mathf.Max(1, Mathf.RoundToInt(cost * config.xpPerUpgradeDollar)));
+            StockChanged?.Invoke(b);
+            Changed?.Invoke();
+            return true;
+        }
+
+        /// <summary>Varış zamanı gelen siparişleri depoya alır.</summary>
+        void ArriveDeliveries(OwnedBusiness b, bool notify)
+        {
+            long now = DateTime.UtcNow.Ticks;
+            bool any = false;
+            for (int i = b.deliveries.Count - 1; i >= 0; i--)
+            {
+                var d = b.deliveries[i];
+                if (d.arriveTicks > now) continue;
+                b.deliveries.RemoveAt(i);
+                b.AddDepot(d.id, d.amount);
+                any = true;
+                if (notify) DeliveryArrived?.Invoke(b, Products.Find(b.businessId, d.id), d.amount);
+            }
+            if (any) StockChanged?.Invoke(b);
+        }
+
+        /// <summary>Çalışan depodan raflara ürün taşır (en boş raftan başlayarak). Kaç ürün taşındığını döndürür.</summary>
+        int Refill(OwnedBusiness b, int max)
+        {
+            int moved = 0, cap = StockCapacity(b);
+            var list = Products.For(b.businessId);
+            while (moved < max)
+            {
+                Product best = null;
+                int bestCount = int.MaxValue;
+                foreach (var p in list)
+                {
+                    int c = b.Count(p.id);
+                    if (c >= cap || b.DepotCount(p.id) <= 0) continue;
+                    if (c < bestCount) { bestCount = c; best = p; }
+                }
+                if (best == null) break;
+                b.AddDepot(best.id, -1);
+                b.Add(best.id, 1);
+                moved++;
+            }
+            if (moved > 0) StockChanged?.Invoke(b);
+            return moved;
+        }
+
+        /// <summary>"Rafa diz": depodaki ürünleri hemen raflara taşır.</summary>
+        public int RefillNow(int plotId)
+        {
+            var b = profile.Find(plotId);
+            if (b == null) return 0;
+            int n = Refill(b, int.MaxValue);
+            if (n > 0) Changed?.Invoke();
+            return n;
+        }
+
+        /// <summary>Canlı satış: dükkan içindeki bir müşteri belirli bir ürünü kasada öder. tip: bahşiş oranı.</summary>
+        public bool SellOne(int plotId, string productId, double tip = 0)
+        {
+            var b = profile.Find(plotId);
+            if (b == null || b.Count(productId) <= 0 || b.stored >= Capacity(b)) return false;
+            var p = Products.Find(b.businessId, productId);
+            if (p == null) return false;
+            b.Add(p.id, -1);
+            long price = p.price + (long)Math.Round(p.price * tip);
+            b.stored += price;
+            b.unitsSold++;
+            Sold?.Invoke(b, p, price);
+            StockChanged?.Invoke(b);
+            if (b.TotalStock() == 0 && b.DepotTotal() == 0) SoldOut?.Invoke(b);
+            Changed?.Invoke();
+            return true;
         }
 
         /// <summary>Satış: stoktaki ürünlerden rastgele biri satılır, fiyatı kasaya girer.</summary>
@@ -251,7 +355,7 @@ namespace CityRise.Progression
             if (sold > 0)
             {
                 StockChanged?.Invoke(b);
-                if (b.TotalStock() == 0) SoldOut?.Invoke(b);
+                if (b.TotalStock() == 0 && b.DepotTotal() == 0) SoldOut?.Invoke(b);
             }
             return sold;
         }
@@ -259,10 +363,18 @@ namespace CityRise.Progression
         readonly System.Random rng = new System.Random();
 
         /// <summary>Oyun açıkken: müşteriler raftaki ürünleri alır.</summary>
+        /// <summary>Dükkan içinde müşteriler kendileri satın alıyorsa (canlı satış) otomatik satış yapılmaz.</summary>
+        public int LiveSalesPlotId = -1;
+
         public void Tick(double seconds)
         {
             foreach (var b in profile.businesses)
             {
+                ArriveDeliveries(b, true);
+                b.refillCarry += Products.RefillPerSecond * seconds;
+                int r = (int)Math.Floor(b.refillCarry);
+                if (r > 0) { b.refillCarry -= r; Refill(b, r); }
+                if (b.plotId == LiveSalesPlotId) { b.salesCarry = 0; continue; }
                 if (b.TotalStock() == 0 || b.stored >= Capacity(b)) { b.salesCarry = 0; continue; }
                 b.salesCarry += SalesPerHour(b) * seconds / 3600.0;
                 int n = (int)Math.Floor(b.salesCarry);
@@ -280,7 +392,17 @@ namespace CityRise.Progression
             foreach (var b in profile.businesses)
             {
                 double before = b.stored;
-                Sell(b, (int)Math.Floor(SalesPerHour(b) * hours), false);
+                ArriveDeliveries(b, false);
+                // Yokken çalışan rafları depodan doldurmaya devam eder.
+                int want = (int)Math.Floor(SalesPerHour(b) * hours);
+                while (want > 0)
+                {
+                    Refill(b, int.MaxValue);
+                    int sold = Sell(b, want, false);
+                    if (sold == 0) break;
+                    want -= sold;
+                }
+                Refill(b, int.MaxValue);
                 total += b.stored - before;
             }
             return total;

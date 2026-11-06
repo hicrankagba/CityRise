@@ -186,7 +186,8 @@ namespace CityRise.CameraRig
             transform.position = p;
         }
 
-        void ApplyTransform()
+        /// <summary>Kamerayı odak noktasına göre yerleştirir (sahne kurulurken de çağrılır; Play'e basmadan Game sekmesi doğru görünür).</summary>
+        public void ApplyTransform()
         {
             if (cam == null) return;
             float p = orbitMode ? orbitPitch

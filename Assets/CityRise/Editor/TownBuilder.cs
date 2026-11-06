@@ -1043,6 +1043,8 @@ namespace CityRise.EditorTools
             float reach = (c.openArea.width * 0.5f + 6f) * c.g.cellSize;
             ctrl.boundsMin = new Vector2(-reach, -reach);
             ctrl.boundsMax = new Vector2(reach, reach);
+            // Oyundaki başlangıç görüntüsü sahneye de yazılır; yoksa Play'e basmadan Game sekmesi yerin altından bakar.
+            ctrl.ApplyTransform();
         }
 
         static void BuildPostProcessing(Ctx c)

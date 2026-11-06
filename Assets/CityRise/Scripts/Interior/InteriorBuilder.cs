@@ -17,7 +17,7 @@ namespace CityRise.Interior
         const float WallHeight = 3.4f;
 
         readonly InteriorLibrary lib;
-        readonly Transform root;
+        Transform root;
         readonly System.Random rng;
         public readonly Vector2 size;
         float HalfW => size.x * 0.5f;
@@ -83,6 +83,7 @@ namespace CityRise.Interior
                 case "belediye": b.Belediye(level); break;
                 default: b.Bakkal(level); break;
             }
+            b.FillFloor(businessId);
             b.Decorate(businessId);
             b.Lights();
             b.Animate();
@@ -587,11 +588,25 @@ namespace CityRise.Interior
         }
 
         /// <summary>Market reyon adları (tabela dokuları sahne kurulurken bunlardan üretilir; sonuncusu manav köşesi).</summary>
-        public static readonly string[] AisleNames = { "GIDA", "TEMİZLİK", "KONSERVE", "İÇECEK", "MEYVE SEBZE" };
+        public static readonly string[] AisleNames = { "GIDA", "TEMİZLİK", "KONSERVE", "İÇECEK", "MEYVE SEBZE", "KASA" };
+        static readonly string[] MarketAisles = { "GIDA", "TEMİZLİK", "KONSERVE", "İÇECEK" };
 
         /// <summary>Raf sırasının üstünde asılı reyon tabelası: çerçeve ve iki yüzünde yazı.</summary>
-        void AisleSign(float x, float z, string text, Color color)
+        void AisleSign(float x, float z, string text, Color color, bool alongZ = false)
         {
+            if (alongZ)
+            {
+                // Tabela z boyunca: geçici kök döndürülerek aynı çizim kullanılır.
+                var pivot = new GameObject("TabelaDonuk").transform;
+                pivot.SetParent(root, false);
+                pivot.localPosition = new Vector3(x, 0, z);
+                pivot.localRotation = Quaternion.Euler(0, 90f, 0);
+                var saved = root;
+                root = pivot;
+                AisleSign(0, 0, text, color, false);
+                root = saved;
+                return;
+            }
             const float y = 2.95f, w = 1.7f, h = 0.36f;
             Box("ReyonTabela", new Vector3(x, y, z), new Vector3(w + 0.08f, h + 0.08f, 0.04f), Flat("ReyonCerceve", new Color(0.1f, 0.1f, 0.12f), 0.4f));
             var rod = Flat("ReyonAski", new Color(0.3f, 0.3f, 0.3f), 0.6f);
@@ -688,7 +703,7 @@ namespace CityRise.Interior
                     if (placed < want && IsFree(spot.x, spot.y, 0.6f)) { Place("ph/potted_plant_04", spot.x, spot.y, Left, 0f, 2.4f); placed++; }
             }
             // Kilim: girişte, yürüme yolunda.
-            if (D("hali")) Rug(new Vector3(0.2f, 0, -HalfD + 1.5f), new Vector2(Mathf.Min(3.2f, size.x - 2.4f), 1.7f));
+            if (D("hali") && IsFree(0.2f, -HalfD + 1.5f, 0.3f, people: false)) Rug(new Vector3(0.2f, 0, -HalfD + 1.5f), new Vector2(Mathf.Min(3.2f, size.x - 2.4f), 1.7f));
             // Kara tahta menü: yeme-içme dükkanları, girişe yakın.
             if (D("menu") && (id == "kafe" || id == "firin" || id == "simit_bufesi" || id == "manav"))
                 foreach (var spot in new[] { new Vector2(HalfW - 0.8f, -HalfD + 2.2f), new Vector2(-HalfW + 0.7f, -HalfD + 1.6f), new Vector2(0.5f - HalfW * 0.3f, -HalfD + 0.7f) })
@@ -756,7 +771,7 @@ namespace CityRise.Interior
         }
 
         /// <summary>Bu noktanın çevresinde mobilya ya da kişi yok mu?</summary>
-        bool IsFree(float x, float z, float radius)
+        bool IsFree(float x, float z, float radius, bool people = true)
         {
             var p = new Vector3(x, 0, z);
             foreach (var f in furniture)
@@ -767,6 +782,7 @@ namespace CityRise.Interior
                 lb.Expand(new Vector3(radius * 2, 10f, radius * 2));
                 if (lb.Contains(p + Vector3.up * 0.5f)) return false;
             }
+            if (!people) return true;
             foreach (var list in new[] { staff, customers, seated, waiting })
                 foreach (var c in list)
                     if (c != null && Vector2.Distance(new Vector2(c.transform.localPosition.x, c.transform.localPosition.z), new Vector2(x, z)) < radius + 0.3f) return false;
@@ -942,12 +958,108 @@ namespace CityRise.Interior
         }
 
         /// <summary>Kasa: tezgah (çelik masa) üstünde yazar kasa, arkasında çalışan.</summary>
-        void Register(float x, float z, Vector3 facingCustomer)
+        void Register(float x, float z, Vector3 facingCustomer) => Checkout(x, z, facingCustomer);
+
+        /// <summary>
+        /// Kasa: ahşap gövdeli tezgah, koyu taş tabla, üstünde yazar kasa ve kart makinesi, poşetlik,
+        /// yanında küçük ürünlü "son dakika" rafı, önünde paspas, tepede asılı KASA tabelası, arkasında kasiyer.
+        /// facingCustomer: müşterinin durduğu yön (eksenlere paralel).
+        /// </summary>
+        void Checkout(float x, float z, Vector3 facingCustomer, float length = 1.9f)
         {
-            Place("ph/metal_office_desk", x, z, facingCustomer, 0f, 0.75f);
-            Place("ph/CashRegister_01", x, z + 0.05f * facingCustomer.z, facingCustomer, 0.6f);
-            Place("mm/employee", x - facingCustomer.x * 0.9f, z - facingCustomer.z * 0.9f, facingCustomer);
-            registerSpot = new Vector3(x, 0, z);
+            var f = facingCustomer.normalized;
+            bool alongZ = Mathf.Abs(f.x) > 0.5f;           // müşteri yanda: tezgah z boyunca uzanır
+            var along = alongZ ? Vector3.forward : Vector3.right;
+            const float h = 1.0f, depth = 0.72f;
+            var size = alongZ ? new Vector3(depth, h - 0.06f, length) : new Vector3(length, h - 0.06f, depth);
+            var body = Flat("KasaGovde", Color.Lerp(style.wainscot, new Color(0.45f, 0.3f, 0.18f), 0.5f), 0.35f);
+            var top = Flat("KasaTabla", new Color(0.13f, 0.12f, 0.12f), 0.75f);
+            var c = new Vector3(x, 0, z);
+            furniture.Add(Box("KasaTezgahi", c + Vector3.up * (h * 0.5f - 0.03f), size, body));
+            Box("KasaTablasi", c + Vector3.up * (h - 0.03f) + f * 0.04f, size + new Vector3(0.1f, 0.06f - (h - 0.06f), 0.1f), top);
+            // Ön yüzde renkli şerit (dükkan rengi).
+            var stripe = alongZ ? new Vector3(0.02f, 0.12f, length) : new Vector3(length, 0.12f, 0.02f);
+            Box("KasaSeridi", c + Vector3.up * 0.75f + f * (depth * 0.5f + 0.01f), stripe, Flat("KasaSerit", style.trim, 0.5f));
+            Box("KasaSupurgelik", c + Vector3.up * 0.05f + f * (depth * 0.5f - 0.02f), alongZ ? new Vector3(0.06f, 0.1f, length) : new Vector3(length, 0.1f, 0.06f), top);
+            // Yazar kasa (bir uçta), kart makinesi, poşetlik.
+            var p1 = c + along * (length * 0.25f);
+            Place("ph/CashRegister_01", p1.x, p1.z, f, h);
+            var p2 = c - along * (length * 0.05f) + f * 0.2f;
+            Box("KartMakinesi", p2 + Vector3.up * (h + 0.05f), new Vector3(0.12f, 0.1f, 0.18f), Flat("KartMakinesi", new Color(0.15f, 0.15f, 0.17f), 0.6f));
+            Box("KartEkrani", p2 + Vector3.up * (h + 0.105f), new Vector3(0.09f, 0.01f, 0.07f), Flat("KartEkrani", new Color(0.3f, 0.8f, 0.5f), 0.9f));
+            var p3 = c - along * (length * 0.38f);
+            Box("Posetlik", p3 + Vector3.up * (h + 0.18f), new Vector3(0.28f, 0.34f, 0.22f), Flat("Poset", new Color(0.95f, 0.95f, 0.92f), 0.2f));
+            // Son dakika rafı: tezgahın müşteri tarafında, ucunda.
+            var rack = c - along * (length * 0.5f + 0.35f) + f * 0.25f;
+            var rackMat = Flat("KasaRafi", new Color(0.75f, 0.75f, 0.78f), 0.7f);
+            furniture.Add(Box("SonDakikaRafi", rack + Vector3.up * 0.65f, new Vector3(0.5f, 1.3f, 0.5f), rackMat));
+            var small = Items(new[] { "ph/russian_food_cans_01", "ph/lemon", "ph/croissant" });
+            for (int k = 0; k < 3; k++)
+            {
+                Box("RafKati", rack + Vector3.up * (0.35f + k * 0.4f) + f * 0.26f, new Vector3(0.5f, 0.03f, 0.04f), rackMat);
+                if (stock > 0.05f)
+                    Place(small[(k + Mathf.Abs((int)(x * 10))) % small.Length], rack.x + f.x * 0.27f, rack.z + f.z * 0.27f, f, 0.37f + k * 0.4f, 0.8f);
+            }
+            // Paspas ve asılı KASA tabelası.
+            var mat = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Object.Destroy(mat.GetComponent<Collider>());
+            mat.name = "KasaPaspasi";
+            mat.transform.SetParent(root, false);
+            mat.transform.localPosition = c + f * (depth * 0.5f + 0.55f) + Vector3.up * 0.007f;
+            mat.transform.localRotation = Quaternion.LookRotation(Vector3.down, alongZ ? Vector3.forward : Vector3.right);
+            mat.transform.localScale = new Vector3(0.9f, length, 1f);
+            mat.GetComponent<Renderer>().sharedMaterial = Flat("Paspas", new Color(0.18f, 0.2f, 0.24f), 0.05f);
+            AisleSign(x, z, "KASA", new Color(0.85f, 0.3f, 0.15f), alongZ);
+            Place("mm/employee", x - f.x * 0.9f, z - f.z * 0.9f, f);
+            registerSpot = new Vector3(x + f.x * 0.9f, 0, z + f.z * 0.9f);
+        }
+
+        /// <summary>
+        /// Boş zemini doldurur: ortadaki boş yerlere ürünlü teşhir masaları / ada rafları konur,
+        /// aralarında yürüme yolu kalır. Dükkan "dolu dolu" görünsün diye düzen kurulduktan sonra çalışır.
+        /// </summary>
+        void FillFloor(string id)
+        {
+            string[] items;
+            switch (id)
+            {
+                case "manav": items = Fruits; break;
+                case "firin": case "simit_bufesi": case "kafe": items = Breads; break;
+                case "kasap": items = Meats; break;
+                case "eczane": items = Pharmacy; break;
+                case "berber": items = new[] { "ph/multi_cleaner_bottle", "ph/jug_01" }; break;
+                case "belediye": return;
+                default: items = Groceries; break;
+            }
+            bool island = id == "market" || id == "supermarket" || id == "bakkal" || id == "eczane";
+            int placed = 0, max = Mathf.RoundToInt(size.x * size.y / 7f);
+            for (float zz = HalfD - 1.7f; zz > -HalfD + 0.7f; zz -= 1.5f)
+            for (float xx = -HalfW + 1.4f; xx < HalfW - 1.2f; xx += 2.0f)
+            {
+                if (placed >= max) return;
+                // Kapı yolu (ön orta) boş kalsın.
+                if (island && zz < -HalfD + 2.2f && Mathf.Abs(xx) < 1.1f) continue;
+                if (!IsFree(xx, zz, 0.95f, people: false)) continue;
+                if (island)
+                {
+                    // Sırt sırta iki alçak raf.
+                    FillShelf(Place("ph/steel_frame_shelves_01", xx, zz + 0.27f, Back, 0f, 0.8f), items, 0.85f);
+                    FillShelf(Place("ph/steel_frame_shelves_01", xx, zz - 0.27f, Front, 0f, 0.8f), items, 0.85f);
+                }
+                else
+                {
+                    // Teşhir masası: sepetler ve ürünler.
+                    float t = TopY(Place("ph/WoodenTable_01", xx, zz, Front, 0f, 0.9f));
+                    if (id == "manav") { ProduceCrate(xx - 0.3f, zz, t, items[placed % items.Length], Front); ProduceCrate(xx + 0.3f, zz, t, items[(placed + 1) % items.Length], Front); }
+                    else
+                    {
+                        float bt = TopY(Place("ph/wicker_basket_02", xx - 0.35f, zz, Front, t));
+                        Produce(xx - 0.35f, zz, Mathf.Lerp(t, bt, 0.6f), items, 3);
+                        Produce(xx + 0.35f, zz, t, items, 5);
+                    }
+                }
+                placed++;
+            }
         }
 
         void Produce(float x, float z, float topY, string[] items, int count = 7)
@@ -993,7 +1105,7 @@ namespace CityRise.Interior
             {
                 float z = HalfD - 2.6f - r * 2.3f;
                 if (z < -HalfD + 3f) break;
-                AisleSign(((-HalfW + 4.2f) + (HalfW - 2.6f)) * 0.5f + 0.3f, z, aisles[r % (aisles.Length - 1)], new Color(0.2f, 0.42f, 0.7f));
+                AisleSign(((-HalfW + 4.2f) + (HalfW - 2.6f)) * 0.5f + 0.3f, z, MarketAisles[r % MarketAisles.Length], new Color(0.2f, 0.42f, 0.7f));
             }
             AisleSign(-HalfW + 1.6f, HalfD - 3f, "MEYVE SEBZE", new Color(0.3f, 0.6f, 0.3f));
             // Manav köşesi: masalar üstünde meyve-sebze kasaları.
@@ -1088,6 +1200,8 @@ namespace CityRise.Interior
             Produce(HalfW - 1.2f, -0.3f, Mathf.Lerp(top, basketTop, 0.6f), new[] { "ph/hamburger_buns" }, 3);
             Place("ph/CoffeeCart_01", HalfW - 1.4f, HalfD - 0.7f, Front);
             FillShelf(Place("ph/painted_wooden_shelves", -HalfW + 0.5f, HalfD - 0.3f, Front), Breads, 0.9f);
+            Place("ph/CashRegister_01", 0.2f, -0.2f, Front, 1.33f, 0.8f);
+            AisleSign(-0.5f, -0.2f, "KASA", new Color(0.85f, 0.3f, 0.15f));
             Place("mm/employee", -0.5f, 0.75f, Front);
             if (level >= 2) Place("ph/metal_stool_01", -1.6f, -1.6f, Back);
             if (level >= 3) Place("ph/metal_stool_01", 0.6f, -1.6f, Back);
@@ -1115,6 +1229,9 @@ namespace CityRise.Interior
             for (int i = 0; i < 3; i++) Place("ph/carrot_cake", -0.2f + i * 1.1f, HalfD - 1.0f, Front, counterTop);
             Produce(1.8f, HalfD - 1.0f, counterTop, new[] { "ph/croissant" }, 3);
             for (int i = 0; i < 3; i++) Place("ph/metal_stool_01", -0.3f + i * 1.2f, HalfD - 1.75f, Back);
+            // Barın ucunda kasa ve tepede KASA tabelası.
+            Place("ph/CashRegister_01", 2.3f, HalfD - 1.0f, Front, counterTop);
+            AisleSign(2.3f, HalfD - 1.0f, "KASA", new Color(0.85f, 0.3f, 0.15f));
             FillShelf(Place("ph/painted_wooden_shelves", HalfW - 0.5f, HalfD - 0.3f, Front), Breads, 0.9f);
             int tables = Mathf.Clamp(2 + level / 2, 2, 5);
             for (int i = 0; i < tables; i++)
@@ -1158,6 +1275,7 @@ namespace CityRise.Interior
             }
             for (int i = 0; i < 3; i++) Place("ph/ArmChair_01", HalfW - 0.6f, -HalfD + 1f + i * 1.0f, Left);
             Place("mm/employee", -HalfW + 2f, HalfD - 2.4f, Back);
+            Checkout(-HalfW + 1.4f, -HalfD + 1.4f, Right, 1.5f);
             Plants();
             Customers(1 + level / 2, -HalfW + 1f, HalfW - 2f, -HalfD + 0.8f, 0f);
         }

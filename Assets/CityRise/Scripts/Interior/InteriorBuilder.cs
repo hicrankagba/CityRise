@@ -47,7 +47,10 @@ namespace CityRise.Interior
 
         /// <summary>Diorama kurar ve kökünü döndürür. origin: odanın zemin ortası (dünya).</summary>
         /// <param name="look">Oyuncunun seçtiği görünüm; boşsa (komşu dükkanı) türün varsayılanı ve bütün süsler.</param>
-        public static GameObject Build(InteriorLibrary lib, string businessId, int level, Material signMaterial, Vector3 origin, CityRise.Progression.ShopLook look = null)
+        /// <param name="products">Oyuncunun dükkanında satılan ürünlerin model anahtarları (raflara bunlar dizilir).</param>
+        /// <param name="stockRatio">Raf doluluğu 0-1 (stok azaldıkça raflar boşalır).</param>
+        public static GameObject Build(InteriorLibrary lib, string businessId, int level, Material signMaterial, Vector3 origin,
+            CityRise.Progression.ShopLook look = null, string[] products = null, float stockRatio = 1f)
         {
             var go = new GameObject("IcGorunum_" + businessId);
             go.transform.position = origin;
@@ -55,6 +58,14 @@ namespace CityRise.Interior
             var b = new InteriorBuilder(lib, go.transform, size, businessId.GetHashCode() ^ level);
             b.style = StyleFor(businessId);
             b.look = look;
+            if (products != null && products.Length > 0)
+            {
+                // Yalnızca kütüphanede modeli olan ürünler.
+                var ok = new List<string>();
+                foreach (var key in products) if (lib.Get(key) != null) ok.Add(key);
+                if (ok.Count > 0) b.productOverride = ok.ToArray();
+            }
+            b.stock = Mathf.Clamp01(stockRatio);
             b.ApplyLook();
             b.Shell(signMaterial);
             switch (businessId)
@@ -328,6 +339,12 @@ namespace CityRise.Interior
 
         // ------------------------------------------------------------ İç mekân stili
 
+        string[] productOverride;
+        float stock = 1f;
+
+        /// <summary>Raflara dizilecek ürünler: oyuncunun dükkanında sattığı ürünler, yoksa türün varsayılanı.</summary>
+        string[] Items(string[] fallback) => productOverride ?? fallback;
+
         enum FloorKind { Tiles, Parquet, Planks, Marble }
 
         CityRise.Progression.ShopLook look;
@@ -512,8 +529,10 @@ namespace CityRise.Interior
             var metal = Flat("VitrinKenar", new Color(0.75f, 0.75f, 0.73f), 0.8f);
             Box("VitrinKenarUst", new Vector3(x, baseH + glassH, z - depth * 0.5f), new Vector3(length, 0.025f, 0.025f), metal);
             // Ürünler: alt katta önde, rafta arkada.
+            items = Items(items);
             int n = Mathf.RoundToInt(length / 0.32f);
-            for (int i = 0; i < n; i++)
+            int shown = Mathf.RoundToInt(n * stock);
+            for (int i = 0; i < shown; i++)
             {
                 float px = x - length * 0.5f + 0.18f + i * (length - 0.36f) / Mathf.Max(1, n - 1);
                 Place(items[i % items.Length], px, z - 0.12f, Front, baseH + 0.02f);
@@ -824,6 +843,9 @@ namespace CityRise.Interior
         void FillShelf(GameObject shelf, string[] items, float fill = 0.8f)
         {
             if (shelf == null) return;
+            items = Items(items);
+            fill *= stock;
+            if (fill <= 0.01f) return;
             var rs = shelf.GetComponentsInChildren<Renderer>();
             var b = rs[0].bounds;
             foreach (var r in rs) b.Encapsulate(r.bounds);
@@ -891,6 +913,8 @@ namespace CityRise.Interior
         {
             var crate = Place("ph/plastic_crate_02", x, z, facing, baseY);
             if (crate == null) return;
+            if (productOverride != null) fruit = productOverride[Mathf.Abs(Mathf.RoundToInt(x * 7 + z * 13)) % productOverride.Length];
+            if (stock <= 0.01f) return;
             var e = lib.Get(fruit);
             float top = baseY + 0.2f;
             if (e != null)
@@ -928,6 +952,8 @@ namespace CityRise.Interior
 
         void Produce(float x, float z, float topY, string[] items, int count = 7)
         {
+            items = Items(items);
+            count = Mathf.RoundToInt(count * stock);
             for (int i = 0; i < count; i++)
                 Place(items[rng.Next(items.Length)], x + R(-0.35f, 0.35f), z + R(-0.3f, 0.3f), Quaternion.Euler(0, R(0, 360), 0) * Vector3.forward, topY);
         }

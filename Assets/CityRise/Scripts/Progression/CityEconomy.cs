@@ -33,6 +33,12 @@ namespace CityRise.Progression
         public event Action<Plot, double, long> Collected;
         /// <summary>Dükkanın görünümü değişti (satın alma ya da seçim).</summary>
         public event Action<Plot, OwnedBusiness> LookChanged;
+        /// <summary>Bir ürün satıldı (dükkan, ürün, fiyat).</summary>
+        public event Action<OwnedBusiness, Product, long> Sold;
+        /// <summary>Stok değişti (sipariş ya da satış).</summary>
+        public event Action<OwnedBusiness> StockChanged;
+        /// <summary>Dükkanın stoğu tamamen bitti.</summary>
+        public event Action<OwnedBusiness> SoldOut;
 
         public CityEconomy(PlayerProfile profile, ProgressionConfig config, BusinessCatalog catalog, CityLayout layout)
         {
@@ -84,6 +90,7 @@ namespace CityRise.Progression
             profile.stats.totalSpent += price;
             Occupy(plot, def);
             var owned = new OwnedBusiness { plotId = plot.id, businessId = def.id };
+            GiveStarterStock(owned);
             profile.businesses.Add(owned);
             BusinessBuilt?.Invoke(plot, owned);
             AddXp(Mathf.Max(1, Mathf.RoundToInt(price * config.xpPerBuildDollar)));
@@ -125,6 +132,7 @@ namespace CityRise.Progression
             var owned = new OwnedBusiness { plotId = plot.id, businessId = plot.occupantId, acquired = true, level = 2 };
             // Komşunun dükkanındaki süsler dükkanla birlikte gelir.
             owned.look.GiveAllDecor();
+            GiveStarterStock(owned);
             profile.businesses.Add(owned);
             BusinessAcquired?.Invoke(plot, owned);
             AddXp(Mathf.Max(1, Mathf.RoundToInt(price * config.xpPerBuildDollar)));
@@ -148,24 +156,131 @@ namespace CityRise.Progression
             return def == null ? 0 : def.NetPerHourAt(owned.level) * WeeklyEvent.IncomeMultiplier(owned.businessId);
         }
 
-        public double Capacity(OwnedBusiness owned) => NetPerHour(owned) * config.storageHours;
+        /// <summary>Kasanın alabileceği en fazla para (dolunca satış durur; toplamak gerekir).</summary>
+        public double Capacity(OwnedBusiness owned) => Math.Max(50, SalesPerHour(owned) * AveragePrice(owned.businessId) * config.storageHours);
 
-        /// <summary>Oyun açıkken geçen süre kadar gelir biriktirir (depolama sınırına kadar).</summary>
+        // ------------------------------------------------------------ Satış ve stok
+
+        /// <summary>Saatte kaç ürün satılır: hedef net kâr / ortalama kâr (seviye ve etkinlik dahil).</summary>
+        public double SalesPerHour(OwnedBusiness b) => NetPerHour(b) / Products.AverageProfit(b.businessId);
+
+        static double AveragePrice(string businessId)
+        {
+            var list = Products.For(businessId);
+            if (list.Length == 0) return 1;
+            double sum = 0;
+            foreach (var p in list) sum += p.price;
+            return sum / list.Length;
+        }
+
+        public int StockCapacity(OwnedBusiness b) => Products.Capacity(b.level);
+
+        /// <summary>Yeni dükkan: her üründen bir sipariş kadar hediye stok.</summary>
+        public void GiveStarterStock(OwnedBusiness b)
+        {
+            if (b.stockGiven) return;
+            b.stockGiven = true;
+            foreach (var p in Products.For(b.businessId))
+                if (b.Count(p.id) < Products.Batch) b.Add(p.id, Products.Batch - b.Count(p.id));
+        }
+
+        /// <summary>Eski kayıtlarda stok yoksa bir kez başlangıç stoğu verilir.</summary>
+        public void MigrateStock()
+        {
+            foreach (var b in profile.businesses) GiveStarterStock(b);
+        }
+
+        public long RestockCost(OwnedBusiness b, Product p, out int amount)
+        {
+            amount = Math.Min(Products.Batch, StockCapacity(b) - b.Count(p.id));
+            return Math.Max(0, amount) * p.cost;
+        }
+
+        /// <summary>Tedarikçiden bir parti ürün sipariş eder (alış fiyatı ödenir, raf anında dolar).</summary>
+        public bool Restock(int plotId, string productId)
+        {
+            var b = profile.Find(plotId);
+            if (b == null) return false;
+            var p = Products.Find(b.businessId, productId);
+            if (p == null) return false;
+            long cost = RestockCost(b, p, out int amount);
+            if (amount <= 0 || profile.cash < cost) return false;
+            profile.cash -= cost;
+            profile.stats.totalSpent += cost;
+            b.Add(p.id, amount);
+            StockChanged?.Invoke(b);
+            Changed?.Invoke();
+            return true;
+        }
+
+        /// <summary>Bütün rafları doldurur (para yettiği kadar, sırayla).</summary>
+        public int RestockAll(int plotId)
+        {
+            var b = profile.Find(plotId);
+            if (b == null) return 0;
+            int n = 0;
+            foreach (var p in Products.For(b.businessId))
+                if (Restock(plotId, p.id)) n++;
+            return n;
+        }
+
+        /// <summary>Satış: stoktaki ürünlerden rastgele biri satılır, fiyatı kasaya girer.</summary>
+        int Sell(OwnedBusiness b, int count, bool notify)
+        {
+            var list = Products.For(b.businessId);
+            int sold = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (b.stored >= Capacity(b)) break;
+                int inStock = 0;
+                foreach (var p in list) if (b.Count(p.id) > 0) inStock++;
+                if (inStock == 0) break;
+                int pick = rng.Next(inStock);
+                foreach (var p in list)
+                {
+                    if (b.Count(p.id) <= 0) continue;
+                    if (pick-- > 0) continue;
+                    b.Add(p.id, -1);
+                    b.stored += p.price;
+                    b.unitsSold++;
+                    sold++;
+                    if (notify) Sold?.Invoke(b, p, p.price);
+                    break;
+                }
+            }
+            if (sold > 0)
+            {
+                StockChanged?.Invoke(b);
+                if (b.TotalStock() == 0) SoldOut?.Invoke(b);
+            }
+            return sold;
+        }
+
+        readonly System.Random rng = new System.Random();
+
+        /// <summary>Oyun açıkken: müşteriler raftaki ürünleri alır.</summary>
         public void Tick(double seconds)
         {
             foreach (var b in profile.businesses)
-                b.stored = Math.Min(Capacity(b), b.stored + NetPerHour(b) * seconds / 3600.0);
+            {
+                if (b.TotalStock() == 0 || b.stored >= Capacity(b)) { b.salesCarry = 0; continue; }
+                b.salesCarry += SalesPerHour(b) * seconds / 3600.0;
+                int n = (int)Math.Floor(b.salesCarry);
+                if (n <= 0) continue;
+                b.salesCarry -= n;
+                Sell(b, n, true);
+            }
         }
 
-        /// <summary>Oyun kapalıyken birikenler; EconomyRules gereği en fazla 8 saat.</summary>
+        /// <summary>Oyun kapalıyken yapılan satışlar (en fazla 8 saat, stok ve kasa elverdiğince).</summary>
         public double ApplyOffline(double hoursAway)
         {
             double total = 0;
+            double hours = Math.Min(hoursAway, EconomyRules.OfflineIncomeCapHours);
             foreach (var b in profile.businesses)
             {
-                double add = EconomyRules.OfflineIncome(NetPerHour(b), hoursAway);
                 double before = b.stored;
-                b.stored = Math.Min(Capacity(b), b.stored + add);
+                Sell(b, (int)Math.Floor(SalesPerHour(b) * hours), false);
                 total += b.stored - before;
             }
             return total;

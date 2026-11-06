@@ -53,6 +53,9 @@ Gökyüzü (HDRI), zemin/duvar/çatı/yaprak/çiçek dokuları ve aşağıdaki d
 | Worn Metal Rack | Luca B | https://polyhaven.com/a/worn_metal_rack |
 | Yellow Onion | Kuutti Siitonen | https://polyhaven.com/a/yellow_onion |
 | Wall Clock | PierreB3D | https://polyhaven.com/a/wall_clock |
+| Bananas | Poly Haven | https://polyhaven.com/a/bananas |
+| Strawberry Chocolate Cake | Kuutti Siitonen | https://polyhaven.com/a/strawberry_chocolate_cake |
+| Wine Bottles 01 | Poly Haven | https://polyhaven.com/a/wine_bottles_01 |
 | Potted Plant 04 | James Ray Cock | https://polyhaven.com/a/potted_plant_04 |
 | Modern Ceiling Lamp 01 | James Ray Cock | https://polyhaven.com/a/modern_ceiling_lamp_01 |
 | Hanging Industrial Lamp | Kuutti Siitonen | https://polyhaven.com/a/hanging_industrial_lamp |

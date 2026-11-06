@@ -18,6 +18,33 @@ namespace CityRise.Progression
         public bool acquired;
         /// <summary>Oyuncunun seçtiği iç ve dış görünüm (zemin, renkler, dekor, tabela, tente).</summary>
         public ShopLook look = new ShopLook();
+        /// <summary>Raftaki ürünler (ürün kimliği ve adet).</summary>
+        public List<StockItem> stock = new List<StockItem>();
+        /// <summary>İlk stok verildi mi (eski kayıtlar için bir kez başlangıç stoğu).</summary>
+        public bool stockGiven;
+        /// <summary>Kesirli satış birikimi (saniyelik akışta küsurat kaybolmasın).</summary>
+        public double salesCarry;
+        public int unitsSold;
+
+        public int Count(string productId)
+        {
+            var s = stock.Find(x => x.id == productId);
+            return s != null ? s.count : 0;
+        }
+
+        public int TotalStock()
+        {
+            int t = 0;
+            foreach (var s in stock) t += s.count;
+            return t;
+        }
+
+        public void Add(string productId, int amount)
+        {
+            var s = stock.Find(x => x.id == productId);
+            if (s == null) stock.Add(s = new StockItem { id = productId });
+            s.count += amount;
+        }
     }
 
     /// <summary>İstatistik ekranı için birikenler: toplam kazanç/harcama ve servet geçmişi.</summary>

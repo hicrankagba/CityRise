@@ -20,7 +20,12 @@ namespace CityRise.Game
         CityEconomy eco;
         RectTransform root, safeArea, modalLayer, coinLayer, interiorBar;
         Text interiorTitle, interiorInfo;
-        Button collectButton, upgradeButton, buyButton, editButton;
+        Button collectButton, upgradeButton, buyButton, editButton, productsButton;
+        RectTransform productPanel, productGrid, popupLayer;
+        Text productInfo;
+        float productRefresh;
+        bool openProductsOnEnter;
+        readonly Dictionary<int, float> lastCityPopup = new Dictionary<int, float>();
         RectTransform editPanel, editTabs, editGrid;
         Text editHint;
         ShopOptions.Group editGroup = ShopOptions.Group.Floor;
@@ -213,7 +218,10 @@ namespace CityRise.Game
             ((RectTransform)upgradeButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(430, 100));
             editButton = UIKit.Button("Duzenle", interiorBar, Loc.T("edit.open"), new Color(0.45f, 0.35f, 0.75f), () => OpenEditPanel(), 30);
             ((RectTransform)editButton.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(370, 28), new Vector2(280, 100));
+            productsButton = UIKit.Button("Urunler", interiorBar, Loc.T("prod.open"), new Color(0.15f, 0.55f, 0.6f), () => OpenProductPanel(), 30);
+            ((RectTransform)productsButton.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(672, 28), new Vector2(280, 100));
             BuildEditPanel();
+            BuildProductPanel();
             buyButton = UIKit.Button("SatinAl", interiorBar, "", UIKit.Green, () => { if (interiorPlot != null) eco.Acquire(interiorPlot); }, 30);
             ((RectTransform)buyButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(480, 100));
             interiorBar.gameObject.SetActive(false);
@@ -230,11 +238,14 @@ namespace CityRise.Game
             coinLayer.gameObject.SetActive(false);
             missionPanel.gameObject.SetActive(false);
             RefreshInterior();
+            if (openProductsOnEnter && owned != null) OpenProductPanel();
+            openProductsOnEnter = false;
         }
 
         public void ExitInterior()
         {
             editPanel.gameObject.SetActive(false);
+            productPanel.gameObject.SetActive(false);
             interiorPlot = null;
             interiorBusiness = null;
             interiorId = null;
@@ -247,11 +258,12 @@ namespace CityRise.Game
         {
             if (interiorPlot == null) return;
             bool mine = interiorBusiness != null;
-            bool editing = editPanel.gameObject.activeSelf;
-            if (!mine && editing) editPanel.gameObject.SetActive(false);
+            if (!mine) { editPanel.gameObject.SetActive(false); productPanel.gameObject.SetActive(false); }
+            bool editing = editPanel.gameObject.activeSelf || productPanel.gameObject.activeSelf;
             collectButton.gameObject.SetActive(mine && !editing);
             upgradeButton.gameObject.SetActive(mine && !editing);
             editButton.gameObject.SetActive(mine && !editing);
+            productsButton.gameObject.SetActive(mine && !editing);
             if (!mine)
             {
                 var neighborDef = eco.catalog.Find(interiorId);
@@ -276,8 +288,11 @@ namespace CityRise.Game
             var b = interiorBusiness;
             var def = eco.catalog.Find(b.businessId);
             interiorTitle.text = Loc.T("biz.title", Loc.T("business." + b.businessId), b.level);
-            interiorInfo.text = Loc.T("biz.income", Loc.Money(eco.NetPerHour(b)))
+            int total = b.TotalStock();
+            interiorInfo.text = (total == 0 ? Loc.T("prod.empty.short") : Loc.T("prod.info", total, Mathf.RoundToInt((float)eco.SalesPerHour(b))))
                 + (WeeklyEvent.IncomeMultiplier(b.businessId) > 1 ? "  ·  " + Loc.T("event.short", WeeklyEvent.Multiplier) : "");
+            interiorInfo.color = total == 0 ? new Color(1f, 0.55f, 0.5f) : new Color(1, 1, 1, 0.8f);
+            productsButton.image.color = total == 0 ? new Color(0.85f, 0.25f, 0.2f) : new Color(0.15f, 0.55f, 0.6f);
             collectButton.SetText(Loc.T("interior.collect", Loc.Money(b.stored)));
             collectButton.interactable = b.stored >= 1;
             bool max = def == null || b.level >= def.maxLevel;
@@ -332,7 +347,12 @@ namespace CityRise.Game
                 clockLabel.text = Loc.T(cycle.IsNight ? "clock.night" : "clock.day", $"{h:00}:{m:00}");
                 clockLabel.color = cycle.IsNight ? new Color(0.75f, 0.82f, 1f) : new Color(1f, 0.9f, 0.55f);
             }
-            if (interiorPlot != null) RefreshInterior();
+            if (interiorPlot != null)
+            {
+                RefreshInterior();
+                productRefresh -= Time.unscaledDeltaTime;
+                if (productRefresh <= 0) { productRefresh = 0.5f; RefreshProductPanel(); }
+            }
             else UpdateCoins();
 #if ENABLE_INPUT_SYSTEM
             // Android geri tuşu / Esc: iç görünümden ya da pencereden çık.
@@ -352,7 +372,8 @@ namespace CityRise.Game
             if (cam == null) return;
             foreach (var owned in eco.profile.businesses)
             {
-                bool show = owned.stored >= Mathf.Max(1f, (float)eco.NetPerHour(owned) / 60f) && !IsModalOpen;
+                bool empty = owned.TotalStock() == 0;
+                bool show = (empty || owned.stored >= Mathf.Max(1f, (float)eco.NetPerHour(owned) / 60f)) && !IsModalOpen;
                 coins.TryGetValue(owned.plotId, out var button);
                 if (!show)
                 {
@@ -369,7 +390,13 @@ namespace CityRise.Game
                 if (button == null)
                 {
                     int id = owned.plotId;
-                    button = UIKit.Button("Para", coinLayer, "$", UIKit.Accent, () => eco.Collect(id), 40);
+                    button = UIKit.Button("Para", coinLayer, "$", UIKit.Accent, () =>
+                    {
+                        var ob = eco.profile.Find(id);
+                        // Para varsa topla; stok bittiyse dükkana girip ürün paneli aç.
+                        if (ob != null && ob.stored >= 1) eco.Collect(id);
+                        else if (ob != null && ob.TotalStock() == 0) { openProductsOnEnter = true; game.OpenInterior(eco.layout.FindPlot(id)); }
+                    }, 40);
                     button.image.sprite = UIKit.Circle;
                     button.image.type = Image.Type.Simple;
                     button.GetComponentInChildren<Text>().color = UIKit.TextDark;
@@ -377,12 +404,151 @@ namespace CityRise.Game
                     coins[id] = button;
                 }
                 button.gameObject.SetActive(true);
+                bool showMoney = owned.stored >= 1;
+                button.image.color = showMoney ? UIKit.Accent : new Color(0.9f, 0.25f, 0.2f);
+                var label = button.GetComponentInChildren<Text>();
+                label.text = showMoney ? "$" : "!";
+                label.color = showMoney ? UIKit.TextDark : Color.white;
                 RectTransformUtility.ScreenPointToLocalPointInRectangle(coinLayer, sp, null, out var local);
                 var rt = (RectTransform)button.transform;
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
                 float bob = Mathf.Sin(Time.time * 3f + owned.plotId) * 6f;
                 rt.anchoredPosition = local + new Vector2(0, bob);
             }
+        }
+
+        // ------------------------------------------------------------ Ürünler ve satış
+
+        void BuildProductPanel()
+        {
+            productPanel = UIKit.Box("UrunPaneli", interiorBar, UIKit.Panel).rectTransform;
+            productPanel.anchorMin = new Vector2(1, 0);
+            productPanel.anchorMax = new Vector2(1, 1);
+            productPanel.pivot = new Vector2(1, 0.5f);
+            productPanel.offsetMin = new Vector2(-760, 28);
+            productPanel.offsetMax = new Vector2(-28, -160);
+            UIKit.Label("Baslik", productPanel, Loc.T("prod.title"), 38, Color.white, TextAnchor.UpperLeft, FontStyle.Bold)
+                .rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -16), new Vector2(420, 50));
+            var close = UIKit.Button("Kapat", productPanel, "Tamam", UIKit.Green, () => { productPanel.gameObject.SetActive(false); game.ShiftInteriorView(false); }, 34);
+            ((RectTransform)close.transform).Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -12), new Vector2(150, 64));
+            var fill = UIKit.Button("HepsiniDoldur", productPanel, Loc.T("prod.fillall"), UIKit.Accent, () =>
+            {
+                if (interiorPlot == null) return;
+                int n = eco.RestockAll(interiorPlot.id);
+                if (n == 0) Toast(Loc.T("prod.full.or.cash"));
+                RefreshProductPanel();
+            }, 24);
+            ((RectTransform)fill.transform).Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-176, -12), new Vector2(200, 64));
+            fill.GetComponentInChildren<Text>().color = UIKit.TextDark;
+            productInfo = UIKit.Label("Bilgi", productPanel, "", 22, new Color(1, 1, 1, 0.75f), TextAnchor.UpperLeft);
+            productInfo.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -80), new Vector2(690, 60));
+            productGrid = UIKit.Rect("Urunler", productPanel);
+            productGrid.anchorMin = Vector2.zero;
+            productGrid.anchorMax = Vector2.one;
+            productGrid.offsetMin = new Vector2(16, 16);
+            productGrid.offsetMax = new Vector2(-16, -146);
+            productPanel.gameObject.SetActive(false);
+
+            popupLayer = UIKit.Rect("SatisYazilari", root).Stretch();
+            eco.Sold += OnSold;
+            eco.SoldOut += b => Toast(Loc.T("prod.soldout", Loc.T("business." + b.businessId)));
+        }
+
+        void OpenProductPanel()
+        {
+            if (interiorBusiness == null) return;
+            editPanel.gameObject.SetActive(false);
+            productPanel.gameObject.SetActive(true);
+            game.ShiftInteriorView(true);
+            RefreshProductPanel();
+        }
+
+        void RefreshProductPanel()
+        {
+            if (productPanel == null || !productPanel.gameObject.activeSelf || interiorBusiness == null) return;
+            var b = interiorBusiness;
+            for (int i = productGrid.childCount - 1; i >= 0; i--) Destroy(productGrid.GetChild(i).gameObject);
+            productGrid.DetachChildren();
+            int cap = eco.StockCapacity(b);
+            productInfo.text = Loc.T("prod.hint", Mathf.RoundToInt((float)eco.SalesPerHour(b)), cap);
+            var list = Products.For(b.businessId);
+            const float cw = 172, ch = 222, gap = 8;
+            for (int i = 0; i < list.Length; i++)
+            {
+                var p = list[i];
+                int count = b.Count(p.id);
+                int col = i % 4, row = i / 4;
+                var card = UIKit.Box("Urun", productGrid, count == 0 ? new Color(0.85f, 0.25f, 0.2f, 0.35f) : new Color(1, 1, 1, 0.1f)).rectTransform
+                    .Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(col * (cw + gap), -row * (ch + gap)), new Vector2(cw, ch));
+                var icon = new GameObject("Resim", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+                icon.transform.SetParent(card, false);
+                icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -8), new Vector2(96, 96));
+                icon.texture = ProductIcons.Get(game.interiorLibrary, p.model);
+                icon.raycastTarget = false;
+                UIKit.Label("Ad", card, p.name, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold)
+                    .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -106), new Vector2(cw - 8, 26));
+                UIKit.Label("Fiyat", card, Loc.T("prod.price", Loc.Money(p.price), Loc.Money(p.cost)), 17, new Color(1, 1, 1, 0.75f), TextAnchor.MiddleCenter)
+                    .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -132), new Vector2(cw - 8, 22));
+                // Stok çubuğu.
+                var bar = UIKit.Box("Stok", card, new Color(1, 1, 1, 0.15f)).rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -156), new Vector2(cw - 20, 18));
+                var fillBar = UIKit.Box("Dolu", bar, count == 0 ? new Color(0.9f, 0.3f, 0.25f) : UIKit.Green).rectTransform;
+                fillBar.anchorMin = Vector2.zero;
+                fillBar.anchorMax = new Vector2(Mathf.Clamp01(count / (float)cap), 1);
+                fillBar.offsetMin = fillBar.offsetMax = Vector2.zero;
+                UIKit.Label("Sayi", bar, $"{count} / {cap}", 14, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold).rectTransform.Stretch();
+                long cost = eco.RestockCost(b, p, out int amount);
+                bool can = amount > 0 && eco.profile.cash >= cost;
+                string id = p.id;
+                var order = UIKit.Button("Siparis", card, amount <= 0 ? Loc.T("prod.full") : Loc.T("prod.order", amount, Loc.Money(cost)), can ? UIKit.Green : UIKit.Grey, () =>
+                {
+                    if (interiorPlot == null) return;
+                    if (!eco.Restock(interiorPlot.id, id)) Toast(Loc.T("edit.nocash"));
+                    RefreshProductPanel();
+                }, 17);
+                ((RectTransform)order.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(cw - 16, 40));
+                order.interactable = can;
+            }
+        }
+
+        /// <summary>Satış: dükkanın içindeysen kasanın üstünde "+$fiyat ürün", şehirde binanın üstünde "+$".</summary>
+        void OnSold(OwnedBusiness b, Product p, long price)
+        {
+            if (popupLayer == null) return;
+            if (interiorPlot != null)
+            {
+                if (interiorBusiness != b) return;
+                var start = new Vector2(Random.Range(-260f, 60f), Random.Range(-60f, 60f));
+                StartCoroutine(Popup(Loc.T("prod.sold", Loc.Money(price), p.name), start, new Color(0.55f, 1f, 0.55f), 30));
+                return;
+            }
+            if (IsModalOpen) return;
+            if (lastCityPopup.TryGetValue(b.plotId, out float last) && Time.unscaledTime - last < 1.2f) return;
+            lastCityPopup[b.plotId] = Time.unscaledTime;
+            var cam = game.ActiveCamera;
+            var plot = eco.layout.FindPlot(b.plotId);
+            if (cam == null || plot == null) return;
+            var sp = cam.WorldToScreenPoint(game.CoinAnchor(plot) + Vector3.up * 1.5f);
+            if (sp.z < 0) return;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(popupLayer, sp, null, out var local);
+            StartCoroutine(Popup("+" + Loc.Money(price), local + new Vector2(50, 0), new Color(1f, 0.95f, 0.45f), 26));
+        }
+
+        IEnumerator Popup(string text, Vector2 start, Color color, int size)
+        {
+            var label = UIKit.Label("Satis", popupLayer, text, size, color, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var outline = label.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0, 0, 0, 0.7f);
+            outline.effectDistance = new Vector2(2, -2);
+            var rt = label.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(420, 50);
+            for (float t = 0; t < 1.4f; t += Time.unscaledDeltaTime)
+            {
+                rt.anchoredPosition = start + new Vector2(0, t * 70f);
+                label.color = new Color(color.r, color.g, color.b, Mathf.Clamp01(1.6f - t * 1.15f));
+                yield return null;
+            }
+            Destroy(label.gameObject);
         }
 
         // ------------------------------------------------------------ Dükkan düzenleme
@@ -425,6 +591,7 @@ namespace CityRise.Game
         void OpenEditPanel()
         {
             if (interiorBusiness == null) return;
+            productPanel.gameObject.SetActive(false);
             editPanel.gameObject.SetActive(true);
             game.ShiftInteriorView(true);
             RefreshEditPanel();

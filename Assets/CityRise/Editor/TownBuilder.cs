@@ -28,7 +28,7 @@ namespace CityRise.EditorTools
         /// Kasaba kurulumunun sürümü. Kurulumu değiştiren her güncellemede artırılır; sahnedeki kasaba
         /// eskiyse Play'e basınca kendiliğinden yeniden kurulur (bkz. KasabaGuncelligi).
         /// </summary>
-        public const int BuildVersion = 8;
+        public const int BuildVersion = 9;
 
         const string Root = "Assets/CityRise";
         const string GeneratedDir = Root + "/Generated/Kasaba";
@@ -109,6 +109,7 @@ namespace CityRise.EditorTools
 
                 var c = new Ctx { night = night, dynamic = !night };
                 shopGlass = null;
+                phModels = null;
                 c.layout = LoadOrCreateLayout();
                 c.g = c.layout.grid;
                 c.openArea = OpenArea(c.g);
@@ -1934,6 +1935,24 @@ namespace CityRise.EditorTools
             return lib;
         }
 
+        static Dictionary<string, GameObject> phModels;
+
+        /// <summary>Çatıdaki dev ürün modelleri: Poly Haven (ph/), Kenney Food (food/), Kenney Mini Market (mm/).</summary>
+        static GameObject ShopModel(string key)
+        {
+            int slash = key.IndexOf('/');
+            string kind = key.Substring(0, slash), name = key.Substring(slash + 1);
+            switch (kind)
+            {
+                case "ph":
+                    phModels ??= PolyHavenModels.Ensure();
+                    return phModels.TryGetValue(name, out var p) ? p : null;
+                case "food": return AssetDatabase.LoadAssetAtPath<GameObject>($"{KenneyDir}/Food/{name}.fbx");
+                case "mm": return AssetDatabase.LoadAssetAtPath<GameObject>($"{KenneyDir}/MiniMarket/{name}.fbx");
+                default: return null;
+            }
+        }
+
         static Material shopGlass, shopTrim, shopSignFrame, shopInFloor, shopInWall, shopWood;
 
         /// <summary>İşletmenin dükkan binası (ShopBuilding): duvar rengi işletmeye göre, tabela yazısı tabela malzemesiyle.</summary>
@@ -1958,6 +1977,7 @@ namespace CityRise.EditorTools
                 shopInWall = SimpleMat("DukkanIcDuvar", new Color(1f, 0.95f, 0.85f), 0.1f);
                 shopWood = SimpleMat("DukkanAhsap", new Color(0.5f, 0.33f, 0.2f), 0.3f);
             }
+            if (ShopBuilding.ModelFor == null) ShopBuilding.ModelFor = ShopModel;
             int hash = Mathf.Abs(id.GetHashCode());
             var wall = BrickFor(id) ? c.bricks[hash % c.bricks.Length] : c.plasters[hash % c.plasters.Length];
             string text = SignFor(id);

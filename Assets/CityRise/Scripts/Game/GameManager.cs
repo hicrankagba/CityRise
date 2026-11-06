@@ -103,6 +103,16 @@ namespace CityRise.Game
             // Oyuncunun seçtiği tabela rengi ve tente (komşudan alınan dükkanlar dahil).
             foreach (var owned in profile.businesses)
                 if (views.TryGetValue(owned.plotId, out var ov)) ShopExterior.Apply(ov.transform, owned);
+            // Raflar stok doluluğuna göre: belirgin değişince (sipariş ya da çok satış) iç yeniden dizilir.
+            Economy.StockChanged += owned =>
+            {
+                if (interior == null || interiorPlotId != owned.plotId) return;
+                int cap = 0;
+                foreach (var p in Products.For(owned.businessId)) cap += Economy.StockCapacity(owned);
+                float r = cap > 0 ? Mathf.Clamp01(owned.TotalStock() / (float)cap * 1.6f) : 1f;
+                if (Mathf.Abs(r - interiorStockShown) > 0.2f || (r == 0) != (interiorStockShown == 0))
+                    BuildInterior(layout.FindPlot(owned.plotId), owned.businessId, owned.level, frame: false);
+            };
             Economy.LookChanged += (plot, owned) =>
             {
                 if (views.TryGetValue(plot.id, out var v)) ShopExterior.Apply(v.transform, owned);
@@ -135,6 +145,8 @@ namespace CityRise.Game
                 double earned = Economy.ApplyOffline(hoursAway);
                 if (earned >= 1) hud.ShowWelcome(earned);
             }
+            // Eski kayıtlar: stok sistemi gelmeden kurulan dükkanlara bir kez başlangıç stoğu (çevrimdışı satıştan sonra).
+            Economy.MigrateStock();
         }
 
         void Update()
@@ -458,12 +470,24 @@ namespace CityRise.Game
         void BuildInterior(Plot plot, string businessId, int level, bool frame = true)
         {
             if (interior != null) Destroy(interior);
-            var look = Profile.Find(plot.id)?.look;
-            interior = InteriorBuilder.Build(interiorLibrary, businessId, level, SignMaterial(plot, businessId), InteriorOrigin, look);
+            var owned = Profile.Find(plot.id);
+            string[] products = null;
+            float ratio = 1f;
+            if (owned != null)
+            {
+                var list = Products.For(owned.businessId);
+                products = new string[list.Length];
+                int cap = 0;
+                for (int i = 0; i < list.Length; i++) { products[i] = list[i].model; cap += Economy.StockCapacity(owned); }
+                ratio = cap > 0 ? Mathf.Clamp01(owned.TotalStock() / (float)cap * 1.6f) : 1f;
+                interiorStockShown = ratio;
+            }
+            interior = InteriorBuilder.Build(interiorLibrary, businessId, level, SignMaterial(plot, businessId), InteriorOrigin, owned?.look, products, ratio);
             if (frame) FrameInterior();
         }
 
         Vector3 interiorFocus;
+        float interiorStockShown = 1f;
 
         /// <summary>Düzenleme paneli açıkken oda ekranın sol yarısına kayar (sağdaki panel odayı örtmesin).</summary>
         public void ShiftInteriorView(bool editing)

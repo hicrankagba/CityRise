@@ -34,22 +34,168 @@ namespace CityRise.EditorTools
             }
         }
 
+        // ------------------------------------------------------------ Kimlik: ne dükkanı olduğu uzaktan belli olsun
+
+        /// <summary>Çatıdaki dev ürün: fırında kruvasan, manavda elma, kafede kahve fincanı, markette alışveriş arabası...</summary>
+        static string RoofModel(string id)
+        {
+            switch (id)
+            {
+                case "simit_bufesi": return "food/donut";
+                case "firin": return "ph/croissant";
+                case "manav": return "ph/food_apple_01";
+                case "kasap": return "food/whole-ham";
+                case "kafe": return "food/cup-coffee";
+                case "bakkal": return "mm/shopping-basket";
+                case "market":
+                case "supermarket": return "mm/shopping-cart";
+                case "eczane": return null;
+                case "berber": return null;
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// İşletmeyi uzaktan tanıtan parçalar: çatıda kaide üstünde dev ürün (ışıklı), fırında tuğla baca,
+        /// berberde kapı yanında dönen direk ve çatıda dev direk, eczanede cepheden taşan ışıklı yeşil haç.
+        /// </summary>
+        static void Identity(Transform root, float W, float D, float H, string id, Materials m)
+        {
+            float hw = W * 0.5f, hd = D * 0.5f;
+            var roofFront = new Vector3(0, H, hd - Mathf.Min(1.6f, D * 0.3f));
+            float iconSize = Mathf.Clamp(W * 0.52f, 2.6f, 4.6f);
+            string key = RoofModel(id);
+            if (key != null && ModelFor != null)
+            {
+                var prefab = ModelFor(key);
+                if (prefab != null)
+                {
+                    // Kaide: koyu kutu ve üst kenarında ışık şeridi.
+                    Box(root, "Kaide", roofFront + new Vector3(0, 0.25f, 0), new Vector3(iconSize * 0.8f, 0.5f, iconSize * 0.6f), m.trim);
+                    Box(root, "KaideIsigi", roofFront + new Vector3(0, 0.52f, iconSize * 0.3f + 0.01f), new Vector3(iconSize * 0.8f, 0.05f, 0.04f), m.glow);
+                    var icon = Object.Instantiate(prefab, root);
+                    icon.name = "DevUrun";
+                    foreach (var c in icon.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+                    // Simit dik durur (halkası sokağa bakar); diğerleri hafif dönük.
+                    icon.transform.localRotation = id == "simit_bufesi" ? Quaternion.Euler(90f, 0, 0)
+                        : Quaternion.Euler(0, id == "kafe" ? 200f : id == "manav" ? 20f : 160f, 0);
+                    icon.transform.localPosition = Vector3.zero;
+                    var b = Bounds(icon);
+                    float big = Mathf.Max(b.size.x, b.size.y, b.size.z);
+                    if (big > 0.0001f) icon.transform.localScale *= iconSize / big;
+                    b = Bounds(icon);
+                    // Kaidenin üstüne otur, ortala.
+                    var target = root.TransformPoint(roofFront + new Vector3(0, 0.55f, 0));
+                    icon.transform.position += new Vector3(target.x - b.center.x, target.y - b.min.y, target.z - b.center.z);
+                    if (id == "simit_bufesi")
+                    {
+                        // Kenney çöreği susamlı simit rengine boyanır ve dik durur.
+                        var mat = ProductMat(new Color(0.78f, 0.5f, 0.22f));
+                        foreach (var r in icon.GetComponentsInChildren<Renderer>()) r.sharedMaterials = new[] { mat };
+                    }
+                }
+            }
+            switch (id)
+            {
+                case "firin":
+                {
+                    // Tuğla fırın bacası.
+                    var p = new Vector3(-hw + 0.9f, H, -hd + 1.0f);
+                    Box(root, "FirinBacasi", p + new Vector3(0, 1.3f, 0), new Vector3(0.9f, 2.6f, 0.9f), m.wall);
+                    Box(root, "BacaSapka", p + new Vector3(0, 2.66f, 0), new Vector3(1.1f, 0.14f, 1.1f), m.trim);
+                    break;
+                }
+                case "berber":
+                {
+                    BarberPole(root, new Vector3(-hw + 0.75f, 0, hd + 0.35f), 2.4f, 0.14f);
+                    BarberPole(root, roofFront + new Vector3(0, 0, 0), 3.2f, 0.45f);
+                    break;
+                }
+                case "eczane":
+                {
+                    // Cepheden dışarı taşan ışıklı yeşil haç (iki yüzlü) ve çatıda büyük haç.
+                    var green = ProductMat(new Color(0.1f, 0.8f, 0.35f));
+                    green.EnableKeyword("_EMISSION");
+                    green.SetColor("_EmissionColor", new Color(0.1f, 0.8f, 0.35f) * 1.4f);
+                    var blade = new Vector3(hw + 0.55f, 3.9f, hd - 0.4f);
+                    Box(root, "HacKolu", blade + new Vector3(-0.35f, 0, 0), new Vector3(0.7f, 0.08f, 0.08f), m.trim);
+                    Box(root, "HacDikey", blade + new Vector3(0.2f, 0, 0), new Vector3(0.12f, 1.0f, 0.34f), green);
+                    Box(root, "HacYatay", blade + new Vector3(0.2f, 0, 0), new Vector3(0.12f, 0.34f, 1.0f), green);
+                    Box(root, "CatiHacDikey", roofFront + new Vector3(0, 1.45f, 0), new Vector3(0.75f, 2.5f, 0.3f), green);
+                    Box(root, "CatiHacYatay", roofFront + new Vector3(0, 1.45f, 0), new Vector3(2.5f, 0.75f, 0.3f), green);
+                    Box(root, "CatiHacKaide", roofFront + new Vector3(0, 0.1f, 0), new Vector3(1.4f, 0.2f, 0.8f), m.trim);
+                    break;
+                }
+            }
+        }
+
+        static Material barberMat;
+
+        /// <summary>Berber direği: kırmızı-beyaz-mavi sarmal şeritli silindir, üstte ve altta metal başlık.</summary>
+        static void BarberPole(Transform root, Vector3 basePos, float height, float radius)
+        {
+            if (barberMat == null)
+            {
+                const int W = 64, Hh = 64;
+                var tex = new Texture2D(W, Hh, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, name = "BerberDirek" };
+                var px = new Color[W * Hh];
+                for (int y = 0; y < Hh; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int band = ((x + y) / 11) % 4;
+                    px[y * W + x] = band == 0 ? new Color(0.85f, 0.1f, 0.1f) : band == 2 ? new Color(0.1f, 0.25f, 0.75f) : Color.white;
+                }
+                tex.SetPixels(px);
+                tex.Apply(true);
+                barberMat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "BerberDirek" };
+                barberMat.SetTexture("_BaseMap", tex);
+                barberMat.SetTextureScale("_BaseMap", new Vector2(1f, 3f));
+                barberMat.SetFloat("_Smoothness", 0.7f);
+            }
+            var pole = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Object.DestroyImmediate(pole.GetComponent<Collider>());
+            pole.name = "BerberDiregi";
+            pole.transform.SetParent(root, false);
+            pole.transform.localPosition = basePos + new Vector3(0, height * 0.5f + 0.15f, 0);
+            pole.transform.localScale = new Vector3(radius * 2, height * 0.5f, radius * 2);
+            pole.GetComponent<Renderer>().sharedMaterial = barberMat;
+            var metal = ProductMat(new Color(0.8f, 0.8f, 0.82f));
+            foreach (float y in new[] { 0.08f, height + 0.22f })
+            {
+                var cap = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Object.DestroyImmediate(cap.GetComponent<Collider>());
+                cap.name = "DirekBasligi";
+                cap.transform.SetParent(root, false);
+                cap.transform.localPosition = basePos + new Vector3(0, y, 0);
+                cap.transform.localScale = Vector3.one * radius * 2.6f;
+                cap.GetComponent<Renderer>().sharedMaterial = metal;
+            }
+        }
+
+        static Bounds Bounds(GameObject go)
+        {
+            var rs = go.GetComponentsInChildren<Renderer>();
+            var b = rs.Length > 0 ? rs[0].bounds : new Bounds(go.transform.position, Vector3.zero);
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            return b;
+        }
+
         /// <summary>İşletmeye göre istenen genişlik, derinlik ve yükseklik (metre).</summary>
         public static (float w, float d, float h) Proportions(string id)
         {
             switch (id)
             {
-                case "simit_bufesi": return (4.2f, 3.6f, 4.9f);
-                case "berber": return (5.0f, 4.8f, 5.2f);
-                case "bakkal": return (5.4f, 5.0f, 5.2f);
-                case "manav": return (5.6f, 4.4f, 5.2f);
-                case "eczane": return (6.0f, 5.2f, 5.4f);
-                case "kasap": return (6.0f, 5.2f, 5.4f);
-                case "firin": return (6.4f, 5.4f, 5.6f);
-                case "kafe": return (6.8f, 4.8f, 5.6f);
-                case "market": return (6.8f, 6.0f, 6.2f);
-                case "supermarket": return (15f, 12f, 6.8f);
-                default: return (6.0f, 5.2f, 5.4f);
+                case "simit_bufesi": return (5.0f, 4.2f, 5.2f);
+                case "berber": return (5.8f, 5.0f, 5.6f);
+                case "bakkal": return (6.0f, 5.4f, 5.8f);
+                case "manav": return (6.2f, 4.8f, 5.6f);
+                case "eczane": return (6.4f, 5.6f, 6.0f);
+                case "kasap": return (6.4f, 5.6f, 6.0f);
+                case "firin": return (6.8f, 5.8f, 6.2f);
+                case "kafe": return (6.8f, 5.2f, 6.2f);
+                case "market": return (6.8f, 6.4f, 6.8f);
+                case "supermarket": return (15f, 12f, 7.4f);
+                default: return (6.4f, 5.6f, 6.0f);
             }
         }
 
@@ -105,6 +251,9 @@ namespace CityRise.EditorTools
         static readonly Dictionary<Color, Material> productMats = new Dictionary<Color, Material>();
 
         /// <summary>Binayı kurar. size: genişlik (x) ve derinlik (z), height: parapet dahil yükseklik.</summary>
+        /// <summary>Model anahtarından ("ph/croissant", "food/donut", "mm/shopping-cart") prefab veren işlev (TownBuilder sağlar).</summary>
+        public static System.Func<string, GameObject> ModelFor;
+
         public static GameObject Build(Transform parent, string name, Vector3 position, Quaternion rotation, Vector2 size, float height, string id, Materials m)
         {
             var root = new GameObject(name).transform;
@@ -192,6 +341,7 @@ namespace CityRise.EditorTools
             // Arka ve yan cephelerde pencereler (gece yanar) ve arka kapı: arkadan bakınca da dükkan görünsün.
             BackFacade(root, W, D, H, m);
             Interior(root, W, D, id, m);
+            Identity(root, W, D, H, id, m);
             foreach (var tr in root.GetComponentsInChildren<Transform>(true)) tr.gameObject.isStatic = true;
             return root.gameObject;
         }

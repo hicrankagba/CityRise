@@ -28,7 +28,7 @@ namespace CityRise.EditorTools
         /// Kasaba kurulumunun sürümü. Kurulumu değiştiren her güncellemede artırılır; sahnedeki kasaba
         /// eskiyse Play'e basınca kendiliğinden yeniden kurulur (bkz. KasabaGuncelligi).
         /// </summary>
-        public const int BuildVersion = 13;
+        public const int BuildVersion = 15;
 
         const string Root = "Assets/CityRise";
         const string GeneratedDir = Root + "/Generated/Kasaba";

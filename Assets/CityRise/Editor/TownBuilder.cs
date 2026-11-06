@@ -28,7 +28,7 @@ namespace CityRise.EditorTools
         /// Kasaba kurulumunun sürümü. Kurulumu değiştiren her güncellemede artırılır; sahnedeki kasaba
         /// eskiyse Play'e basınca kendiliğinden yeniden kurulur (bkz. KasabaGuncelligi).
         /// </summary>
-        public const int BuildVersion = 10;
+        public const int BuildVersion = 11;
 
         const string Root = "Assets/CityRise";
         const string GeneratedDir = Root + "/Generated/Kasaba";
@@ -1892,6 +1892,9 @@ namespace CityRise.EditorTools
             }
             foreach (var kv in PolyHavenModels.Ensure())
                 lib.models.Add(new CityRise.Interior.InteriorLibrary.Entry { key = "ph/" + kv.Key, prefab = kv.Value, scale = 1f });
+            // Kodla üretilen gerçekçi yiyecekler (simit).
+            foreach (var kv in FoodFactory.Ensure())
+                lib.models.Add(new CityRise.Interior.InteriorLibrary.Entry { key = "gen/" + kv.Key, prefab = kv.Value, scale = 1f });
             // Gerçekçi insanlar (Mixamo): prefablar zaten 1,72 m boyunda ve Animator'lı.
             foreach (var p in MixamoSetup.Characters())
                 lib.models.Add(new CityRise.Interior.InteriorLibrary.Entry { key = "mx/" + p.name.Replace("Insan_", ""), prefab = p, scale = 1f });
@@ -1948,6 +1951,7 @@ namespace CityRise.EditorTools
                     phModels ??= PolyHavenModels.Ensure();
                     return phModels.TryGetValue(name, out var p) ? p : null;
                 case "food": return AssetDatabase.LoadAssetAtPath<GameObject>($"{KenneyDir}/Food/{name}.fbx");
+                case "gen": return FoodFactory.Ensure().TryGetValue(name, out var g) ? g : null;
                 case "mm": return AssetDatabase.LoadAssetAtPath<GameObject>($"{KenneyDir}/MiniMarket/{name}.fbx");
                 default: return null;
             }

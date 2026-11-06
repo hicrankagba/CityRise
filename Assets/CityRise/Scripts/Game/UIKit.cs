@@ -24,6 +24,9 @@ namespace CityRise.Game
         public static Font Font => font != null ? font : (font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
 
         public static Sprite Rounded => rounded != null ? rounded : (rounded = MakeSprite(64, 22, false));
+        static Sprite plain;
+        /// <summary>Düz dikdörtgen (köşesiz): ince çizgiler ve ızgara için.</summary>
+        public static Sprite Plain => plain != null ? plain : (plain = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 100f));
         public static Sprite Circle => circle != null ? circle : (circle = MakeSprite(64, 32, true));
 
         static Sprite MakeSprite(int size, int radius, bool isCircle)

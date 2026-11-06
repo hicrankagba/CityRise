@@ -81,6 +81,7 @@ namespace CityRise.Progression
             if (CanBuild(def, plot) != BuildCheck.Ok) return false;
             long price = TotalPrice(def, plot);
             profile.cash -= price;
+            profile.stats.totalSpent += price;
             Occupy(plot, def);
             var owned = new OwnedBusiness { plotId = plot.id, businessId = def.id };
             profile.businesses.Add(owned);
@@ -119,6 +120,7 @@ namespace CityRise.Progression
             if (CanAcquire(plot) != BuildCheck.Ok) return false;
             long price = AcquirePrice(plot);
             profile.cash -= price;
+            profile.stats.totalSpent += price;
             // Komşunun işletmesi zaten çalışıyor: seviye 2 olarak devralınır.
             var owned = new OwnedBusiness { plotId = plot.id, businessId = plot.occupantId, acquired = true, level = 2 };
             // Komşunun dükkanındaki süsler dükkanla birlikte gelir.
@@ -176,11 +178,37 @@ namespace CityRise.Progression
             double amount = Math.Floor(owned.stored);
             owned.stored -= amount;
             profile.cash += amount;
+            profile.stats.totalEarned += amount;
+            profile.stats.collects++;
             long xp = Math.Max(config.minCollectXp, (long)Math.Round(amount * config.xpPerCollectDollar));
             Collected?.Invoke(layout.FindPlot(plotId), amount, xp);
             AddXp(xp);
             Changed?.Invoke();
             return amount;
+        }
+
+        // ------------------------------------------------------------ İstatistik
+
+        /// <summary>İşletmenin bugünkü değeri (hazır işletme satın alma formülüyle aynı).</summary>
+        public double BusinessWorth(OwnedBusiness b)
+        {
+            var plot = layout.FindPlot(b.plotId);
+            return EconomyRules.BusinessValue(NetPerHour(b) * 24, config.businessValueK, config.businessValueM, plot != null ? LandPrice(plot) : 0);
+        }
+
+        /// <summary>Toplam servet: nakit + kasalardaki para + işletmelerin değeri.</summary>
+        public double NetWorth()
+        {
+            double w = profile.cash;
+            foreach (var b in profile.businesses) w += b.stored + BusinessWorth(b);
+            return w;
+        }
+
+        public double TotalPerHour()
+        {
+            double t = 0;
+            foreach (var b in profile.businesses) t += NetPerHour(b);
+            return t;
         }
 
         // ------------------------------------------------------------ Görünüm
@@ -201,6 +229,7 @@ namespace CityRise.Progression
             long price = LookPrice(owned, group, index);
             if (profile.cash < price) return false;
             profile.cash -= price;
+            profile.stats.totalSpent += price;
             if (index >= 0) { string key = ShopOptions.Key(group, index); if (!owned.look.Owns(key)) owned.look.bought.Add(key); }
             owned.look.Set(group, index);
             if (price > 0) AddXp(Mathf.Max(1, Mathf.RoundToInt(price * config.xpPerUpgradeDollar)));
@@ -231,6 +260,7 @@ namespace CityRise.Progression
                 long price = DecorPrice(owned, decorId);
                 if (profile.cash < price) return false;
                 profile.cash -= price;
+            profile.stats.totalSpent += price;
                 string key = ShopOptions.Key(ShopOptions.Group.Decor, decorId);
                 if (!look.Owns(key)) look.bought.Add(key);
                 look.decor.Add(decorId);
@@ -261,6 +291,7 @@ namespace CityRise.Progression
             if (owned == null || !CanUpgrade(owned)) return false;
             long cost = UpgradeCost(owned);
             profile.cash -= cost;
+            profile.stats.totalSpent += cost;
             owned.level++;
             BusinessUpgraded?.Invoke(layout.FindPlot(plotId), owned);
             AddXp(Mathf.Max(1, Mathf.RoundToInt(cost * config.xpPerUpgradeDollar)));

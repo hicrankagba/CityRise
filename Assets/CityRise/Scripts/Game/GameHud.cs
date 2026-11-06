@@ -38,11 +38,16 @@ namespace CityRise.Game
         readonly Queue<System.Action> pendingModals = new Queue<System.Action>();
         RectTransform missionPanel, missionList, eventBanner, clockPanel;
         Text clockLabel;
+        Button statsButton;
         Text eventLabel;
         float eventTimer;
         Text missionHeader;
         bool missionsCollapsed;
         MissionSystem missions;
+
+        public RectTransform Root => root;
+        /// <summary>Rehber balonu açıkken bildirimler onun üstünde görünür.</summary>
+        public bool GuideActive;
 
         public bool IsModalOpen => modalLayer != null && modalLayer.childCount > 0;
 
@@ -146,6 +151,10 @@ namespace CityRise.Game
             toastGroup.blocksRaycasts = false;
             toastLabel = UIKit.Label("Yazi", toast, "", 30, Color.white, TextAnchor.MiddleCenter);
             toastLabel.rectTransform.Stretch(12);
+
+            // Seviye panelinin yanında istatistik düğmesi.
+            statsButton = UIKit.Button("Istatistik", root, Loc.T("stats.button"), UIKit.Panel, ShowStats, 26);
+            ((RectTransform)statsButton.transform).Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(512, -24), new Vector2(190, 88));
 
             // Sol: görevler (seviye panelinin altında; başlığa dokununca katlanır).
             missionPanel = UIKit.Box("Gorevler", root, UIKit.Panel).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(28, -160), new Vector2(470, 60));
@@ -314,6 +323,7 @@ namespace CityRise.Game
             eventTimer -= Time.unscaledDeltaTime;
             if (eventTimer <= 0) { eventTimer = 20f; UpdateEvent(); }
             eventBanner.gameObject.SetActive(interiorPlot == null);
+            statsButton.gameObject.SetActive(interiorPlot == null);
             var cycle = CityRise.Life.DayNightCycle.Instance;
             clockPanel.gameObject.SetActive(cycle != null);
             if (cycle != null)
@@ -497,6 +507,125 @@ namespace CityRise.Game
             RefreshEditPanel();
         }
 
+        // ------------------------------------------------------------ İstatistik
+
+        static readonly Color ChartInk = new Color(0.16f, 0.42f, 0.72f);
+        static readonly Color ChartGrid = new Color(0, 0, 0, 0.08f);
+        static readonly Color TextMuted = new Color(0.42f, 0.4f, 0.37f);
+
+        /// <summary>İstatistik penceresi: dört özet kutusu, servet çizgi grafiği, işletme başına saatlik gelir çubukları.</summary>
+        public void ShowStats()
+        {
+            OpenModal(new Vector2(1560, 900), out var content);
+            var p = eco.profile;
+            UIKit.Label("Baslik", content, Loc.T("stats.title"), 44, UIKit.TextDark, TextAnchor.UpperLeft, FontStyle.Bold)
+                .rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(900, 60));
+
+            // Özet kutuları.
+            var tiles = new (string label, string value, string sub)[]
+            {
+                (Loc.T("stats.worth"), Loc.Money(eco.NetWorth()), Loc.T("stats.worth.sub")),
+                (Loc.T("stats.hourly"), Loc.Money(eco.TotalPerHour()), Loc.T("stats.hourly.sub", p.businesses.Count)),
+                (Loc.T("stats.earned"), Loc.Money(p.stats.totalEarned), Loc.T("stats.earned.sub", p.stats.collects)),
+                (Loc.T("stats.spent"), Loc.Money(p.stats.totalSpent), Loc.T("stats.spent.sub")),
+            };
+            float tw = (1504 - 3 * 16) / 4f;
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                var tile = UIKit.Box("Kutu", content, new Color(1, 1, 1, 0.75f)).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(i * (tw + 16), -76), new Vector2(tw, 150));
+                UIKit.Label("Ad", tile, tiles[i].label, 24, TextMuted, TextAnchor.UpperLeft).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -14), new Vector2(tw - 40, 32));
+                UIKit.Label("Deger", tile, tiles[i].value, 46, UIKit.TextDark, TextAnchor.MiddleLeft, FontStyle.Bold).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -50), new Vector2(tw - 40, 56));
+                UIKit.Label("Alt", tile, tiles[i].sub, 20, TextMuted, TextAnchor.UpperLeft).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -110), new Vector2(tw - 40, 30));
+            }
+
+            // Sol: servet geçmişi (tek seri: başlık adını söyler, gösterge kutusu gerekmez).
+            var left = UIKit.Box("ServetGrafigi", content, new Color(1, 1, 1, 0.75f)).rectTransform;
+            left.anchorMin = new Vector2(0, 0); left.anchorMax = new Vector2(0, 0); left.pivot = Vector2.zero;
+            left.anchoredPosition = Vector2.zero; left.sizeDelta = new Vector2(820, 580);
+            UIKit.Label("Baslik", left, Loc.T("stats.chart.worth"), 28, UIKit.TextDark, TextAnchor.UpperLeft, FontStyle.Bold).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -16), new Vector2(760, 40));
+            LineChart(left, p.stats.sampleTicks, p.stats.sampleWorth, new Rect(110, 60, 670, 420));
+
+            // Sağ: işletme başına saatlik gelir (büyükten küçüğe yatay çubuklar).
+            var right = UIKit.Box("GelirGrafigi", content, new Color(1, 1, 1, 0.75f)).rectTransform;
+            right.anchorMin = new Vector2(1, 0); right.anchorMax = new Vector2(1, 0); right.pivot = new Vector2(1, 0);
+            right.anchoredPosition = Vector2.zero; right.sizeDelta = new Vector2(668, 580);
+            UIKit.Label("Baslik", right, Loc.T("stats.chart.income"), 28, UIKit.TextDark, TextAnchor.UpperLeft, FontStyle.Bold).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -16), new Vector2(620, 40));
+            BarChart(right);
+        }
+
+        void LineChart(RectTransform parent, List<long> ticks, List<double> values, Rect area)
+        {
+            int n = values.Count;
+            if (n < 2)
+            {
+                UIKit.Label("Bos", parent, Loc.T("stats.chart.empty"), 24, TextMuted, TextAnchor.MiddleCenter).rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(700, 120));
+                return;
+            }
+            double min = double.MaxValue, max = double.MinValue;
+            foreach (var v in values) { min = System.Math.Min(min, v); max = System.Math.Max(max, v); }
+            // Eksen sıfırdan değil, verinin çevresinden başlar (servet hiç sıfıra inmez); biraz pay bırakılır.
+            double pad = System.Math.Max(1, (max - min) * 0.15);
+            min = System.Math.Max(0, min - pad); max += pad;
+            Vector2 Pt(int i) => new Vector2(area.x + area.width * i / (n - 1f), area.y + (float)((values[i] - min) / (max - min)) * area.height);
+            // Silik yatay ızgara ve değer etiketleri.
+            for (int g = 0; g <= 3; g++)
+            {
+                float y = area.y + area.height * g / 3f;
+                var line = UIKit.Box("Izgara", parent, ChartGrid, UIKit.Plain).rectTransform;
+                line.anchorMin = line.anchorMax = Vector2.zero; line.pivot = new Vector2(0, 0.5f);
+                line.anchoredPosition = new Vector2(area.x, y); line.sizeDelta = new Vector2(area.width, 2);
+                UIKit.Label("Eksen", parent, Loc.Money(min + (max - min) * g / 3.0), 18, TextMuted, TextAnchor.MiddleRight)
+                    .rectTransform.Place(Vector2.zero, new Vector2(1, 0.5f), new Vector2(area.x - 12, y), new Vector2(100, 24));
+            }
+            // Zaman ekseni: ilk ve son örnek.
+            string When(long t) => new System.DateTime(t, System.DateTimeKind.Utc).ToLocalTime().ToString("HH:mm");
+            UIKit.Label("Bas", parent, When(ticks[0]), 18, TextMuted, TextAnchor.UpperLeft).rectTransform.Place(Vector2.zero, new Vector2(0, 1), new Vector2(area.x, area.y - 8), new Vector2(120, 24));
+            UIKit.Label("Son", parent, When(ticks[n - 1]), 18, TextMuted, TextAnchor.UpperRight).rectTransform.Place(Vector2.zero, new Vector2(1, 1), new Vector2(area.xMax, area.y - 8), new Vector2(120, 24));
+            // Çizgi: ince parçalar.
+            for (int i = 0; i < n - 1; i++)
+            {
+                Vector2 a = Pt(i), b = Pt(i + 1);
+                var seg = UIKit.Box("Cizgi", parent, ChartInk, UIKit.Plain).rectTransform;
+                seg.anchorMin = seg.anchorMax = Vector2.zero; seg.pivot = new Vector2(0, 0.5f);
+                seg.anchoredPosition = a;
+                seg.sizeDelta = new Vector2(Vector2.Distance(a, b) + 1.5f, 4);
+                seg.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(b.y - a.y, b.x - a.x) * Mathf.Rad2Deg);
+            }
+            // Son nokta işaretli ve değeri yazılı (yalnızca son nokta).
+            var last = Pt(n - 1);
+            var dot = UIKit.Box("Nokta", parent, ChartInk, UIKit.Circle).rectTransform;
+            dot.anchorMin = dot.anchorMax = Vector2.zero; dot.pivot = new Vector2(0.5f, 0.5f);
+            dot.anchoredPosition = last; dot.sizeDelta = new Vector2(14, 14);
+            UIKit.Label("SonDeger", parent, Loc.Money(values[n - 1]), 22, UIKit.TextDark, TextAnchor.LowerRight, FontStyle.Bold)
+                .rectTransform.Place(Vector2.zero, new Vector2(1, 0), last + new Vector2(-6, 12), new Vector2(240, 30));
+        }
+
+        void BarChart(RectTransform parent)
+        {
+            var rows = new List<(string name, double value)>();
+            foreach (var b in eco.profile.businesses)
+                rows.Add((Loc.T("biz.title", Loc.T("business." + b.businessId), b.level), eco.NetPerHour(b)));
+            if (rows.Count == 0)
+            {
+                UIKit.Label("Bos", parent, Loc.T("stats.bars.empty"), 24, TextMuted, TextAnchor.MiddleCenter).rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(600, 120));
+                return;
+            }
+            rows.Sort((x, y) => y.value.CompareTo(x.value));
+            int count = Mathf.Min(rows.Count, 8);
+            double max = rows[0].value <= 0 ? 1 : rows[0].value;
+            const float top = 78, rowH = 58, labelW = 250, barMax = 300;
+            for (int i = 0; i < count; i++)
+            {
+                float y = -top - i * rowH;
+                UIKit.Label("Ad", parent, rows[i].name, 20, UIKit.TextDark, TextAnchor.MiddleLeft).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(24, y - rowH * 0.5f), new Vector2(labelW, 40));
+                float w = Mathf.Max(6, (float)(rows[i].value / max) * barMax);
+                UIKit.Box("Cubuk", parent, ChartInk).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(24 + labelW, y - rowH * 0.5f), new Vector2(w, 26));
+                UIKit.Label("Deger", parent, Loc.T("stats.perhour", Loc.Money(rows[i].value)), 20, TextMuted, TextAnchor.MiddleLeft).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(24 + labelW + w + 10, y - rowH * 0.5f), new Vector2(150, 40));
+            }
+            if (rows.Count > count)
+                UIKit.Label("Diger", parent, Loc.T("stats.more", rows.Count - count), 20, TextMuted, TextAnchor.MiddleLeft).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(24, -top - count * rowH - 20), new Vector2(500, 40));
+        }
+
         // ------------------------------------------------------------ Görevler
 
         public static string MissionTitle(MissionDef d)
@@ -569,7 +698,7 @@ namespace CityRise.Game
         public void Toast(string message)
         {
             // İç görünümde alttaki düğmelerin üstünde dursun.
-            ((RectTransform)toastGroup.transform).anchoredPosition = new Vector2(0, interiorPlot != null ? 150 : 40);
+            ((RectTransform)toastGroup.transform).anchoredPosition = new Vector2(0, GuideActive ? (interiorPlot != null ? 390 : 270) : interiorPlot != null ? 150 : 40);
             toastLabel.text = message;
             if (toastRoutine != null) StopCoroutine(toastRoutine);
             toastRoutine = StartCoroutine(ToastRoutine());

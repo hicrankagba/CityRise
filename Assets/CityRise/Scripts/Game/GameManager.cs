@@ -48,6 +48,7 @@ namespace CityRise.Game
         public CityEconomy Economy { get; private set; }
         public PlayerProfile Profile => Economy.profile;
         public MissionSystem Missions { get; private set; }
+        float sampleTimer;
         public static GameManager Instance { get; private set; }
 
         readonly Dictionary<int, PlotView> views = new Dictionary<int, PlotView>();
@@ -116,6 +117,7 @@ namespace CityRise.Game
 
             hud = gameObject.AddComponent<GameHud>();
             hud.Init(this);
+            gameObject.AddComponent<TutorialGuide>().Init(this, hud, hud.Root);
             Life = new GameObject("SehirHayati").AddComponent<CityRise.Life.CityLife>();
             Life.Init(this);
 
@@ -133,6 +135,15 @@ namespace CityRise.Game
             HandlePointer();
             saveTimer += Time.deltaTime;
             if (saveTimer > 15f) Save();
+            // Servet geçmişi: 5 dakikada bir örnek (istatistik grafiği için).
+            sampleTimer -= Time.unscaledDeltaTime;
+            if (sampleTimer <= 0)
+            {
+                sampleTimer = 300f;
+                var st = Profile.stats;
+                bool due = st.sampleTicks.Count == 0 || (DateTime.UtcNow - new DateTime(st.sampleTicks[st.sampleTicks.Count - 1], DateTimeKind.Utc)).TotalMinutes >= 4.5;
+                if (due) st.AddSample(Economy.NetWorth());
+            }
         }
 
         void OnApplicationPause(bool paused) { if (paused) Save(); }

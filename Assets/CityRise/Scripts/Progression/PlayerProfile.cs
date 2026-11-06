@@ -20,6 +20,26 @@ namespace CityRise.Progression
         public ShopLook look = new ShopLook();
     }
 
+    /// <summary>İstatistik ekranı için birikenler: toplam kazanç/harcama ve servet geçmişi.</summary>
+    [Serializable]
+    public class PlayerStats
+    {
+        public double totalEarned;
+        public double totalSpent;
+        public int collects;
+        /// <summary>Servet örnekleri (en fazla MaxSamples): zaman (UTC tick) ve değer.</summary>
+        public List<long> sampleTicks = new List<long>();
+        public List<double> sampleWorth = new List<double>();
+        public const int MaxSamples = 48;
+
+        public void AddSample(double worth)
+        {
+            sampleTicks.Add(DateTime.UtcNow.Ticks);
+            sampleWorth.Add(worth);
+            while (sampleWorth.Count > MaxSamples) { sampleWorth.RemoveAt(0); sampleTicks.RemoveAt(0); }
+        }
+    }
+
     /// <summary>
     /// Oyuncunun kaydı: para, XP, seviye, aşama ve sahip olduğu işletmeler.
     /// Şimdilik cihazda JSON olarak tutulur; sunucu gelince aynı yapı oraya taşınır.
@@ -39,6 +59,10 @@ namespace CityRise.Progression
         /// <summary>Görev sırasında kaçıncı göreve gelindi (sıradaki açılacak görev).</summary>
         public int missionCursor;
         public int missionsClaimed;
+        /// <summary>Rehber (muhtar) adımı; tutorialDone olunca bir daha gösterilmez.</summary>
+        public int tutorialStep;
+        public bool tutorialDone;
+        public PlayerStats stats = new PlayerStats();
         public long lastSaveUtcTicks;
 
         public static string SavePath => Path.Combine(Application.persistentDataPath, "cityrise_kayit.json");

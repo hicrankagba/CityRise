@@ -36,7 +36,9 @@ namespace CityRise.Game
         Coroutine toastRoutine;
         readonly Dictionary<int, Button> coins = new Dictionary<int, Button>();
         readonly Queue<System.Action> pendingModals = new Queue<System.Action>();
-        RectTransform missionPanel, missionList;
+        RectTransform missionPanel, missionList, eventBanner;
+        Text eventLabel;
+        float eventTimer;
         Text missionHeader;
         bool missionsCollapsed;
         MissionSystem missions;
@@ -118,6 +120,18 @@ namespace CityRise.Game
             UIKit.Label("Dolar", coin, "$", 38, UIKit.TextDark, TextAnchor.MiddleCenter, FontStyle.Bold).rectTransform.Stretch();
             cashLabel = UIKit.Label("Nakit", cashPanel, "", 40, Color.white, TextAnchor.MiddleRight, FontStyle.Bold);
             cashLabel.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-20, 0), new Vector2(240, 60));
+
+            // Sağ üst, nakdin altında: haftalık etkinlik.
+            var evt = UIKit.Button("Etkinlik", root, "", new Color(0.55f, 0.2f, 0.65f, 0.92f), () =>
+            {
+                string id = WeeklyEvent.FeaturedBusiness();
+                Toast(Loc.T("event.toast", Loc.T("business." + id), WeeklyEvent.Multiplier));
+            }, 24);
+            eventBanner = (RectTransform)evt.transform;
+            eventBanner.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-28, -124), new Vector2(420, 84));
+            eventLabel = evt.GetComponentInChildren<Text>();
+            eventLabel.alignment = TextAnchor.MiddleCenter;
+            UpdateEvent();
 
             // Alt orta: kısa bildirimler.
             var toast = UIKit.Box("Bildirim", root, UIKit.Panel).rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 40), new Vector2(900, 76));
@@ -247,7 +261,8 @@ namespace CityRise.Game
             var b = interiorBusiness;
             var def = eco.catalog.Find(b.businessId);
             interiorTitle.text = Loc.T("biz.title", Loc.T("business." + b.businessId), b.level);
-            interiorInfo.text = Loc.T("biz.income", Loc.Money(eco.NetPerHour(b)));
+            interiorInfo.text = Loc.T("biz.income", Loc.Money(eco.NetPerHour(b)))
+                + (WeeklyEvent.IncomeMultiplier(b.businessId) > 1 ? "  ·  " + Loc.T("event.short", WeeklyEvent.Multiplier) : "");
             collectButton.SetText(Loc.T("interior.collect", Loc.Money(b.stored)));
             collectButton.interactable = b.stored >= 1;
             bool max = def == null || b.level >= def.maxLevel;
@@ -278,9 +293,21 @@ namespace CityRise.Game
             cashLabel.text = Loc.Money(p.cash).Substring(1);
         }
 
+        void UpdateEvent()
+        {
+            var now = System.DateTime.Now;
+            string id = WeeklyEvent.FeaturedBusiness(now);
+            var left = WeeklyEvent.TimeLeft(now);
+            string time = left.TotalDays >= 1 ? Loc.T("event.days", (int)left.TotalDays, left.Hours) : Loc.T("event.hours", left.Hours, left.Minutes);
+            eventLabel.text = Loc.T("event.banner", Loc.T("event.name." + id)) + "\n" + Loc.T("event.sub", WeeklyEvent.Multiplier, time);
+        }
+
         void LateUpdate()
         {
             ApplySafeArea();
+            eventTimer -= Time.unscaledDeltaTime;
+            if (eventTimer <= 0) { eventTimer = 20f; UpdateEvent(); }
+            eventBanner.gameObject.SetActive(interiorPlot == null);
             if (interiorPlot != null) RefreshInterior();
             else UpdateCoins();
 #if ENABLE_INPUT_SYSTEM

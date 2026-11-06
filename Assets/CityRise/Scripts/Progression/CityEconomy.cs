@@ -142,7 +142,8 @@ namespace CityRise.Progression
         public double NetPerHour(OwnedBusiness owned)
         {
             var def = catalog.Find(owned.businessId);
-            return def == null ? 0 : def.NetPerHourAt(owned.level);
+            // Haftalık etkinlikteki işletme türü katlı kazanır.
+            return def == null ? 0 : def.NetPerHourAt(owned.level) * WeeklyEvent.IncomeMultiplier(owned.businessId);
         }
 
         public double Capacity(OwnedBusiness owned) => NetPerHour(owned) * config.storageHours;

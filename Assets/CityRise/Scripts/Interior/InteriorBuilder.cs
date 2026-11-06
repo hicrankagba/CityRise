@@ -81,6 +81,7 @@ namespace CityRise.Interior
         readonly List<GameObject> customers = new List<GameObject>();
         readonly List<GameObject> staff = new List<GameObject>();
         readonly List<GameObject> seated = new List<GameObject>();
+        readonly List<GameObject> waiting = new List<GameObject>();
         List<string> realPeople;
 
         /// <summary>Gerçekçi (Mixamo) karakter anahtarları; yoksa boş liste.</summary>
@@ -188,6 +189,7 @@ namespace CityRise.Interior
             }
             foreach (var s in staff) s.AddComponent<CityRise.Life.InteriorWanderer>().idleOnly = true;
             foreach (var s in seated) s.AddComponent<CityRise.Life.InteriorWanderer>().seated = true;
+            foreach (var s in waiting) s.AddComponent<CityRise.Life.InteriorWanderer>().idleOnly = true;
         }
 
         /// <summary>
@@ -315,6 +317,22 @@ namespace CityRise.Interior
                 float a = R(0, 360);
                 string key = RandomRealPerson() ?? people[rng.Next(people.Length)];
                 Place(key, R(xMin, xMax), R(zMin, zMax), new Vector3(Mathf.Sin(a * Mathf.Deg2Rad), 0, Mathf.Cos(a * Mathf.Deg2Rad)));
+            }
+        }
+
+        /// <summary>Kasa önünde sırada bekleyen müşteriler (yerinde durur, arada telefona bakar).</summary>
+        void Queue(float x, float z, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                string key = RandomRealPerson();
+                if (key == null) return;
+                // İlki kasaya döner, arkadakiler sıranın önüne bakar.
+                var facing = i == 0 ? Left : Front;
+                var go = Place(key, x + R(-0.08f, 0.08f), z + i * 0.85f, facing);
+                if (go == null) return;
+                customers.Remove(go);
+                waiting.Add(go);
             }
         }
 
@@ -492,10 +510,16 @@ namespace CityRise.Interior
                 FillShelf(Place("ph/wooden_display_shelves_01", HalfW - 2.2f, -HalfD + 1.9f, Front), Breads);
             }
             int registers = 1 + level / 3 + (super ? 2 : 0);
-            for (int i = 0; i < registers; i++) Register(-HalfW + 1.4f + i * 1.9f, -HalfD + 1.2f, Right);
+            for (int i = 0; i < registers; i++)
+            {
+                // Kasalar arası 2,6 m: kasiyer, müşteri sırası ve sonraki kasiyer birbirine girmez.
+                Register(-HalfW + 1.4f + i * 2.6f, -HalfD + 1.2f, Right);
+                // Kasada sıra: önde ödeyen, arkasında bekleyenler.
+                Queue(-HalfW + 1.4f + i * 2.6f + 0.85f, -HalfD + 1.2f, Mathf.Min(1 + level / 3 + (super ? 1 : 0), 3));
+            }
             for (int i = 0; i < 4; i++) Place("ph/wicker_basket_02", -HalfW + 0.4f, -HalfD + 2.6f + i * 0.3f, Front, i * 0.12f);
             Plants();
-            Customers(2 + level + (super ? 3 : 0), -HalfW + 3f, HalfW - 2f, -HalfD + 2.5f, HalfD - 2f);
+            Customers(3 + level + (super ? 5 : 0), -HalfW + 3f, HalfW - 2f, -HalfD + 2.5f, HalfD - 2f);
         }
 
         void Manav(int level)

@@ -41,7 +41,7 @@ namespace CityRise.EditorTools
         {
             switch (id)
             {
-                case "simit_bufesi": return "gen/simit";
+                case "simit_bufesi": return "food/donut";
                 case "firin": return "ph/croissant";
                 case "manav": return "ph/food_apple_01";
                 case "kasap": return "food/whole-ham";
@@ -87,6 +87,12 @@ namespace CityRise.EditorTools
                     // Kaidenin üstüne otur, ortala.
                     var target = root.TransformPoint(roofFront + new Vector3(0, 0.55f, 0));
                     icon.transform.position += new Vector3(target.x - b.center.x, target.y - b.min.y, target.z - b.center.z);
+                    if (id == "simit_bufesi")
+                    {
+                        // Kenney çöreği simit rengine boyanır.
+                        var mat = ProductMat(new Color(0.78f, 0.5f, 0.22f));
+                        foreach (var r in icon.GetComponentsInChildren<Renderer>()) r.sharedMaterials = new[] { mat };
+                    }
                 }
             }
             switch (id)

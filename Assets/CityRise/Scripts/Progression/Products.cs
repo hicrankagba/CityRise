@@ -76,7 +76,7 @@ namespace CityRise.Progression
         {
             ["simit_bufesi"] = new[]
             {
-                new Product("simit", "Simit", "gen/simit", 1, 3),
+                new Product("simit", "Simit", "food/donut", 1, 3),
                 new Product("pogaca", "Poğaça", "ph/hamburger_buns", 1, 4),
                 new Product("kruvasan", "Kruvasan", "ph/croissant", 2, 6),
             },

@@ -858,7 +858,7 @@ namespace CityRise.Interior
 
         static readonly string[] Fruits = { "ph/food_apple_01", "ph/food_pears_asian_01", "ph/lemon", "ph/food_lime_01", "ph/food_pomegranate_01", "ph/food_kiwi_01", "ph/food_avocado_01" };
         static readonly string[] Vegetables = { "ph/yellow_onion", "ph/sweet_potato", "ph/food_avocado_01", "ph/lemon" };
-        static readonly string[] Breads = { "gen/simit", "ph/croissant", "ph/hamburger_buns", "ph/carrot_cake" };
+        static readonly string[] Breads = { "ph/croissant", "ph/hamburger_buns", "ph/carrot_cake" };
         static readonly string[] Groceries = { "ph/long_life_food", "ph/russian_food_cans_01", "ph/multi_cleaner_bottle", "ph/plastic_bottle_gallon", "ph/jug_01", "ph/cardboard_box_01" };
         static readonly string[] Pharmacy = { "ph/medical_box", "ph/multi_cleaner_bottle", "ph/russian_food_cans_01" };
         static readonly string[] Meats = { "food/meat-raw", "food/meat-ribs", "food/meat-sausage", "food/whole-ham" };

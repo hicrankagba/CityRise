@@ -198,10 +198,10 @@ namespace CityRise.Interior
         /// Kutu. UV'leri metre cinsindendir; böylece paylaşılan malzemenin dokusu (tiling = 1 / doku metresi)
         /// her boyuttaki duvar ve zeminde gerçek ölçekte görünür, malzeme kopyalamaya gerek kalmaz.
         /// </summary>
-        GameObject Box(string name, Vector3 center, Vector3 size, Material mat)
+        GameObject Box(string name, Vector3 center, Vector3 size, Material mat, Transform parent = null)
         {
             var go = new GameObject(name);
-            go.transform.SetParent(root, false);
+            go.transform.SetParent(parent != null ? parent : root, false);
             go.transform.localPosition = center;
             go.AddComponent<MeshFilter>().sharedMesh = MetricBox(size);
             go.AddComponent<MeshRenderer>().sharedMaterial = mat;
@@ -472,10 +472,10 @@ namespace CityRise.Interior
         }
 
         /// <summary>Camlı vitrin: ahşap alt dolap, iki katlı cam kutu, içinde ürünler.</summary>
-        void Vitrine(float x, float z, float length, string[] items)
+        void Vitrine(float x, float z, float length, string[] items, Color? baseColor = null)
         {
             const float depth = 0.7f, baseH = 0.75f, glassH = 0.55f;
-            furniture.Add(Box("VitrinAlt", new Vector3(x, baseH * 0.5f, z), new Vector3(length, baseH, depth), Flat("VitrinAlt", new Color(0.55f, 0.37f, 0.22f), 0.4f)));
+            furniture.Add(Box("VitrinAlt", new Vector3(x, baseH * 0.5f, z), new Vector3(length, baseH, depth), Flat("VitrinAlt", baseColor ?? new Color(0.55f, 0.37f, 0.22f), 0.4f)));
             Box("VitrinTaban", new Vector3(x, baseH + 0.01f, z), new Vector3(length, 0.02f, depth), Flat("VitrinTaban", new Color(0.95f, 0.93f, 0.88f), 0.5f));
             float mid = baseH + glassH * 0.5f;
             Box("VitrinRaf", new Vector3(x, mid, z + 0.08f), new Vector3(length - 0.06f, 0.015f, depth * 0.6f), Glass());
@@ -493,6 +493,52 @@ namespace CityRise.Interior
                 Place(items[i % items.Length], px, z - 0.12f, Front, baseH + 0.02f);
                 if (i % 2 == 0) Place(items[(i + 1) % items.Length], px + 0.1f, z + 0.12f, Front, mid + 0.01f);
             }
+        }
+
+        static readonly string[] Drinks = { "ph/plastic_bottle_gallon", "ph/jug_01", "ph/multi_cleaner_bottle", "ph/long_life_food" };
+
+        /// <summary>
+        /// Camlı içecek dolabı (2 m): beyaz gövde, cam kapı, aydınlık iç, dört rafta şişeler.
+        /// facing: kapının baktığı yön; (x, z) dolabın tabanının ortası.
+        /// </summary>
+        void Fridge(float x, float z, Vector3 facing, float width = 0.95f)
+        {
+            const float h = 2.0f, depth = 0.7f;
+            var holder = new GameObject("IcecekDolabi").transform;
+            holder.SetParent(root, false);
+            holder.localPosition = new Vector3(x, 0, z);
+            holder.localRotation = Quaternion.LookRotation(facing);
+            var body = Flat("DolapGovde", new Color(0.93f, 0.94f, 0.95f), 0.6f);
+            var inner = Flat("DolapIc", new Color(0.97f, 0.98f, 1f), 0.2f);
+            furniture.Add(Box("Govde", new Vector3(0, 0.06f, 0), new Vector3(width, 0.12f, depth), body, holder));
+            Box("Arka", new Vector3(0, h * 0.5f, -depth * 0.5f + 0.02f), new Vector3(width, h, 0.04f), inner, holder);
+            Box("SolYan", new Vector3(-width * 0.5f + 0.02f, h * 0.5f, 0), new Vector3(0.04f, h, depth), body, holder);
+            Box("SagYan", new Vector3(width * 0.5f - 0.02f, h * 0.5f, 0), new Vector3(0.04f, h, depth), body, holder);
+            Box("Tavan", new Vector3(0, h - 0.06f, 0), new Vector3(width, 0.12f, depth), body, holder);
+            Box("Kapi", new Vector3(0, h * 0.5f, depth * 0.5f - 0.01f), new Vector3(width - 0.06f, h - 0.24f, 0.015f), Glass(), holder);
+            Box("Kulp", new Vector3(width * 0.5f - 0.1f, h * 0.5f, depth * 0.5f + 0.02f), new Vector3(0.03f, 0.5f, 0.03f), Flat("Kulp", new Color(0.6f, 0.6f, 0.62f), 0.8f), holder);
+            var shelfMat = Flat("DolapRaf", new Color(0.85f, 0.88f, 0.9f), 0.7f);
+            for (int k = 0; k < 4; k++)
+            {
+                float y = 0.14f + k * 0.44f;
+                Box("Raf", new Vector3(0, y, 0), new Vector3(width - 0.08f, 0.02f, depth - 0.1f), shelfMat, holder);
+                int n = 3;
+                for (int i = 0; i < n; i++)
+                {
+                    var local = new Vector3(-width * 0.5f + 0.18f + i * (width - 0.36f) / (n - 1), 0, 0.05f);
+                    var p = root.InverseTransformPoint(holder.TransformPoint(local));
+                    var item = Place(Drinks[(k + i) % Drinks.Length], p.x, p.z, facing, y + 0.012f, 0.75f);
+                    if (item != null) { furniture.Remove(item); if (WorldBounds(item).size.y > 0.4f) item.transform.localScale *= 0.4f / WorldBounds(item).size.y; }
+                }
+            }
+            var light = new GameObject("DolapIsigi").AddComponent<Light>();
+            light.transform.SetParent(holder, false);
+            light.transform.localPosition = new Vector3(0, h - 0.25f, 0.1f);
+            light.type = LightType.Point;
+            light.range = 1.2f;
+            light.intensity = 1.2f;
+            light.color = new Color(0.85f, 0.93f, 1f);
+            light.shadows = LightShadows.None;
         }
 
         /// <summary>Market reyon adları (tabela dokuları sahne kurulurken bunlardan üretilir; sonuncusu manav köşesi).</summary>
@@ -575,7 +621,7 @@ namespace CityRise.Interior
             {
                 if (!clock && i == gaps.Count / 2) { WallItem("ph/wall_clock", true, gaps[i], WindowY, 0.7f); clock = true; continue; }
                 if ((id == "kafe" || id == "firin") && i % 2 == 0) WallItem("ph/industrial_wall_lamp", true, gaps[i], WindowY, 0.45f);
-                else Picture(true, gaps[i], WindowY, pic++);
+                else if (!(id == "eczane" && i == 0)) Picture(true, gaps[i], WindowY, pic++);
             }
             if (!clock) WallItem("ph/wall_clock", true, gaps.Count > 0 ? gaps[0] : 0f, WindowY, 0.7f);
             // Sağ duvar: pencere araları tablolar.
@@ -590,8 +636,16 @@ namespace CityRise.Interior
                 if (IsFree(spot.x, spot.y, 0.6f)) { Place("ph/potted_plant_04", spot.x, spot.y, Left); break; }
             // Kara tahta menü: yeme-içme dükkanları, girişe yakın.
             if (id == "kafe" || id == "firin" || id == "simit_bufesi" || id == "manav")
-                foreach (var spot in new[] { new Vector2(-HalfW + 0.7f, -HalfD + 1.6f), new Vector2(0.5f - HalfW * 0.3f, -HalfD + 0.7f), new Vector2(HalfW - 0.8f, -HalfD + 2.2f) })
-                    if (IsFree(spot.x, spot.y, 0.7f)) { Place("ph/standing_chalkboard_01", spot.x, spot.y, Front + Right * 0.6f); break; }
+                foreach (var spot in new[] { new Vector2(HalfW - 0.8f, -HalfD + 2.2f), new Vector2(-HalfW + 0.7f, -HalfD + 1.6f), new Vector2(0.5f - HalfW * 0.3f, -HalfD + 0.7f) })
+                    if (IsFree(spot.x, spot.y, 0.7f)) { Place("ph/standing_chalkboard_01", spot.x, spot.y, Front + Left * 0.4f, 0f, 0.8f); break; }
+            // Eczane: arka duvarda yeşil haç.
+            if (id == "eczane" && gaps.Count > 0)
+            {
+                var green = Flat("EczaneHac", new Color(0.1f, 0.75f, 0.35f), 0.6f);
+                float gx = gaps[0];
+                Box("Hac", new Vector3(gx, WindowY, HalfD - 0.04f), new Vector3(0.18f, 0.55f, 0.06f), green);
+                Box("Hac", new Vector3(gx, WindowY, HalfD - 0.04f), new Vector3(0.55f, 0.18f, 0.06f), green);
+            }
         }
 
         /// <summary>Bu noktanın çevresinde mobilya ya da kişi yok mu?</summary>
@@ -803,7 +857,7 @@ namespace CityRise.Interior
             // Arka duvar: içecek dolapları ve büyük raflar.
             float x = -HalfW + 0.6f;
             int fridges = super ? 4 : 2;
-            for (int i = 0; i < fridges; i++, x += 1.05f) Place("mm/freezers-standing", x + 0.5f, HalfD - 0.55f, Front);
+            for (int i = 0; i < fridges; i++, x += 1.05f) Fridge(x + 0.5f, HalfD - 0.45f, Front);
             for (; x < HalfW - 2.4f; x += 2.4f) FillShelf(Place("ph/steel_frame_shelves_03", x + 1.2f, HalfD - 0.45f, Front), Groceries);
             // Sağ duvar: raflar.
             for (float z = HalfD - 2.2f; z > -HalfD + 2.4f; z -= 1.2f) FillShelf(Place("ph/steel_frame_shelves_01", HalfW - 0.35f, z, Left), Groceries);
@@ -877,18 +931,14 @@ namespace CityRise.Interior
 
         void Kasap(int level)
         {
-            int counters = Mathf.Clamp(2 + level / 2, 2, 4);
-            for (int i = 0; i < counters; i++)
-            {
-                float x = -HalfW + 1.5f + i * 1.7f;
-                Place("mm/freezer", x, 0.2f, Front);
-                Produce(x, 0.2f, 0.72f, Meats, 5);
-            }
+            // Et vitrini: camlı, soğuk beyaz taban; seviye arttıkça uzar.
+            float vitrineLength = Mathf.Min(size.x - 3.4f, 2.6f + level * 0.5f);
+            Vitrine(-HalfW + 0.8f + vitrineLength * 0.5f, 0.2f, vitrineLength, Meats, new Color(0.92f, 0.92f, 0.9f));
             for (float x = -HalfW + 1.2f; x < HalfW - 1f; x += 2.0f) Place("ph/metal_office_desk", x + 1f, HalfD - 0.55f, Front, 0f, 0.9f);
             Place("ph/wooden_cutting_board", -HalfW + 2.2f, HalfD - 0.55f, Front, 0.72f, 1.3f);
             Place("food/meat-ribs", -HalfW + 2.2f, HalfD - 0.55f, Front, 0.77f);
             Place("food/whole-ham", HalfW - 2f, HalfD - 0.55f, Front, 0.72f);
-            Place("ph/worn_metal_rack", HalfW - 0.5f, 0.2f, Left);
+            FillShelf(Place("ph/worn_metal_rack", HalfW - 0.5f, 0.2f, Left), new[] { "ph/cardboard_box_01", "ph/russian_food_cans_01" }, 0.7f);
             Place("mm/employee", -HalfW + 2.4f, 1.6f, Front);
             Register(HalfW - 1.8f, -HalfD + 1.3f, Left);
             Customers(1 + level / 2, -HalfW + 1f, HalfW - 3f, -HalfD + 0.8f, -1.2f);
@@ -917,18 +967,17 @@ namespace CityRise.Interior
 
         void Simit(int level)
         {
-            float top = TopY(Place("ph/WoodenTable_01", -0.6f, -0.4f, Front, 0f, 1.1f));
-            for (int i = 0; i < 3; i++)
-            {
-                float basketTop = TopY(Place("ph/wicker_basket_02", -1.4f + i * 0.6f, -0.4f, Front, top));
-                Produce(-1.4f + i * 0.6f, -0.4f, Mathf.Lerp(top, basketTop, 0.6f), new[] { "ph/hamburger_buns", "ph/croissant" }, 3);
-            }
+            // Camlı simit vitrini; yanında sepetlerde ekmek.
+            Vitrine(-0.5f, -0.2f, 2.0f, new[] { "ph/hamburger_buns", "ph/croissant" });
+            float top = TopY(Place("ph/WoodenTable_01", HalfW - 1.2f, -0.3f, Left, 0f, 0.8f));
+            float basketTop = TopY(Place("ph/wicker_basket_02", HalfW - 1.2f, -0.3f, Front, top));
+            Produce(HalfW - 1.2f, -0.3f, Mathf.Lerp(top, basketTop, 0.6f), new[] { "ph/hamburger_buns" }, 3);
             Place("ph/CoffeeCart_01", HalfW - 1.4f, HalfD - 0.7f, Front);
             FillShelf(Place("ph/painted_wooden_shelves", -HalfW + 0.5f, HalfD - 0.3f, Front), Breads, 0.9f);
-            Place("mm/employee", -0.4f, 0.6f, Front);
-            if (level >= 2) Place("ph/metal_stool_01", -1f, -1.4f, Back);
-            if (level >= 3) Place("ph/metal_stool_01", 0f, -1.4f, Back);
-            registerSpot = new Vector3(-0.6f, 0, -0.4f);
+            Place("mm/employee", -0.5f, 0.75f, Front);
+            if (level >= 2) Place("ph/metal_stool_01", -1.6f, -1.6f, Back);
+            if (level >= 3) Place("ph/metal_stool_01", 0.6f, -1.6f, Back);
+            registerSpot = new Vector3(-0.5f, 0, -0.9f);
             Customers(1 + level / 2, -HalfW + 0.8f, HalfW - 0.8f, -HalfD + 0.6f, -1.6f);
         }
 
@@ -938,8 +987,8 @@ namespace CityRise.Interior
             for (float z = HalfD - 2f; z > -HalfD + 2f; z -= 1.2f) FillShelf(Place("ph/steel_frame_shelves_01", HalfW - 0.35f, z, Left), Groceries);
             if (level >= 2)
                 for (float x = -HalfW + 2.5f; x < HalfW - 2.5f; x += 1.15f) FillShelf(Place("ph/steel_frame_shelves_01", x + 0.55f, 0f, Front), Groceries);
-            Place("mm/freezer", -HalfW + 1.2f, -0.6f, Front);
-            Produce(-HalfW + 1.2f, -0.6f, 0.72f, new[] { "ph/plastic_bottle_gallon", "ph/multi_cleaner_bottle" }, 4);
+            // Sağ duvarın önünde camlı içecek dolabı (kapısı kameraya dönük).
+            Fridge(HalfW - 0.42f, -HalfD + 1.0f, Left);
             Register(-HalfW + 1.6f, -HalfD + 1.3f, Right);
             Customers(1 + level / 2, -HalfW + 3f, HalfW - 2f, -HalfD + 1f, -0.8f);
         }

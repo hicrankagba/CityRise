@@ -32,6 +32,11 @@ namespace CityRise.Progression
         public int level = 1;
         public CityStage stage = CityStage.Seyyar;
         public List<OwnedBusiness> businesses = new List<OwnedBusiness>();
+        /// <summary>Açık görevler ve ilerlemeleri.</summary>
+        public List<MissionProgress> missions = new List<MissionProgress>();
+        /// <summary>Görev sırasında kaçıncı göreve gelindi (sıradaki açılacak görev).</summary>
+        public int missionCursor;
+        public int missionsClaimed;
         public long lastSaveUtcTicks;
 
         public static string SavePath => Path.Combine(Application.persistentDataPath, "cityrise_kayit.json");

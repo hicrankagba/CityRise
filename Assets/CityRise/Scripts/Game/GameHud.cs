@@ -33,6 +33,10 @@ namespace CityRise.Game
         Coroutine toastRoutine;
         readonly Dictionary<int, Button> coins = new Dictionary<int, Button>();
         readonly Queue<System.Action> pendingModals = new Queue<System.Action>();
+        RectTransform missionPanel, missionList;
+        Text missionHeader;
+        bool missionsCollapsed;
+        MissionSystem missions;
 
         public bool IsModalOpen => modalLayer != null && modalLayer.childCount > 0;
 
@@ -47,6 +51,15 @@ namespace CityRise.Game
             eco.BusinessBuilt += (plot, owned) => Toast(Loc.T("buy.done", Loc.T("business." + owned.businessId)));
             eco.LeveledUp += (level, unlocked) => QueueModal(() => ShowLevelUp(level, unlocked));
             eco.StageUnlocked += (stage, blocks) => QueueModal(() => ShowStage(stage));
+            missions = gm.Missions;
+            if (missions != null)
+            {
+                missions.Changed += RefreshMissions;
+                eco.Changed += RefreshMissions;
+                missions.Completed += d => Toast(Loc.T("mission.done", MissionTitle(d)));
+                missions.Claimed += d => Toast(Loc.T("mission.claimed", Loc.Money(d.rewardCash), d.rewardXp));
+                RefreshMissions();
+            }
         }
 
         // ------------------------------------------------------------ Kurulum
@@ -111,6 +124,19 @@ namespace CityRise.Game
             toastLabel = UIKit.Label("Yazi", toast, "", 30, Color.white, TextAnchor.MiddleCenter);
             toastLabel.rectTransform.Stretch(12);
 
+            // Sol: görevler (seviye panelinin altında; başlığa dokununca katlanır).
+            missionPanel = UIKit.Box("Gorevler", root, UIKit.Panel).rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(28, -160), new Vector2(470, 60));
+            var header = UIKit.Button("Baslik", missionPanel, "", new Color(0, 0, 0, 0), () => { missionsCollapsed = !missionsCollapsed; RefreshMissions(); }, 28);
+            ((RectTransform)header.transform).Place(new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(470, 56));
+            missionHeader = header.GetComponentInChildren<Text>();
+            missionHeader.alignment = TextAnchor.MiddleLeft;
+            missionHeader.rectTransform.offsetMin = new Vector2(20, 0);
+            missionList = UIKit.Rect("Liste", missionPanel);
+            missionList.anchorMin = new Vector2(0, 0);
+            missionList.anchorMax = new Vector2(1, 1);
+            missionList.offsetMin = new Vector2(10, 10);
+            missionList.offsetMax = new Vector2(-10, -56);
+
             BuildInteriorBar();
             modalLayer = UIKit.Rect("Pencereler", root).Stretch();
 
@@ -167,6 +193,7 @@ namespace CityRise.Game
             interiorLevel = level;
             interiorBar.gameObject.SetActive(true);
             coinLayer.gameObject.SetActive(false);
+            missionPanel.gameObject.SetActive(false);
             RefreshInterior();
         }
 
@@ -177,6 +204,7 @@ namespace CityRise.Game
             interiorId = null;
             interiorBar.gameObject.SetActive(false);
             coinLayer.gameObject.SetActive(true);
+            missionPanel.gameObject.SetActive(true);
         }
 
         void RefreshInterior()
@@ -294,6 +322,73 @@ namespace CityRise.Game
                 float bob = Mathf.Sin(Time.time * 3f + owned.plotId) * 6f;
                 rt.anchoredPosition = local + new Vector2(0, bob);
             }
+        }
+
+        // ------------------------------------------------------------ Görevler
+
+        public static string MissionTitle(MissionDef d)
+        {
+            string special = "mission.id." + d.id;
+            if (Loc.T(special) != special) return Loc.T(special);
+            string amount = d.kind == MissionKind.CollectCash ? Loc.Money(d.target) : d.target.ToString();
+            string business = string.IsNullOrEmpty(d.param) ? "" : Loc.T("business." + d.param);
+            return Loc.T("mission." + d.kind, amount, business);
+        }
+
+        /// <summary>Görev listesini yeniden çizer (ilerleme ya da görev değişince).</summary>
+        void RefreshMissions()
+        {
+            if (missions == null || missionPanel == null) return;
+            for (int i = missionList.childCount - 1; i >= 0; i--) Destroy(missionList.GetChild(i).gameObject);
+            missionList.DetachChildren();
+            int ready = 0;
+            foreach (var p in missions.Active) if (missions.IsDone(p)) ready++;
+            missionHeader.text = (missionsCollapsed ? "▶  " : "▼  ") + Loc.T("mission.header") + (ready > 0 ? $"  ({ready}!)" : "");
+            if (missionsCollapsed || missions.Active.Count == 0)
+            {
+                missionPanel.sizeDelta = new Vector2(470, 56);
+                return;
+            }
+            const float rowH = 104, gap = 8;
+            float y = 0;
+            foreach (var p in missions.Active)
+            {
+                var d = missions.Def(p.id);
+                if (d == null) continue;
+                bool done = missions.IsDone(p);
+                var row = UIKit.Box("Gorev", missionList, done ? new Color(0.3f, 0.72f, 0.36f, 0.25f) : new Color(1, 1, 1, 0.08f)).rectTransform;
+                row.anchorMin = new Vector2(0, 1);
+                row.anchorMax = new Vector2(1, 1);
+                row.pivot = new Vector2(0.5f, 1);
+                row.anchoredPosition = new Vector2(0, -y);
+                row.sizeDelta = new Vector2(0, rowH);
+                UIKit.Label("Ad", row, MissionTitle(d), 26, Color.white, TextAnchor.UpperLeft, FontStyle.Bold)
+                    .rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(14, -8), new Vector2(420, 34));
+                string reward = d.rewardXp > 0 ? Loc.T("mission.rewardXp", Loc.Money(d.rewardCash), d.rewardXp) : Loc.T("mission.reward", Loc.Money(d.rewardCash));
+                if (done)
+                {
+                    UIKit.Label("Odul", row, reward, 22, new Color(1, 1, 1, 0.85f), TextAnchor.LowerLeft)
+                        .rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(14, 12), new Vector2(240, 34));
+                    string id = p.id;
+                    var claim = UIKit.Button("OdulAl", row, Loc.T("mission.claim"), UIKit.Green, () => missions.Claim(id), 24);
+                    ((RectTransform)claim.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-10, 10), new Vector2(170, 52));
+                }
+                else
+                {
+                    long v = missions.Progress(p);
+                    var bar = UIKit.Box("Cubuk", row, new Color(1, 1, 1, 0.15f)).rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(14, 14), new Vector2(250, 26));
+                    var fill = UIKit.Box("Dolu", bar, UIKit.Accent).rectTransform;
+                    fill.anchorMin = Vector2.zero;
+                    fill.anchorMax = new Vector2(Mathf.Clamp01(v / (float)Mathf.Max(1, d.target)), 1);
+                    fill.offsetMin = fill.offsetMax = Vector2.zero;
+                    string progress = d.kind == MissionKind.CollectCash ? $"{Loc.Money(v)} / {Loc.Money(d.target)}" : $"{v} / {d.target}";
+                    UIKit.Label("Sayi", bar, progress, 18, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold).rectTransform.Stretch();
+                    UIKit.Label("Odul", row, reward, 20, new Color(1, 1, 1, 0.75f), TextAnchor.MiddleRight)
+                        .rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-12, 12), new Vector2(170, 30));
+                }
+                y += rowH + gap;
+            }
+            missionPanel.sizeDelta = new Vector2(470, 56 + y + 10 - gap);
         }
 
         // ------------------------------------------------------------ Bildirim

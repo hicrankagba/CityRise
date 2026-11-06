@@ -47,6 +47,7 @@ namespace CityRise.Game
 
         public CityEconomy Economy { get; private set; }
         public PlayerProfile Profile => Economy.profile;
+        public MissionSystem Missions { get; private set; }
         public static GameManager Instance { get; private set; }
 
         readonly Dictionary<int, PlotView> views = new Dictionary<int, PlotView>();
@@ -83,6 +84,7 @@ namespace CityRise.Game
             var profile = PlayerProfile.LoadOrNew(config);
             Economy = new CityEconomy(profile, config, catalog, layout);
             Economy.Restore();
+            Missions = new MissionSystem(Economy);
             town.stage = profile.stage;
 
             foreach (var v in plotsRoot.GetComponentsInChildren<PlotView>(true)) views[v.plotId] = v;

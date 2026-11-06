@@ -46,13 +46,16 @@ namespace CityRise.Interior
         }
 
         /// <summary>Diorama kurar ve kökünü döndürür. origin: odanın zemin ortası (dünya).</summary>
-        public static GameObject Build(InteriorLibrary lib, string businessId, int level, Material signMaterial, Vector3 origin)
+        /// <param name="look">Oyuncunun seçtiği görünüm; boşsa (komşu dükkanı) türün varsayılanı ve bütün süsler.</param>
+        public static GameObject Build(InteriorLibrary lib, string businessId, int level, Material signMaterial, Vector3 origin, CityRise.Progression.ShopLook look = null)
         {
             var go = new GameObject("IcGorunum_" + businessId);
             go.transform.position = origin;
             var size = RoomSize(businessId, level);
             var b = new InteriorBuilder(lib, go.transform, size, businessId.GetHashCode() ^ level);
             b.style = StyleFor(businessId);
+            b.look = look;
+            b.ApplyLook();
             b.Shell(signMaterial);
             switch (businessId)
             {
@@ -257,7 +260,8 @@ namespace CityRise.Interior
             // Toprak ve beton temel kesiti.
             Box("Toprak", new Vector3(0, -1.25f, 0), new Vector3(w + 0.9f, 2.1f, d + 0.9f), lib.soil);
             Box("Temel", new Vector3(0, -0.3f, 0), new Vector3(w + 0.5f, 0.45f, d + 0.5f), lib.concrete);
-            var floorMat = style.floor == FloorKind.Parquet && lib.floorParquet != null ? lib.floorParquet
+            var floorMat = style.floor == FloorKind.Marble && lib.floorMarble != null ? lib.floorMarble
+                : style.floor == FloorKind.Parquet && lib.floorParquet != null ? lib.floorParquet
                 : style.floor == FloorKind.Planks && lib.floorPlanks != null ? lib.floorPlanks : lib.floorTiles;
             var floor = Box("Zemin", new Vector3(0, -0.05f, 0), new Vector3(w, 0.1f, d), floorMat);
             floor.name = "KaroZemin";
@@ -324,7 +328,29 @@ namespace CityRise.Interior
 
         // ------------------------------------------------------------ İç mekân stili
 
-        enum FloorKind { Tiles, Parquet, Planks }
+        enum FloorKind { Tiles, Parquet, Planks, Marble }
+
+        CityRise.Progression.ShopLook look;
+
+        /// <summary>Dekor açık mı? Komşu dükkanlarında (görünüm yok) bütün süsler vardır.</summary>
+        bool D(string id) => look == null || look.Has(id);
+
+        /// <summary>Oyuncunun seçtiği zemin, renk ve lambayı stile işler.</summary>
+        void ApplyLook()
+        {
+            if (look == null) return;
+            if (look.floor >= 0) style.floor = (FloorKind)Mathf.Clamp(look.floor, 0, 3);
+            var walls = CityRise.Progression.ShopOptions.WallColors;
+            if (look.wall >= 0 && look.wall < walls.Length) style.wall = walls[look.wall].color;
+            var panels = CityRise.Progression.ShopOptions.WainscotColors;
+            if (look.wainscot >= 0 && look.wainscot < panels.Length)
+            {
+                style.wainscot = panels[look.wainscot].color;
+                style.trim = Color.Lerp(style.wainscot, Color.black, 0.35f);
+            }
+            if (look.lamp == 0) style.lamp = "ph/modern_ceiling_lamp_01";
+            else if (look.lamp == 1) style.lamp = "ph/hanging_industrial_lamp";
+        }
 
         class Style
         {
@@ -616,26 +642,36 @@ namespace CityRise.Interior
             for (float x = -HalfW + 1.4f; x < HalfW - 1f; x += 2.6f) gaps.Add(x + 0.8f + 1.3f);
             gaps.RemoveAll(g => g > HalfW - 0.6f);
             int pic = rng.Next(100);
-            bool clock = false;
+            bool clockWanted = D("saat"), clock = false;
+            // Komşu dükkanlarında aplik yalnızca kafe ve fırında; oyuncu satın aldıysa her dükkanda.
+            bool sconces = look != null ? look.Has("aplik") : (id == "kafe" || id == "firin");
             for (int i = 0; i < gaps.Count; i++)
             {
-                if (!clock && i == gaps.Count / 2) { WallItem("ph/wall_clock", true, gaps[i], WindowY, 0.7f); clock = true; continue; }
-                if ((id == "kafe" || id == "firin") && i % 2 == 0) WallItem("ph/industrial_wall_lamp", true, gaps[i], WindowY, 0.45f);
-                else if (!(id == "eczane" && i == 0)) Picture(true, gaps[i], WindowY, pic++);
+                if (clockWanted && !clock && i == gaps.Count / 2) { WallItem("ph/wall_clock", true, gaps[i], WindowY, 0.7f); clock = true; continue; }
+                if (id == "eczane" && i == 0) continue;
+                if (sconces && i % 2 == 0) WallItem("ph/industrial_wall_lamp", true, gaps[i], WindowY, 0.45f);
+                else if (D("tablo")) Picture(true, gaps[i], WindowY, pic++);
             }
-            if (!clock) WallItem("ph/wall_clock", true, gaps.Count > 0 ? gaps[0] : 0f, WindowY, 0.7f);
+            if (clockWanted && !clock) WallItem("ph/wall_clock", true, gaps.Count > 0 ? gaps[0] : 0f, WindowY, 0.7f);
             // Sağ duvar: pencere araları tablolar.
-            for (float z = -HalfD + 1.4f; z < HalfD - 1f; z += 2.6f)
+            if (D("tablo"))
+                for (float z = -HalfD + 1.4f; z < HalfD - 1f; z += 2.6f)
+                {
+                    float g = z + 0.8f + 1.3f;
+                    if (g > HalfD - 0.6f) break;
+                    Picture(false, g, WindowY, pic++);
+                }
+            // Saksı bitkileri: boş köşelere (satın alındıysa üç tane, komşuda bir tane).
+            if (D("bitki"))
             {
-                float g = z + 0.8f + 1.3f;
-                if (g > HalfD - 0.6f) break;
-                Picture(false, g, WindowY, pic++);
+                int want = look != null ? 3 : 1, placed = 0;
+                foreach (var spot in new[] { new Vector2(HalfW - 0.45f, -HalfD + 1.3f), new Vector2(HalfW - 0.45f, 0f), new Vector2(-HalfW + 0.45f, 0.5f), new Vector2(HalfW - 0.45f, HalfD - 1.2f), new Vector2(-HalfW + 0.45f, -HalfD + 2.2f) })
+                    if (placed < want && IsFree(spot.x, spot.y, 0.6f)) { Place("ph/potted_plant_04", spot.x, spot.y, Left, 0f, 2.4f); placed++; }
             }
-            // Saksı bitkisi: boş bir köşe bulunursa.
-            foreach (var spot in new[] { new Vector2(HalfW - 0.45f, -HalfD + 1.3f), new Vector2(HalfW - 0.45f, 0f), new Vector2(-HalfW + 0.45f, 0.5f) })
-                if (IsFree(spot.x, spot.y, 0.6f)) { Place("ph/potted_plant_04", spot.x, spot.y, Left); break; }
+            // Kilim: girişte, yürüme yolunda.
+            if (D("hali")) Rug(new Vector3(0.2f, 0, -HalfD + 1.5f), new Vector2(Mathf.Min(3.2f, size.x - 2.4f), 1.7f));
             // Kara tahta menü: yeme-içme dükkanları, girişe yakın.
-            if (id == "kafe" || id == "firin" || id == "simit_bufesi" || id == "manav")
+            if (D("menu") && (id == "kafe" || id == "firin" || id == "simit_bufesi" || id == "manav"))
                 foreach (var spot in new[] { new Vector2(HalfW - 0.8f, -HalfD + 2.2f), new Vector2(-HalfW + 0.7f, -HalfD + 1.6f), new Vector2(0.5f - HalfW * 0.3f, -HalfD + 0.7f) })
                     if (IsFree(spot.x, spot.y, 0.7f)) { Place("ph/standing_chalkboard_01", spot.x, spot.y, Front + Left * 0.4f, 0f, 0.8f); break; }
             // Eczane: arka duvarda yeşil haç.
@@ -646,6 +682,58 @@ namespace CityRise.Interior
                 Box("Hac", new Vector3(gx, WindowY, HalfD - 0.04f), new Vector3(0.18f, 0.55f, 0.06f), green);
                 Box("Hac", new Vector3(gx, WindowY, HalfD - 0.04f), new Vector3(0.55f, 0.18f, 0.06f), green);
             }
+        }
+
+        static Material kilimMat;
+
+        /// <summary>Yere serili kilim (doku kodla üretilir: kenar şeridi ve baklava desenleri).</summary>
+        void Rug(Vector3 center, Vector2 sizeM)
+        {
+            if (kilimMat == null)
+            {
+                const int W = 256, H = 128;
+                var tex = new Texture2D(W, H, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, name = "Kilim" };
+                var red = new Color(0.62f, 0.12f, 0.1f);
+                var cream = new Color(0.93f, 0.86f, 0.7f);
+                var navy = new Color(0.12f, 0.17f, 0.32f);
+                var ochre = new Color(0.85f, 0.6f, 0.2f);
+                var px = new Color[W * H];
+                for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int edge = Mathf.Min(Mathf.Min(x, W - 1 - x), Mathf.Min(y, H - 1 - y));
+                    Color c;
+                    if (edge < 6) c = navy;
+                    else if (edge < 10) c = cream;
+                    else if (edge < 18) c = ((x + y) / 6) % 2 == 0 ? ochre : navy;
+                    else if (edge < 22) c = cream;
+                    else
+                    {
+                        // Ortada baklavalar.
+                        float cx = (x - 22) % 52 - 26f, cy = y - H * 0.5f;
+                        float dd = Mathf.Abs(cx) + Mathf.Abs(cy) * 1.1f;
+                        c = dd < 10 ? cream : dd < 16 ? ochre : dd < 22 ? navy : red;
+                    }
+                    // Hafif doku: ip lifi gibi.
+                    float n = (Mathf.PerlinNoise(x * 0.35f, y * 0.9f) - 0.5f) * 0.08f;
+                    px[y * W + x] = new Color(c.r + n, c.g + n, c.b + n, 1f);
+                }
+                tex.SetPixels(px);
+                tex.Apply(true);
+                kilimMat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "Kilim" };
+                kilimMat.SetTexture("_BaseMap", tex);
+                kilimMat.SetFloat("_Smoothness", 0.05f);
+            }
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Object.Destroy(quad.GetComponent<Collider>());
+            quad.name = "Kilim";
+            quad.transform.SetParent(root, false);
+            quad.transform.localPosition = center + Vector3.up * 0.006f;
+            quad.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            quad.transform.localScale = new Vector3(sizeM.x, sizeM.y, 1f);
+            var r = quad.GetComponent<Renderer>();
+            r.sharedMaterial = kilimMat;
+            r.shadowCastingMode = ShadowCastingMode.Off;
         }
 
         /// <summary>Bu noktanın çevresinde mobilya ya da kişi yok mu?</summary>

@@ -16,6 +16,8 @@ namespace CityRise.Progression
         public double stored;
         /// <summary>Komşudan hazır satın alındı (bina sahnede zaten var, yeniden kurulmaz).</summary>
         public bool acquired;
+        /// <summary>Oyuncunun seçtiği iç ve dış görünüm (zemin, renkler, dekor, tabela, tente).</summary>
+        public ShopLook look = new ShopLook();
     }
 
     /// <summary>

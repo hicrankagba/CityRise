@@ -1831,6 +1831,8 @@ namespace CityRise.EditorTools
             if (parquetTex != null) lib.floorParquet = TexturedMat("Ic_Parke", parquetTex, LoadTexture($"{PolyHavenDir}/Textures/herringbone_parquet_nor_gl_1k.jpg", true), Color.white, 2f);
             var plankTex = LoadTexture($"{PolyHavenDir}/Textures/plank_flooring_02_diff_1k.jpg", false);
             if (plankTex != null) lib.floorPlanks = TexturedMat("Ic_Tahta", plankTex, LoadTexture($"{PolyHavenDir}/Textures/plank_flooring_02_nor_gl_1k.jpg", true), new Color(0.78f, 0.74f, 0.72f), 2.5f);
+            var marbleTex = LoadTexture($"{PolyHavenDir}/Textures/marble_01_diff_1k.jpg", false);
+            if (marbleTex != null) lib.floorMarble = TexturedMat("Ic_Mermer", marbleTex, LoadTexture($"{PolyHavenDir}/Textures/marble_01_nor_gl_1k.jpg", true), new Color(1.1f, 1.08f, 1.05f), 3f);
             // Market reyon tabelaları (yazı dokuya çekilir; dükkan tabelalarıyla aynı görünüm).
             lib.signTexts.Clear();
             lib.signMaterials.Clear();

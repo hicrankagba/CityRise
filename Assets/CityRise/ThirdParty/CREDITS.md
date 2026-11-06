@@ -59,7 +59,7 @@ Gökyüzü (HDRI), zemin/duvar/çatı/yaprak/çiçek dokuları ve aşağıdaki d
 | Standing Chalkboard 01 | ParzivalCG | https://polyhaven.com/a/standing_chalkboard_01 |
 | Industrial Wall Lamp | Kuutti Siitonen | https://polyhaven.com/a/industrial_wall_lamp |
 
-Dokular (Poly Haven, CC0): Herringbone Parquet, Plank Flooring 02 (iç mekân zeminleri).
+Dokular (Poly Haven, CC0): Herringbone Parquet, Plank Flooring 02, Marble 01 (iç mekân zeminleri).
 Duvar tabloları: Poly Haven HDRI önizleme görüntülerinden kırpılmış manzaralar (CC0): Kloppenheim 06, Meadow 2, Qwantani Dusk 2, Rural Asphalt Road, Spruit Sunrise, Table Mountain 1.
 
 ## Kenney (CC0 1.0) — https://kenney.nl

@@ -25,6 +25,7 @@ namespace CityRise.Interior
         public Material floorTiles;
         public Material floorParquet;
         public Material floorPlanks;
+        public Material floorMarble;
         public Material wallInside;
         public Material wallBrick;
         public Material wallCap;

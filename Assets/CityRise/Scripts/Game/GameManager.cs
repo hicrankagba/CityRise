@@ -91,6 +91,14 @@ namespace CityRise.Game
             ApplyStage(profile.stage, null);
             foreach (var owned in profile.businesses)
                 if (!owned.acquired) ShowBusiness(layout.FindPlot(owned.plotId), owned, animate: false);
+            // Oyuncunun seçtiği tabela rengi ve tente (komşudan alınan dükkanlar dahil).
+            foreach (var owned in profile.businesses)
+                if (views.TryGetValue(owned.plotId, out var ov)) ShopExterior.Apply(ov.transform, owned);
+            Economy.LookChanged += (plot, owned) =>
+            {
+                if (views.TryGetValue(plot.id, out var v)) ShopExterior.Apply(v.transform, owned);
+                if (interiorPlotId == plot.id && interior != null) BuildInterior(plot, owned.businessId, owned.level, frame: false);
+            };
 
             Economy.BusinessBuilt += (plot, owned) => ShowBusiness(plot, owned, animate: true);
             Economy.BusinessUpgraded += (plot, owned) =>
@@ -310,6 +318,7 @@ namespace CityRise.Game
             var fp = catalog.Find(owned.businessId)?.footprint ?? Vector2Int.one;
             if (ground != null) ground.localScale = new Vector3(Mathf.Min(fp.x, plot.cells.width) * g.cellSize, 1f, Mathf.Min(fp.y, plot.cells.height) * g.cellSize);
             view.building = b;
+            ShopExterior.Apply(view.transform, owned);
             if (animate) StartCoroutine(Construct(b.transform.Find("Bina") ?? b.transform));
         }
 
@@ -423,11 +432,24 @@ namespace CityRise.Game
             transitioning = false;
         }
 
-        void BuildInterior(Plot plot, string businessId, int level)
+        void BuildInterior(Plot plot, string businessId, int level, bool frame = true)
         {
             if (interior != null) Destroy(interior);
-            interior = InteriorBuilder.Build(interiorLibrary, businessId, level, SignMaterial(plot, businessId), InteriorOrigin);
-            FrameInterior();
+            var look = Profile.Find(plot.id)?.look;
+            interior = InteriorBuilder.Build(interiorLibrary, businessId, level, SignMaterial(plot, businessId), InteriorOrigin, look);
+            if (frame) FrameInterior();
+        }
+
+        Vector3 interiorFocus;
+
+        /// <summary>Düzenleme paneli açıkken oda ekranın sol yarısına kayar (sağdaki panel odayı örtmesin).</summary>
+        public void ShiftInteriorView(bool editing)
+        {
+            if (interior == null) return;
+            var ctrl = cameraController;
+            var right = ctrl.cam.transform.right;
+            right.y = 0;
+            ctrl.transform.position = interiorFocus + (editing ? right.normalized * ctrl.distance * 0.2f : Vector3.zero);
         }
 
         /// <summary>
@@ -447,6 +469,7 @@ namespace CityRise.Game
             float hHalf = Mathf.Atan(Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * cam.aspect) * 0.92f;
             float d = radius / Mathf.Sin(Mathf.Min(vHalf, hHalf)) * 0.76f;
             ctrl.transform.position = b.center;
+            interiorFocus = b.center;
             ctrl.distance = d;
             ctrl.minDistance = d * 0.45f;
             ctrl.maxDistance = d * 1.3f;

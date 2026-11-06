@@ -31,6 +31,8 @@ namespace CityRise.Progression
         public event Action<Plot, OwnedBusiness> BusinessAcquired;
         public event Action<Plot, OwnedBusiness> BusinessUpgraded;
         public event Action<Plot, double, long> Collected;
+        /// <summary>Dükkanın görünümü değişti (satın alma ya da seçim).</summary>
+        public event Action<Plot, OwnedBusiness> LookChanged;
 
         public CityEconomy(PlayerProfile profile, ProgressionConfig config, BusinessCatalog catalog, CityLayout layout)
         {
@@ -119,6 +121,8 @@ namespace CityRise.Progression
             profile.cash -= price;
             // Komşunun işletmesi zaten çalışıyor: seviye 2 olarak devralınır.
             var owned = new OwnedBusiness { plotId = plot.id, businessId = plot.occupantId, acquired = true, level = 2 };
+            // Komşunun dükkanındaki süsler dükkanla birlikte gelir.
+            owned.look.GiveAllDecor();
             profile.businesses.Add(owned);
             BusinessAcquired?.Invoke(plot, owned);
             AddXp(Mathf.Max(1, Mathf.RoundToInt(price * config.xpPerBuildDollar)));
@@ -176,6 +180,64 @@ namespace CityRise.Progression
             AddXp(xp);
             Changed?.Invoke();
             return amount;
+        }
+
+        // ------------------------------------------------------------ Görünüm
+
+        /// <summary>Seçeneğin şu anki fiyatı: daha önce alındıysa 0.</summary>
+        public long LookPrice(OwnedBusiness owned, ShopOptions.Group group, int index)
+        {
+            var opts = ShopOptions.Options(group);
+            if (index < 0 || index >= opts.Length) return 0;
+            return owned.look.Owns(ShopOptions.Key(group, index)) ? 0 : opts[index].price;
+        }
+
+        /// <summary>Renk/zemin/lamba/tabela/tente seçimi. Alınmamışsa parası ödenir. index = -1: varsayılana dön (tente: kaldır).</summary>
+        public bool ChooseLook(int plotId, ShopOptions.Group group, int index)
+        {
+            var owned = profile.Find(plotId);
+            if (owned == null) return false;
+            long price = LookPrice(owned, group, index);
+            if (profile.cash < price) return false;
+            profile.cash -= price;
+            if (index >= 0) { string key = ShopOptions.Key(group, index); if (!owned.look.Owns(key)) owned.look.bought.Add(key); }
+            owned.look.Set(group, index);
+            if (price > 0) AddXp(Mathf.Max(1, Mathf.RoundToInt(price * config.xpPerUpgradeDollar)));
+            LookChanged?.Invoke(layout.FindPlot(plotId), owned);
+            Changed?.Invoke();
+            return true;
+        }
+
+        public long DecorPrice(OwnedBusiness owned, string decorId)
+        {
+            if (owned.look.Owns(ShopOptions.Key(ShopOptions.Group.Decor, decorId))) return 0;
+            foreach (var d in ShopOptions.Decor) if (d.id == decorId) return d.price;
+            return 0;
+        }
+
+        /// <summary>Dekoru açar/kapatır; ilk açışta satın alınır.</summary>
+        public bool ToggleDecor(int plotId, string decorId)
+        {
+            var owned = profile.Find(plotId);
+            if (owned == null) return false;
+            var look = owned.look;
+            if (look.Has(decorId))
+            {
+                look.decor.Remove(decorId);
+            }
+            else
+            {
+                long price = DecorPrice(owned, decorId);
+                if (profile.cash < price) return false;
+                profile.cash -= price;
+                string key = ShopOptions.Key(ShopOptions.Group.Decor, decorId);
+                if (!look.Owns(key)) look.bought.Add(key);
+                look.decor.Add(decorId);
+                if (price > 0) AddXp(Mathf.Max(1, Mathf.RoundToInt(price * config.xpPerUpgradeDollar)));
+            }
+            LookChanged?.Invoke(layout.FindPlot(plotId), owned);
+            Changed?.Invoke();
+            return true;
         }
 
         // ------------------------------------------------------------ Yükseltme

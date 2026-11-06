@@ -20,7 +20,10 @@ namespace CityRise.Game
         CityEconomy eco;
         RectTransform root, safeArea, modalLayer, coinLayer, interiorBar;
         Text interiorTitle, interiorInfo;
-        Button collectButton, upgradeButton, buyButton;
+        Button collectButton, upgradeButton, buyButton, editButton;
+        RectTransform editPanel, editTabs, editGrid;
+        Text editHint;
+        ShopOptions.Group editGroup = ShopOptions.Group.Floor;
         string interiorId;
         int interiorLevel;
         CanvasGroup fade;
@@ -179,6 +182,9 @@ namespace CityRise.Game
                     Toast(Loc.T("biz.upgraded", Loc.T("business." + interiorBusiness.businessId), interiorBusiness.level));
             }, 28);
             ((RectTransform)upgradeButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(430, 100));
+            editButton = UIKit.Button("Duzenle", interiorBar, Loc.T("edit.open"), new Color(0.45f, 0.35f, 0.75f), () => OpenEditPanel(), 30);
+            ((RectTransform)editButton.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(370, 28), new Vector2(280, 100));
+            BuildEditPanel();
             buyButton = UIKit.Button("SatinAl", interiorBar, "", UIKit.Green, () => { if (interiorPlot != null) eco.Acquire(interiorPlot); }, 30);
             ((RectTransform)buyButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(480, 100));
             interiorBar.gameObject.SetActive(false);
@@ -199,6 +205,7 @@ namespace CityRise.Game
 
         public void ExitInterior()
         {
+            editPanel.gameObject.SetActive(false);
             interiorPlot = null;
             interiorBusiness = null;
             interiorId = null;
@@ -211,8 +218,11 @@ namespace CityRise.Game
         {
             if (interiorPlot == null) return;
             bool mine = interiorBusiness != null;
-            collectButton.gameObject.SetActive(mine);
-            upgradeButton.gameObject.SetActive(mine);
+            bool editing = editPanel.gameObject.activeSelf;
+            if (!mine && editing) editPanel.gameObject.SetActive(false);
+            collectButton.gameObject.SetActive(mine && !editing);
+            upgradeButton.gameObject.SetActive(mine && !editing);
+            editButton.gameObject.SetActive(mine && !editing);
             if (!mine)
             {
                 var neighborDef = eco.catalog.Find(interiorId);
@@ -322,6 +332,128 @@ namespace CityRise.Game
                 float bob = Mathf.Sin(Time.time * 3f + owned.plotId) * 6f;
                 rt.anchoredPosition = local + new Vector2(0, bob);
             }
+        }
+
+        // ------------------------------------------------------------ Dükkan düzenleme
+
+        static readonly ShopOptions.Group[] EditGroups =
+        {
+            ShopOptions.Group.Floor, ShopOptions.Group.Wall, ShopOptions.Group.Wainscot, ShopOptions.Group.Lamp,
+            ShopOptions.Group.Decor, ShopOptions.Group.Sign, ShopOptions.Group.Awning,
+        };
+
+        /// <summary>Sağda açılan düzenleme paneli: üstte sekmeler, altta seçenek kartları. Değişiklik anında görünür.</summary>
+        void BuildEditPanel()
+        {
+            editPanel = UIKit.Box("DuzenlePaneli", interiorBar, UIKit.Panel).rectTransform;
+            editPanel.anchorMin = new Vector2(1, 0);
+            editPanel.anchorMax = new Vector2(1, 1);
+            editPanel.pivot = new Vector2(1, 0.5f);
+            editPanel.offsetMin = new Vector2(-760, 28);
+            editPanel.offsetMax = new Vector2(-28, -160);
+            UIKit.Label("Baslik", editPanel, Loc.T("edit.title"), 38, Color.white, TextAnchor.UpperLeft, FontStyle.Bold)
+                .rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -16), new Vector2(560, 50));
+            var close = UIKit.Button("Kapat", editPanel, "Tamam", UIKit.Green, () => { editPanel.gameObject.SetActive(false); game.ShiftInteriorView(false); }, 40);
+            ((RectTransform)close.transform).Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -12), new Vector2(150, 64));
+            editTabs = UIKit.Rect("Sekmeler", editPanel);
+            editTabs.anchorMin = new Vector2(0, 1);
+            editTabs.anchorMax = new Vector2(1, 1);
+            editTabs.pivot = new Vector2(0.5f, 1);
+            editTabs.offsetMin = new Vector2(16, -214);
+            editTabs.offsetMax = new Vector2(-16, -84);
+            editGrid = UIKit.Rect("Secenekler", editPanel);
+            editGrid.anchorMin = Vector2.zero;
+            editGrid.anchorMax = Vector2.one;
+            editGrid.offsetMin = new Vector2(16, 64);
+            editGrid.offsetMax = new Vector2(-16, -226);
+            editHint = UIKit.Label("Ipucu", editPanel, "", 22, new Color(1, 1, 1, 0.7f), TextAnchor.MiddleLeft);
+            editHint.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(24, 14), new Vector2(680, 40));
+            editPanel.gameObject.SetActive(false);
+        }
+
+        void OpenEditPanel()
+        {
+            if (interiorBusiness == null) return;
+            editPanel.gameObject.SetActive(true);
+            game.ShiftInteriorView(true);
+            RefreshEditPanel();
+        }
+
+        void RefreshEditPanel()
+        {
+            if (editPanel == null || !editPanel.gameObject.activeSelf || interiorBusiness == null) return;
+            for (int i = editTabs.childCount - 1; i >= 0; i--) Destroy(editTabs.GetChild(i).gameObject);
+            for (int i = editGrid.childCount - 1; i >= 0; i--) Destroy(editGrid.GetChild(i).gameObject);
+            editTabs.DetachChildren();
+            editGrid.DetachChildren();
+
+            // Sekmeler: iki sıra (4 + 3).
+            for (int i = 0; i < EditGroups.Length; i++)
+            {
+                var g = EditGroups[i];
+                bool on = g == editGroup;
+                var tab = UIKit.Button("Sekme", editTabs, Loc.T("edit.tab." + g), on ? UIKit.Accent : new Color(1, 1, 1, 0.12f), () => { editGroup = g; RefreshEditPanel(); }, 24);
+                if (on) tab.GetComponentInChildren<Text>().color = UIKit.TextDark;
+                int row = i / 4, col = i % 4;
+                ((RectTransform)tab.transform).Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(col * 178, -row * 66), new Vector2(170, 58));
+            }
+
+            var b = interiorBusiness;
+            var cards = new List<(string name, Color color, Color color2, string state, bool selected, bool affordable, UnityEngine.Events.UnityAction click)>();
+            if (editGroup == ShopOptions.Group.Decor)
+            {
+                bool food = System.Array.IndexOf(ShopOptions.FoodShops, b.businessId) >= 0;
+                foreach (var d in ShopOptions.Decor)
+                {
+                    if (d.foodOnly && !food) continue;
+                    bool has = b.look.Has(d.id);
+                    long price = eco.DecorPrice(b, d.id);
+                    string state = has ? Loc.T("edit.on") : price > 0 ? Loc.Money(price) : Loc.T("edit.off");
+                    string id = d.id;
+                    cards.Add((d.name, new Color(0.55f, 0.45f, 0.35f), Color.white, state, has, has || eco.profile.cash >= price, () => Pick(() => eco.ToggleDecor(interiorPlot.id, id))));
+                }
+                editHint.text = Loc.T("edit.hint.decor");
+            }
+            else
+            {
+                var group = editGroup;
+                int current = b.look.Get(group);
+                // İlk kart: varsayılan (tentede "yok").
+                cards.Add((Loc.T(group == ShopOptions.Group.Awning ? "edit.none" : "edit.default"), new Color(0.4f, 0.4f, 0.42f), Color.white,
+                    current == -1 ? Loc.T("edit.selected") : Loc.T("edit.free"), current == -1, true, () => Pick(() => eco.ChooseLook(interiorPlot.id, group, -1))));
+                var opts = ShopOptions.Options(group);
+                for (int i = 0; i < opts.Length; i++)
+                {
+                    int index = i;
+                    long price = eco.LookPrice(b, group, i);
+                    string state = current == i ? Loc.T("edit.selected") : price == 0 ? Loc.T("edit.bought") : Loc.Money(price);
+                    cards.Add((opts[i].name, opts[i].color, opts[i].color2, state, current == i, eco.profile.cash >= price, () => Pick(() => eco.ChooseLook(interiorPlot.id, group, index))));
+                }
+                editHint.text = Loc.T("edit.hint");
+            }
+
+            const float cw = 164, ch = 150, gap = 10;
+            for (int i = 0; i < cards.Count; i++)
+            {
+                var c = cards[i];
+                int col = i % 4, row = i / 4;
+                var card = UIKit.Button("Kart", editGrid, "", c.selected ? new Color(0.98f, 0.73f, 0.16f, 0.9f) : new Color(1, 1, 1, 0.1f), c.click, 20);
+                ((RectTransform)card.transform).Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(col * (cw + gap), -row * (ch + gap)), new Vector2(cw, ch));
+                var sw = UIKit.Box("Renk", card.transform, c.color).rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -10), new Vector2(cw - 20, 58));
+                if (editGroup == ShopOptions.Group.Sign || editGroup == ShopOptions.Group.Awning)
+                    UIKit.Box("Renk2", sw, c.color2).rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(editGroup == ShopOptions.Group.Sign ? 70 : 24, editGroup == ShopOptions.Group.Sign ? 14 : 58));
+                var name = UIKit.Label("Ad", card.transform, c.name, 22, c.selected ? UIKit.TextDark : Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+                name.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 44), new Vector2(cw - 8, 32));
+                var state = UIKit.Label("Durum", card.transform, c.state, 20, c.selected ? UIKit.TextDark : c.affordable ? new Color(0.6f, 0.95f, 0.6f) : new Color(1f, 0.55f, 0.5f), TextAnchor.MiddleCenter);
+                state.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 12), new Vector2(cw - 8, 30));
+            }
+        }
+
+        void Pick(System.Func<bool> action)
+        {
+            if (interiorPlot == null) return;
+            if (!action()) Toast(Loc.T("edit.nocash"));
+            RefreshEditPanel();
         }
 
         // ------------------------------------------------------------ Görevler

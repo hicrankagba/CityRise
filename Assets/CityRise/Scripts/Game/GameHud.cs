@@ -470,6 +470,11 @@ namespace CityRise.Game
             popupLayer = UIKit.Rect("SatisYazilari", root).Stretch();
             eco.Sold += OnSold;
             eco.SoldOut += b => Toast(Loc.T("prod.soldout", Loc.T("business." + b.businessId)));
+            eco.ProductionReady += (b, slot) =>
+            {
+                var p = Products.Find(b.businessId, slot.product);
+                Toast(Loc.T("prod.ready", Loc.T("business." + b.businessId), slot.output, p?.name));
+            };
             eco.DeliveryArrived += (b, p, n) => { if (p != null) Toast(Loc.T("prod.arrived", Loc.T("business." + b.businessId), n, p.name)); };
         }
 
@@ -493,15 +498,27 @@ namespace CityRise.Game
             bool maxDepot = b.depotLevel >= Products.MaxDepotLevel;
             depotButton.SetText(maxDepot ? Loc.T("prod.depot.max") : Loc.T("prod.depot.up", Loc.Money(Products.DepotUpgradeCost(b.depotLevel))));
             depotButton.interactable = !maxDepot && eco.CanUpgradeDepot(b);
-            var list = Products.For(b.businessId);
-            const float cw = 172, ch = 248, gap = 8;
-            for (int i = 0; i < list.Length; i++)
+            var products = Products.For(b.businessId);
+            var ingredients = Products.IngredientsFor(b.businessId);
+            var list = new List<Product>(ingredients);
+            list.AddRange(products);
+            const float cw = 172, ch = 236, gap = 8;
+            float top = 0;
+            if (Products.Produces(b.businessId))
+            {
+                MachineStrip(b);
+                top = 78;
+            }
+            for (int i = 0; i < list.Count; i++)
             {
                 var p = list[i];
+                bool isIngredient = i < ingredients.Length;
+                var recipe = Products.RecipeFor(b.businessId, p.id);
                 int count = b.Count(p.id);
                 int col = i % 4, row = i / 4;
-                var card = UIKit.Box("Urun", productGrid, count == 0 ? new Color(0.85f, 0.25f, 0.2f, 0.35f) : new Color(1, 1, 1, 0.1f)).rectTransform
-                    .Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(col * (cw + gap), -row * (ch + gap)), new Vector2(cw, ch));
+                var cardColor = isIngredient ? new Color(0.55f, 0.45f, 0.3f, 0.35f) : count == 0 ? new Color(0.85f, 0.25f, 0.2f, 0.35f) : new Color(1, 1, 1, 0.1f);
+                var card = UIKit.Box("Urun", productGrid, cardColor).rectTransform
+                    .Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(col * (cw + gap), -top - row * (ch + gap)), new Vector2(cw, ch));
                 var icon = new GameObject("Resim", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
                 icon.transform.SetParent(card, false);
                 icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -6), new Vector2(92, 92));
@@ -509,9 +526,20 @@ namespace CityRise.Game
                 icon.raycastTarget = false;
                 UIKit.Label("Ad", card, p.name, 20, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold)
                     .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -100), new Vector2(cw - 8, 26));
-                UIKit.Label("Fiyat", card, Loc.T("prod.price", Loc.Money(p.price), Loc.Money(p.cost)), 17, new Color(1, 1, 1, 0.75f), TextAnchor.MiddleCenter)
+                string priceText = isIngredient ? Loc.T("prod.ingredient", Loc.Money(p.cost))
+                    : recipe != null ? Loc.T("prod.recipe", Loc.Money(p.price), recipe.ingredientAmount, Products.Ingredient(recipe.ingredient)?.name, recipe.output)
+                    : Loc.T("prod.price", Loc.Money(p.price), Loc.Money(p.cost));
+                UIKit.Label("Fiyat", card, priceText, 15, new Color(1, 1, 1, 0.75f), TextAnchor.MiddleCenter)
                     .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -124), new Vector2(cw - 8, 22));
                 // Stok çubuğu.
+                if (isIngredient)
+                {
+                    // Hammadde: rafta durmaz; depodaki miktar ve sipariş düğmeleri.
+                    UIKit.Label("Depo", card, b.OnTheWay(p.id) > 0 ? Loc.T("prod.depotway", b.DepotCount(p.id), b.OnTheWay(p.id), ArrivalText(b, p.id)) : Loc.T("prod.depotone", b.DepotCount(p.id)), 16, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold)
+                        .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -150), new Vector2(cw - 6, 40));
+                    OrderButtons(card, b, p, cw);
+                    continue;
+                }
                 var bar = UIKit.Box("Stok", card, new Color(1, 1, 1, 0.15f)).rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -148), new Vector2(cw - 20, 18));
                 var fillBar = UIKit.Box("Dolu", bar, count == 0 ? new Color(0.9f, 0.3f, 0.25f) : UIKit.Green).rectTransform;
                 fillBar.anchorMin = Vector2.zero;
@@ -521,6 +549,32 @@ namespace CityRise.Game
                 int way = b.OnTheWay(p.id);
                 UIKit.Label("Depo", card, way > 0 ? Loc.T("prod.depotway", b.DepotCount(p.id), way, ArrivalText(b, p.id)) : Loc.T("prod.depotone", b.DepotCount(p.id)), 15, new Color(1, 1, 1, 0.8f), TextAnchor.MiddleCenter)
                     .rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -172), new Vector2(cw - 6, 22));
+                if (recipe != null)
+                {
+                    // Üretilen ürün: fırına koy.
+                    var check = eco.CanProduce(b, p.id);
+                    string pid = p.id;
+                    string label = check == CityEconomy.ProduceCheck.NoSlot ? Loc.T("prod.noslot", recipe.machine)
+                        : check == CityEconomy.ProduceCheck.NoIngredient ? Loc.T("prod.noingredient", Products.Ingredient(recipe.ingredient)?.name)
+                        : Loc.T("prod.bake", Mathf.RoundToInt((float)recipe.seconds));
+                    var bake = UIKit.Button("Pisir", card, label, check == CityEconomy.ProduceCheck.Ok ? new Color(0.85f, 0.45f, 0.15f) : UIKit.Grey, () =>
+                    {
+                        if (interiorPlot == null) return;
+                        if (eco.StartProduction(interiorPlot.id, pid)) Toast(Loc.T("prod.baking", p.name, recipe.machine));
+                        RefreshProductPanel();
+                    }, 15);
+                    ((RectTransform)bake.transform).Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(cw - 12, 40));
+                    bake.interactable = check == CityEconomy.ProduceCheck.Ok;
+                    continue;
+                }
+                OrderButtons(card, b, p, cw);
+            }
+        }
+
+        /// <summary>Sipariş düğmeleri: normal kamyon ve hızlı teslimat.</summary>
+        void OrderButtons(RectTransform card, OwnedBusiness b, Product p, float cw)
+        {
+            {
                 long cost = eco.RestockCost(b, p, out int amount);
                 long fast = eco.RestockCost(b, p, out _, true);
                 bool can = amount > 0 && eco.profile.cash >= cost;
@@ -546,6 +600,47 @@ namespace CityRise.Game
                 express.GetComponentInChildren<Text>().color = UIKit.TextDark;
                 express.interactable = canFast;
             }
+        }
+
+        /// <summary>Makine şeridi: gözler (boş / pişiyor kalan süre / hazır) ve "Hepsini al".</summary>
+        void MachineStrip(OwnedBusiness b)
+        {
+            int slots = Products.SlotCount(b.level);
+            string machine = Products.RecipeFor(b.businessId, Products.For(b.businessId)[0].id)?.machine ?? "";
+            var strip = UIKit.Box("Makine", productGrid, new Color(0.85f, 0.45f, 0.15f, 0.25f)).rectTransform
+                .Place(new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(712, 70));
+            UIKit.Label("Ad", strip, machine, 20, Color.white, TextAnchor.MiddleLeft, FontStyle.Bold).rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(12, 0), new Vector2(140, 40));
+            bool anyReady = false;
+            for (int i = 0; i < slots; i++)
+            {
+                var slot = UIKit.Box("Goz", strip, new Color(0, 0, 0, 0.3f)).rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(150 + i * 104, 0), new Vector2(96, 56));
+                string text = Loc.T("prod.slot.empty");
+                Color col = new Color(1, 1, 1, 0.5f);
+                if (i < b.production.Count)
+                {
+                    var s = b.production[i];
+                    var p = Products.Find(b.businessId, s.product);
+                    double left = (new System.DateTime(s.endTicks, System.DateTimeKind.Utc) - System.DateTime.UtcNow).TotalSeconds;
+                    if (left <= 0) { text = Loc.T("prod.slot.ready", s.output, p?.name); col = new Color(0.6f, 1f, 0.6f); anyReady = true; }
+                    else { text = $"{p?.name}\n{Mathf.CeilToInt((float)left)} sn"; col = new Color(1f, 0.85f, 0.6f); }
+                    // İlerleme çubuğu.
+                    double total = (s.endTicks - s.startTicks) / (double)System.TimeSpan.TicksPerSecond;
+                    var fill = UIKit.Box("Ilerleme", slot, new Color(0.95f, 0.6f, 0.2f, 0.6f)).rectTransform;
+                    fill.anchorMin = Vector2.zero;
+                    fill.anchorMax = new Vector2(Mathf.Clamp01(1f - (float)(left / total)), 0.12f);
+                    fill.offsetMin = fill.offsetMax = Vector2.zero;
+                }
+                UIKit.Label("Durum", slot, text, 14, col, TextAnchor.MiddleCenter, FontStyle.Bold).rectTransform.Stretch(2);
+            }
+            var collect = UIKit.Button("Al", strip, Loc.T("prod.collectbake"), anyReady ? UIKit.Green : UIKit.Grey, () =>
+            {
+                if (interiorPlot == null) return;
+                int n = eco.CollectProduction(interiorPlot.id);
+                if (n > 0) Toast(Loc.T("prod.collected", n));
+                RefreshProductPanel();
+            }, 18);
+            ((RectTransform)collect.transform).Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-8, 0), new Vector2(120, 54));
+            collect.interactable = anyReady;
         }
 
         static string ArrivalText(OwnedBusiness b, string productId)

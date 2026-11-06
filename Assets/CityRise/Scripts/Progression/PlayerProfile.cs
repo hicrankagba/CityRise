@@ -26,6 +26,9 @@ namespace CityRise.Progression
         /// <summary>Tedarikçiden yoldaki siparişler.</summary>
         public List<Delivery> deliveries = new List<Delivery>();
         public double refillCarry;
+        /// <summary>Makinede (fırın, kahve makinesi) pişen partiler.</summary>
+        public List<ProductionSlot> production = new List<ProductionSlot>();
+        public bool ingredientsGiven;
 
         public int DepotCount(string productId)
         {

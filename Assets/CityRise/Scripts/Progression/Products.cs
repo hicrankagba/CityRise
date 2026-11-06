@@ -20,6 +20,33 @@ namespace CityRise.Progression
         }
     }
 
+    /// <summary>Üretim tarifi: hammaddeden makinede (fırın, kahve makinesi) parti halinde ürün yapılır.</summary>
+    public class Recipe
+    {
+        public string product, ingredient, machine;
+        public int ingredientAmount, output;
+        public double seconds;
+
+        public Recipe(string product, string ingredient, int ingredientAmount, int output, double seconds, string machine)
+        {
+            this.product = product;
+            this.ingredient = ingredient;
+            this.ingredientAmount = ingredientAmount;
+            this.output = output;
+            this.seconds = seconds;
+            this.machine = machine;
+        }
+    }
+
+    /// <summary>Makinede pişen/hazırlanan bir parti.</summary>
+    [Serializable]
+    public class ProductionSlot
+    {
+        public string product;
+        public int output;
+        public long startTicks, endTicks;
+    }
+
     [Serializable]
     public class StockItem
     {
@@ -132,16 +159,79 @@ namespace CityRise.Progression
             return table["supermarket"] = list.ToArray();
         }
 
+        // ------------------------------------------------------------ Üretim
+
+        /// <summary>Hammaddeler: tedarikçiden alınır, depoda durur, satılmaz.</summary>
+        static readonly Product[] Ingredients =
+        {
+            new Product("un", "Un", "ph/cardboard_box_01", 3, 0),
+            new Product("kahve_cekirdegi", "Çekirdek", "ph/jug_01", 4, 0),
+            new Product("cay_yapragi", "Kuru Çay", "ph/long_life_food", 3, 0),
+        };
+
+        static readonly Dictionary<string, Recipe[]> recipes = new Dictionary<string, Recipe[]>
+        {
+            ["simit_bufesi"] = new[]
+            {
+                new Recipe("simit", "un", 2, 10, 45, "Fırın"),
+                new Recipe("pogaca", "un", 2, 8, 50, "Fırın"),
+                new Recipe("kruvasan", "un", 3, 6, 70, "Fırın"),
+            },
+            ["firin"] = new[]
+            {
+                new Recipe("ekmek", "un", 2, 10, 40, "Fırın"),
+                new Recipe("baget", "un", 2, 6, 50, "Fırın"),
+                new Recipe("kruvasan", "un", 3, 6, 70, "Fırın"),
+                new Recipe("havuclu_kek", "un", 3, 3, 90, "Fırın"),
+                new Recipe("pasta", "un", 4, 2, 120, "Fırın"),
+            },
+            ["kafe"] = new[]
+            {
+                new Recipe("kahve", "kahve_cekirdegi", 1, 8, 20, "Kahve makinesi"),
+                new Recipe("cay", "cay_yapragi", 1, 10, 15, "Kahve makinesi"),
+            },
+        };
+
+        public static Recipe RecipeFor(string businessId, string productId)
+        {
+            if (!recipes.TryGetValue(businessId, out var list)) return null;
+            foreach (var r in list) if (r.product == productId) return r;
+            return null;
+        }
+
+        public static bool Produces(string businessId) => recipes.ContainsKey(businessId);
+
+        /// <summary>Bu dükkanın kullandığı hammaddeler.</summary>
+        public static Product[] IngredientsFor(string businessId)
+        {
+            if (!recipes.TryGetValue(businessId, out var list)) return new Product[0];
+            var result = new List<Product>();
+            foreach (var r in list)
+                foreach (var i in Ingredients)
+                    if (i.id == r.ingredient && !result.Contains(i)) result.Add(i);
+            return result.ToArray();
+        }
+
+        public static Product Ingredient(string id)
+        {
+            foreach (var i in Ingredients) if (i.id == id) return i;
+            return null;
+        }
+
+        /// <summary>Makine gözü sayısı: dükkan seviyesiyle artar (1-4).</summary>
+        public static int SlotCount(int level) => Math.Min(4, 1 + level / 2);
+
         public static Product[] For(string businessId)
         {
             if (businessId == "supermarket") return Supermarket();
             return table.TryGetValue(businessId, out var p) ? p : new Product[0];
         }
 
+        /// <summary>Ürün ya da hammadde.</summary>
         public static Product Find(string businessId, string productId)
         {
             foreach (var p in For(businessId)) if (p.id == productId) return p;
-            return null;
+            return Ingredient(productId);
         }
 
         /// <summary>Ortalama kâr (satış başına); satış hızı bundan hesaplanır.</summary>

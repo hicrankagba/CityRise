@@ -189,12 +189,22 @@ namespace CityRise.Progression
                 if (b.Count(p.id) < Products.Batch) b.Add(p.id, Products.Batch - b.Count(p.id));
                 if (b.DepotCount(p.id) < 10) b.AddDepot(p.id, 10 - b.DepotCount(p.id));
             }
+            GiveStarterIngredients(b);
         }
 
-        /// <summary>Eski kayıtlarda stok yoksa bir kez başlangıç stoğu verilir.</summary>
+        /// <summary>Üretim yapan dükkana bir kez başlangıç hammaddesi.</summary>
+        void GiveStarterIngredients(OwnedBusiness b)
+        {
+            if (b.ingredientsGiven) return;
+            b.ingredientsGiven = true;
+            foreach (var i in Products.IngredientsFor(b.businessId))
+                if (b.DepotCount(i.id) < 8) b.AddDepot(i.id, 8 - b.DepotCount(i.id));
+        }
+
+        /// <summary>Eski kayıtlarda stok yoksa bir kez başlangıç stoğu ve hammaddesi verilir.</summary>
         public void MigrateStock()
         {
-            foreach (var b in profile.businesses) GiveStarterStock(b);
+            foreach (var b in profile.businesses) { GiveStarterStock(b); GiveStarterIngredients(b); }
         }
 
         public int DepotCapacity(OwnedBusiness b) => Products.DepotCapacity(b.depotLevel);
@@ -217,6 +227,8 @@ namespace CityRise.Progression
             if (b == null) return false;
             var p = Products.Find(b.businessId, productId);
             if (p == null) return false;
+            // Dükkanda üretilen ürün satın alınmaz (hammaddesi alınır, makinede yapılır).
+            if (Products.RecipeFor(b.businessId, productId) != null) return false;
             long cost = RestockCost(b, p, out int amount, express);
             if (amount <= 0 || profile.cash < cost) return false;
             profile.cash -= cost;
@@ -238,6 +250,8 @@ namespace CityRise.Progression
             var b = profile.Find(plotId);
             if (b == null) return 0;
             int n = 0;
+            foreach (var p in Products.IngredientsFor(b.businessId))
+                if (Restock(plotId, p.id, express)) n++;
             foreach (var p in Products.For(b.businessId))
                 if (Restock(plotId, p.id, express)) n++;
             return n;
@@ -298,6 +312,72 @@ namespace CityRise.Progression
             }
             if (moved > 0) StockChanged?.Invoke(b);
             return moved;
+        }
+
+        // ------------------------------------------------------------ Üretim
+
+        public event Action<OwnedBusiness, ProductionSlot> ProductionReady;
+        public event Action<OwnedBusiness> ProductionChanged;
+
+        public enum ProduceCheck { Ok, NoRecipe, NoSlot, NoIngredient, DepotFull }
+
+        public ProduceCheck CanProduce(OwnedBusiness b, string productId)
+        {
+            var r = Products.RecipeFor(b.businessId, productId);
+            if (r == null) return ProduceCheck.NoRecipe;
+            if (b.production.Count >= Products.SlotCount(b.level)) return ProduceCheck.NoSlot;
+            if (b.DepotCount(r.ingredient) < r.ingredientAmount) return ProduceCheck.NoIngredient;
+            return ProduceCheck.Ok;
+        }
+
+        /// <summary>Makineye bir parti koyar: hammadde depodan düşer, süre bitince ürün hazır olur.</summary>
+        public bool StartProduction(int plotId, string productId)
+        {
+            var b = profile.Find(plotId);
+            if (b == null || CanProduce(b, productId) != ProduceCheck.Ok) return false;
+            var r = Products.RecipeFor(b.businessId, productId);
+            b.AddDepot(r.ingredient, -r.ingredientAmount);
+            var now = DateTime.UtcNow;
+            b.production.Add(new ProductionSlot { product = productId, output = r.output, startTicks = now.Ticks, endTicks = now.AddSeconds(r.seconds).Ticks });
+            AddXp(1);
+            ProductionChanged?.Invoke(b);
+            StockChanged?.Invoke(b);
+            Changed?.Invoke();
+            return true;
+        }
+
+        public static bool IsReady(ProductionSlot s) => DateTime.UtcNow.Ticks >= s.endTicks;
+
+        /// <summary>Hazır partileri depoya alır (Hay Day gibi: dokununca toplanır). Alınan ürün sayısı.</summary>
+        public int CollectProduction(int plotId)
+        {
+            var b = profile.Find(plotId);
+            if (b == null) return 0;
+            int n = 0;
+            for (int i = b.production.Count - 1; i >= 0; i--)
+            {
+                var s = b.production[i];
+                if (!IsReady(s)) continue;
+                b.production.RemoveAt(i);
+                b.AddDepot(s.product, s.output);
+                n += s.output;
+            }
+            if (n > 0)
+            {
+                AddXp(Math.Max(1, n / 4));
+                ProductionChanged?.Invoke(b);
+                StockChanged?.Invoke(b);
+                Changed?.Invoke();
+            }
+            return n;
+        }
+
+        readonly HashSet<ProductionSlot> announced = new HashSet<ProductionSlot>();
+
+        void TickProduction(OwnedBusiness b)
+        {
+            foreach (var s in b.production)
+                if (IsReady(s) && announced.Add(s)) ProductionReady?.Invoke(b, s);
         }
 
         /// <summary>"Rafa diz": depodaki ürünleri hemen raflara taşır.</summary>
@@ -371,6 +451,7 @@ namespace CityRise.Progression
             foreach (var b in profile.businesses)
             {
                 ArriveDeliveries(b, true);
+                TickProduction(b);
                 b.refillCarry += Products.RefillPerSecond * seconds;
                 int r = (int)Math.Floor(b.refillCarry);
                 if (r > 0) { b.refillCarry -= r; Refill(b, r); }

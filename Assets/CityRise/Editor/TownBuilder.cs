@@ -64,6 +64,8 @@ namespace CityRise.EditorTools
             public CityLayout layout;
             public CityGrid g;
             public bool night;
+            /// <summary>Gündüz kurulumu: gece için gereken her şey de hazırlanır, oyun sırasında gün-gece döngüsü çalışır.</summary>
+            public bool dynamic;
             public Random rng = new Random(7);
             public Transform root, roads, plots, nature, lights;
             public HashSet<Vector2Int> drawnRoads = new HashSet<Vector2Int>();
@@ -99,7 +101,7 @@ namespace CityRise.EditorTools
                 EnsureFolder(DataDir);
                 EnsureFolder(Root + "/Scenes");
 
-                var c = new Ctx { night = night };
+                var c = new Ctx { night = night, dynamic = !night };
                 c.layout = LoadOrCreateLayout();
                 c.g = c.layout.grid;
                 c.openArea = OpenArea(c.g);
@@ -136,6 +138,7 @@ namespace CityRise.EditorTools
                 BuildCamera(c);
                 BuildPostProcessing(c);
                 BuildGame(c, town);
+                if (c.dynamic) BuildDayNight(c);
 
                 // Doku içe aktarmaları sırasında URP malzeme anahtar kelimelerini sıfırlayabiliyor; parlayanları yeniden aç.
                 foreach (var m in c.emissive)
@@ -579,7 +582,7 @@ namespace CityRise.EditorTools
                 lamp.name = "MeydanLambasi";
                 var head = pos + Quaternion.Euler(0, yaw, 0) * new Vector3(0, 5.1f, -1.4f);
                 Box("LambaCami", parent, head, new Vector3(0.45f, 0.08f, 0.45f), c.lampGlow);
-                if (c.night) PointLight(c, head + Vector3.down * 0.4f, 15f, 12f, new Color(1f, 0.68f, 0.36f));
+                if (c.night || c.dynamic) PointLight(c, head + Vector3.down * 0.4f, 15f, 12f, new Color(1f, 0.68f, 0.36f));
             }
 
             for (int i = 0; i < 3; i++)
@@ -722,7 +725,7 @@ namespace CityRise.EditorTools
                 lamp.name = "Lamba";
                 var head = center + offset + Quaternion.Euler(0, yaw, 0) * new Vector3(0, 4.55f, -1.55f);
                 Box("LambaCami", parent, head, new Vector3(0.5f, 0.08f, 0.35f), c.lampGlow).isStatic = true;
-                if (c.night && c.lightCount < 48)
+                if ((c.night || c.dynamic) && c.lightCount < 48)
                     PointLight(c, head + Vector3.down * 0.4f, 16f, 14f, new Color(1f, 0.68f, 0.36f));
             }
         }
@@ -1010,8 +1013,62 @@ namespace CityRise.EditorTools
             probe.resolution = 128;
             probe.boxProjection = false;
 
-            if (night)
+            if (night || c.dynamic)
                 PointLight(c, new Vector3(0, 4f, 0), 16f, 10f, new Color(1f, 0.82f, 0.55f));
+        }
+
+        /// <summary>
+        /// Gün-gece döngüsü için gece parçaları: ay ışığı, gece gökyüzü ve renk ayarı, parlayan pencere/cam/lamba
+        /// malzemeleri ve sokak lambası ışıkları (gündüz kapalı). Oyunda DayNightCycle bunlar arasında geçiş yapar.
+        /// </summary>
+        static void BuildDayNight(Ctx c)
+        {
+            var cycle = new GameObject("GunDongusu").AddComponent<CityRise.Life.DayNightCycle>();
+            cycle.sun = RenderSettings.sun;
+            var moon = new GameObject("Ay").AddComponent<Light>();
+            moon.type = LightType.Directional;
+            moon.shadows = LightShadows.Soft;
+            moon.shadowStrength = 0.6f;
+            moon.transform.rotation = Quaternion.Euler(50f, -60f, 0);
+            moon.color = new Color(0.6f, 0.7f, 1f);
+            moon.intensity = 0.35f;
+            moon.enabled = false;
+            cycle.moon = moon;
+            foreach (var l in c.lights.GetComponentsInChildren<Light>(true))
+            {
+                cycle.nightLights.Add(l);
+                l.enabled = false;
+            }
+
+            void Pair(Material day, Texture glowMap, Color glow)
+            {
+                if (day == null) return;
+                var n = new Material(day) { name = day.name + "_Gece" };
+                SetEmission(c, n, glowMap, glow);
+                cycle.dayMaterials.Add(day);
+                cycle.nightMaterials.Add(n);
+            }
+            foreach (var kit in BuildingKits)
+                if (c.kenneyMats.TryGetValue(kit, out var day))
+                    Pair(day, WindowGlowMap(kit, day.GetTexture("_BaseMap") as Texture2D), new Color(1f, 0.66f, 0.32f) * 1.1f);
+            Pair(c.glass, null, new Color(1f, 0.68f, 0.35f) * 1.1f);
+            Pair(c.lampGlow, null, new Color(1f, 0.78f, 0.45f) * 6f);
+
+            cycle.daySky = RenderSettings.skybox;
+            cycle.dayVolume = Object.FindFirstObjectByType<Volume>();
+            PrepareHdri(SkyPath(true));
+            c.night = true;
+            cycle.nightSky = SkyboxMat(c, SkyPath(true));
+            BuildPostProcessing(c);
+            c.night = false;
+            foreach (var v in Object.FindObjectsByType<Volume>(FindObjectsSortMode.None))
+                if (v != cycle.dayVolume)
+                {
+                    v.name = "RenkAyarlari_Gece";
+                    v.weight = 0f;
+                    v.priority = 1f;
+                    cycle.nightVolume = v;
+                }
         }
 
         static void BuildCamera(Ctx c)

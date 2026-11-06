@@ -54,6 +54,7 @@ namespace CityRise.Life
             game = gm;
             grid = gm.town.Grid;
             night = RenderSettings.sun != null && RenderSettings.sun.name == "Ay";
+            headlightsOn = night;
             var lib = gm.interiorLibrary;
             if (lib == null) return;
 
@@ -66,7 +67,10 @@ namespace CityRise.Life
                 go.transform.localScale = Vector3.one * e.scale;
                 if (!e.key.StartsWith("rcar/")) Tint(go, i);
                 else if (e.key == "rcar/skyline") Paint(go, i);
-                if (night) Headlights(go.transform);
+                // Farlar her arabada var; gece açılır (gün-gece döngüsü yoksa yalnızca gece kurulumunda).
+                var lamps = Headlights(go.transform);
+                foreach (var l in lamps) l.SetActive(night);
+                headlights.AddRange(lamps);
                 go.SetActive(false);
                 cars.Add(new Car { t = go.transform, speed = 7f + (float)rng.NextDouble() * 3f });
             }
@@ -115,13 +119,19 @@ namespace CityRise.Life
         }
 
         /// <summary>Gece farları: aracın ön yüzüne iki parlak kutu (aracın boyutuna göre).</summary>
-        static void Headlights(Transform car)
+        readonly List<GameObject> headlights = new List<GameObject>();
+        static Material headlightMat;
+        bool headlightsOn;
+
+        static List<GameObject> Headlights(Transform car)
         {
+            var result = new List<GameObject>();
             var rs = car.GetComponentsInChildren<Renderer>();
-            if (rs.Length == 0) return;
+            if (rs.Length == 0) return result;
             var b = rs[0].bounds;
             foreach (var r in rs) b.Encapsulate(r.bounds);
-            var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(1f, 0.95f, 0.7f) * 3f };
+            if (headlightMat == null) headlightMat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(1f, 0.95f, 0.7f) * 3f };
+            var mat = headlightMat;
             float halfW = b.extents.x * 0.6f, y = b.min.y + b.size.y * 0.42f, z = b.max.z - 0.02f;
             foreach (var x in new[] { -halfW, halfW })
             {
@@ -132,7 +142,9 @@ namespace CityRise.Life
                 var s = car.lossyScale;
                 lamp.transform.localScale = new Vector3(0.28f / s.x, 0.14f / s.y, 0.05f / s.z);
                 lamp.GetComponent<Renderer>().sharedMaterial = mat;
+                result.Add(lamp);
             }
+            return result;
         }
 
         /// <summary>Açık yolları ve hedef sayıları yeniden hesaplar (aşama değişince, işletme alınınca).</summary>
@@ -191,6 +203,13 @@ namespace CityRise.Life
         void Update()
         {
             if (game == null || game.InInterior) return;
+            var cycle = DayNightCycle.Instance;
+            bool wantLights = cycle != null ? cycle.Night > 0.4f : night;
+            if (wantLights != headlightsOn)
+            {
+                headlightsOn = wantLights;
+                foreach (var l in headlights) if (l != null) l.SetActive(wantLights);
+            }
             if (game.Profile.stage != builtFor || game.Profile.businesses.Count != builtOwned) Rebuild();
             float dt = Mathf.Min(Time.deltaTime, 0.1f);
             foreach (var c in cars) if (c.t.gameObject.activeSelf) MoveCar(c, dt);

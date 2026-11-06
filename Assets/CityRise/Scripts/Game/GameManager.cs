@@ -319,6 +319,8 @@ namespace CityRise.Game
             if (ground != null) ground.localScale = new Vector3(Mathf.Min(fp.x, plot.cells.width) * g.cellSize, 1f, Mathf.Min(fp.y, plot.cells.height) * g.cellSize);
             view.building = b;
             ShopExterior.Apply(view.transform, owned);
+            // Gece kurulan binanın pencereleri de yansın.
+            if (CityRise.Life.DayNightCycle.Instance != null) CityRise.Life.DayNightCycle.Instance.Refresh();
             if (animate) StartCoroutine(Construct(b.transform.Find("Bina") ?? b.transform));
         }
 
@@ -401,6 +403,7 @@ namespace CityRise.Game
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.07f, 0.08f, 0.11f);
             RenderSettings.fog = false;
+            if (CityRise.Life.DayNightCycle.Instance != null) CityRise.Life.DayNightCycle.Instance.InteriorOpen = true;
             hud.EnterInterior(plot, owned, businessId, level);
             // İlk karede malzemeler hazırlanırken ekran kararık kalsın.
             yield return null;
@@ -427,6 +430,7 @@ namespace CityRise.Game
             cam.clearFlags = savedCamera.clear;
             cam.backgroundColor = savedCamera.background;
             RenderSettings.fog = savedCamera.fog;
+            if (CityRise.Life.DayNightCycle.Instance != null) CityRise.Life.DayNightCycle.Instance.InteriorOpen = false;
             hud.ExitInterior();
             yield return hud.Fade(0f, 0.3f);
             transitioning = false;

@@ -101,6 +101,8 @@ namespace CityRise.Game
                 ["event.name.market"] = "Market Haftası",
                 ["event.name.eczane"] = "Sağlık Haftası",
                 ["event.name.supermarket"] = "Süpermarket Haftası",
+                ["clock.day"] = "Gündüz {0}",
+                ["clock.night"] = "Gece {0}",
                 ["mission.header"] = "Görevler",
                 ["mission.Build"] = "{0} işletme kur",
                 ["mission.OwnBusiness"] = "{1} aç",

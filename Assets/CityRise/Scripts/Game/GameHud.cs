@@ -36,7 +36,8 @@ namespace CityRise.Game
         Coroutine toastRoutine;
         readonly Dictionary<int, Button> coins = new Dictionary<int, Button>();
         readonly Queue<System.Action> pendingModals = new Queue<System.Action>();
-        RectTransform missionPanel, missionList, eventBanner;
+        RectTransform missionPanel, missionList, eventBanner, clockPanel;
+        Text clockLabel;
         Text eventLabel;
         float eventTimer;
         Text missionHeader;
@@ -120,6 +121,11 @@ namespace CityRise.Game
             UIKit.Label("Dolar", coin, "$", 38, UIKit.TextDark, TextAnchor.MiddleCenter, FontStyle.Bold).rectTransform.Stretch();
             cashLabel = UIKit.Label("Nakit", cashPanel, "", 40, Color.white, TextAnchor.MiddleRight, FontStyle.Bold);
             cashLabel.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-20, 0), new Vector2(240, 60));
+
+            // Sağ üst, nakdin solunda: oyun saati (gün-gece döngüsü varsa).
+            clockPanel = UIKit.Box("Saat", root, UIKit.Panel).rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-384, -24), new Vector2(200, 88));
+            clockLabel = UIKit.Label("Yazi", clockPanel, "", 30, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            clockLabel.rectTransform.Stretch(6);
 
             // Sağ üst, nakdin altında: haftalık etkinlik.
             var evt = UIKit.Button("Etkinlik", root, "", new Color(0.55f, 0.2f, 0.65f, 0.92f), () =>
@@ -308,6 +314,14 @@ namespace CityRise.Game
             eventTimer -= Time.unscaledDeltaTime;
             if (eventTimer <= 0) { eventTimer = 20f; UpdateEvent(); }
             eventBanner.gameObject.SetActive(interiorPlot == null);
+            var cycle = CityRise.Life.DayNightCycle.Instance;
+            clockPanel.gameObject.SetActive(cycle != null);
+            if (cycle != null)
+            {
+                int h = Mathf.FloorToInt(cycle.Hour), m = Mathf.FloorToInt((cycle.Hour - h) * 60f) / 10 * 10;
+                clockLabel.text = Loc.T(cycle.IsNight ? "clock.night" : "clock.day", $"{h:00}:{m:00}");
+                clockLabel.color = cycle.IsNight ? new Color(0.75f, 0.82f, 1f) : new Color(1f, 0.9f, 0.55f);
+            }
             if (interiorPlot != null) RefreshInterior();
             else UpdateCoins();
 #if ENABLE_INPUT_SYSTEM

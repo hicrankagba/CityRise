@@ -39,6 +39,33 @@ namespace CityRise.Life
             if (animator != null) animator.Update((float)rng.NextDouble() * 3f);
         }
 
+        /// <summary>
+        /// Yeni hedef: bazen kasa, çoğunlukla boş bir nokta. Başka bir müşterinin bulunduğu ya da gittiği
+        /// yere (0,9 m içi) gidilmez; böylece iki kişi üst üste binmez.
+        /// </summary>
+        Vector3 PickGoal()
+        {
+            var others = transform.parent != null ? transform.parent.GetComponentsInChildren<InteriorWanderer>() : new InteriorWanderer[0];
+            bool Free(Vector3 p)
+            {
+                foreach (var o in others)
+                {
+                    if (o == this) continue;
+                    if (Flat(o.transform.localPosition - p) < 0.9f || Flat(o.goal - p) < 0.9f) return false;
+                }
+                return true;
+            }
+            if (rng.NextDouble() < 0.2 && Free(register)) return register;
+            for (int i = 0; i < 8; i++)
+            {
+                var p = spots[rng.Next(spots.Count)];
+                if (Free(p)) return p;
+            }
+            return transform.localPosition;
+        }
+
+        static float Flat(Vector3 v) => new Vector2(v.x, v.z).magnitude;
+
         void SetState(string state)
         {
             if (animator == null || current == state) return;
@@ -70,7 +97,7 @@ namespace CityRise.Life
             {
                 pause -= dt;
                 if (animator == null) body.localPosition = Vector3.zero;
-                if (pause <= 0) goal = rng.NextDouble() < 0.2 ? register : spots[rng.Next(spots.Count)];
+                if (pause <= 0) goal = PickGoal();
                 return;
             }
             var pos = transform.localPosition;

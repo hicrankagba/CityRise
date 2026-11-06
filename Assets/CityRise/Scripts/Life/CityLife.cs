@@ -23,8 +23,11 @@ namespace CityRise.Life
 
         /// <summary>Şerit, yol ortasından bu kadar sağda (sağdan trafik).</summary>
         const float LaneOffset = 1.6f;
-        /// <summary>Kaldırım, blok kenarından bu kadar dışarıda.</summary>
-        const float SidewalkOffset = 0.75f;
+        /// <summary>
+        /// Yayaların yürüdüğü çizgi, blok kenarından bu kadar dışarıda. Kenney yolunda kaldırım
+        /// hücre kenarından 0,8 m genişliğinde; çizgi kaldırımın binaya yakın yarısında, lambalar yol tarafında.
+        /// </summary>
+        const float SidewalkOffset = 0.32f;
 
         GameManager game;
         CityGrid grid;
@@ -62,6 +65,7 @@ namespace CityRise.Life
                 go.name = "Araba";
                 go.transform.localScale = Vector3.one * e.scale;
                 if (!e.key.StartsWith("rcar/")) Tint(go, i);
+                else if (e.key == "rcar/skyline") Paint(go, i);
                 if (night) Headlights(go.transform);
                 go.SetActive(false);
                 cars.Add(new Car { t = go.transform, speed = 7f + (float)rng.NextDouble() * 3f });
@@ -94,6 +98,20 @@ namespace CityRise.Life
             var block = new MaterialPropertyBlock();
             block.SetColor("_BaseColor", tints[i % tints.Length]);
             foreach (var r in go.GetComponentsInChildren<Renderer>()) r.SetPropertyBlock(block);
+        }
+
+        /// <summary>Beyaz gövdeli gerçekçi arabaya gerçek araba renkleri (yalnızca gövde malzemesi).</summary>
+        static void Paint(GameObject go, int i)
+        {
+            Color[] paints =
+            {
+                new Color(0.92f, 0.92f, 0.92f), new Color(0.55f, 0.05f, 0.06f), new Color(0.08f, 0.16f, 0.38f),
+                new Color(0.12f, 0.12f, 0.13f), new Color(0.6f, 0.62f, 0.64f), new Color(0.15f, 0.3f, 0.2f),
+            };
+            var block = new MaterialPropertyBlock();
+            block.SetColor("_BaseColor", paints[(i / 2) % paints.Length]);
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+                if (r.sharedMaterial != null && r.sharedMaterial.name.Contains("Body")) r.SetPropertyBlock(block);
         }
 
         /// <summary>Gece farları: aracın ön yüzüne iki parlak kutu (aracın boyutuna göre).</summary>
@@ -278,16 +296,19 @@ namespace CityRise.Life
             float x0 = r.xMin * cs - SidewalkOffset, x1 = r.xMax * cs + SidewalkOffset;
             float z0 = r.yMin * cs - SidewalkOffset, z1 = r.yMax * cs + SidewalkOffset;
             w.loop.Clear();
-            w.loop.Add(new Vector3(x0, 0.15f, z0));
-            w.loop.Add(new Vector3(x1, 0.15f, z0));
-            w.loop.Add(new Vector3(x1, 0.15f, z1));
-            w.loop.Add(new Vector3(x0, 0.15f, z1));
+            // Köşeler yuvarlatılır: kaldırım köşede kavis yaptığı için yaya yola taşmaz.
+            const float cut = 0.9f;
+            w.loop.Add(new Vector3(x0 + cut, 0.16f, z0)); w.loop.Add(new Vector3(x1 - cut, 0.16f, z0));
+            w.loop.Add(new Vector3(x1, 0.16f, z0 + cut)); w.loop.Add(new Vector3(x1, 0.16f, z1 - cut));
+            w.loop.Add(new Vector3(x1 - cut, 0.16f, z1)); w.loop.Add(new Vector3(x0 + cut, 0.16f, z1));
+            w.loop.Add(new Vector3(x0, 0.16f, z1 - cut)); w.loop.Add(new Vector3(x0, 0.16f, z0 + cut));
             w.clockwise = rng.NextDouble() < 0.5;
             if (w.clockwise) w.loop.Reverse();
-            int start = rng.Next(4);
+            int n = w.loop.Count;
+            int start = rng.Next(n);
             float k = (float)rng.NextDouble();
-            w.t.position = Vector3.Lerp(w.loop[start], w.loop[(start + 1) % 4], k);
-            w.target = (start + 1) % 4;
+            w.t.position = Vector3.Lerp(w.loop[start], w.loop[(start + 1) % n], k);
+            w.target = (start + 1) % n;
             w.shopDoor = null;
             w.inside = 0;
             w.state = null;

@@ -694,6 +694,12 @@ namespace CityRise.EditorTools
 
         // ---------------------------------------------------------------- Sokak lambaları
 
+        /// <summary>
+        /// Lamba direği yol ortasından bu uzaklıkta. Kaldırım 3,2 ile 4 m arasında; direk kaldırımın yol tarafında,
+        /// yayaların yürüdüğü çizgi (3,68 m) binaya yakın tarafta.
+        /// </summary>
+        const float LampOffset = 3.33f;
+
         static void BuildStreetLamps(Ctx c)
         {
             var parent = Group(c.root, "SokakLambalari");
@@ -710,7 +716,7 @@ namespace CityRise.EditorTools
                 // Lamba kaldırımda, kolu yola bakar. Kenney lambasının kolu -Z yönünde.
                 float side = ((cell.x / 2 + cell.y / 2) & 1) == 0 ? 1f : -1f;
                 var center = c.g.CellCenter(cell);
-                Vector3 offset = alongX ? new Vector3(0, 0, side * 3.45f) : new Vector3(side * 3.45f, 0, 0);
+                Vector3 offset = alongX ? new Vector3(0, 0, side * LampOffset) : new Vector3(side * LampOffset, 0, 0);
                 float yaw = alongX ? (side > 0 ? 0f : 180f) : (side > 0 ? 90f : 270f);
                 var lamp = Spawn(c, $"{KenneyDir}/CityRoads/light-square.fbx", parent, center + offset, yaw, CityScale);
                 lamp.name = "Lamba";

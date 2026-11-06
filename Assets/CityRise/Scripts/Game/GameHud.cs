@@ -207,19 +207,19 @@ namespace CityRise.Game
             interiorInfo.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -66), new Vector2(600, 40));
 
             var back = UIKit.Button("SehreDon", interiorBar, Loc.T("interior.back"), UIKit.Panel, () => game.CloseInterior(), 32);
-            ((RectTransform)back.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 28), new Vector2(320, 100));
+            ((RectTransform)back.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 28), new Vector2(260, 100));
             collectButton = UIKit.Button("Topla", interiorBar, "", UIKit.Accent, () => { if (interiorPlot != null) eco.Collect(interiorPlot.id); }, 30);
-            ((RectTransform)collectButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-480, 28), new Vector2(300, 100));
+            ((RectTransform)collectButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-416, 28), new Vector2(260, 100));
             upgradeButton = UIKit.Button("Yukselt", interiorBar, "", UIKit.Green, () =>
             {
                 if (interiorPlot != null && eco.Upgrade(interiorPlot.id))
                     Toast(Loc.T("biz.upgraded", Loc.T("business." + interiorBusiness.businessId), interiorBusiness.level));
             }, 28);
-            ((RectTransform)upgradeButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(430, 100));
+            ((RectTransform)upgradeButton.transform).Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(372, 100));
             editButton = UIKit.Button("Duzenle", interiorBar, Loc.T("edit.open"), new Color(0.45f, 0.35f, 0.75f), () => OpenEditPanel(), 30);
-            ((RectTransform)editButton.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(370, 28), new Vector2(280, 100));
+            ((RectTransform)editButton.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(304, 28), new Vector2(220, 100));
             productsButton = UIKit.Button("Urunler", interiorBar, Loc.T("prod.open"), new Color(0.15f, 0.55f, 0.6f), () => OpenProductPanel(), 30);
-            ((RectTransform)productsButton.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(672, 28), new Vector2(280, 100));
+            ((RectTransform)productsButton.transform).Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(540, 28), new Vector2(220, 100));
             BuildEditPanel();
             BuildProductPanel();
             buyButton = UIKit.Button("SatinAl", interiorBar, "", UIKit.Green, () => { if (interiorPlot != null) eco.Acquire(interiorPlot); }, 30);
@@ -340,7 +340,8 @@ namespace CityRise.Game
             eventBanner.gameObject.SetActive(interiorPlot == null);
             statsButton.gameObject.SetActive(interiorPlot == null);
             var cycle = CityRise.Life.DayNightCycle.Instance;
-            clockPanel.gameObject.SetActive(cycle != null);
+            // Dükkan içinde saat gizlenir (başlıkla çakışmasın).
+            clockPanel.gameObject.SetActive(cycle != null && interiorPlot == null);
             if (cycle != null)
             {
                 int h = Mathf.FloorToInt(cycle.Hour), m = Mathf.FloorToInt((cycle.Hour - h) * 60f) / 10 * 10;
@@ -350,6 +351,7 @@ namespace CityRise.Game
             if (interiorPlot != null)
             {
                 RefreshInterior();
+                ShowPendingSales();
                 productRefresh -= Time.unscaledDeltaTime;
                 if (productRefresh <= 0) { productRefresh = 0.5f; RefreshProductPanel(); }
             }
@@ -517,8 +519,8 @@ namespace CityRise.Game
             if (interiorPlot != null)
             {
                 if (interiorBusiness != b) return;
-                var start = new Vector2(Random.Range(-260f, 60f), Random.Range(-60f, 60f));
-                StartCoroutine(Popup(Loc.T("prod.sold", Loc.Money(price), p.name), start, new Color(0.55f, 1f, 0.55f), 30));
+                // Satışlar sıraya girer; yazılar arka arkaya, farklı yüksekliklerde çıkar (üst üste binmez).
+                if (pendingSales.Count < 6) pendingSales.Enqueue(Loc.T("prod.sold", Loc.Money(price), p.name));
                 return;
             }
             if (IsModalOpen) return;
@@ -531,6 +533,21 @@ namespace CityRise.Game
             if (sp.z < 0) return;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(popupLayer, sp, null, out var local);
             StartCoroutine(Popup("+" + Loc.Money(price), local + new Vector2(50, 0), new Color(1f, 0.95f, 0.45f), 26));
+        }
+
+        readonly Queue<string> pendingSales = new Queue<string>();
+        float saleTimer;
+        int saleLane;
+
+        void ShowPendingSales()
+        {
+            saleTimer -= Time.unscaledDeltaTime;
+            if (saleTimer > 0 || pendingSales.Count == 0) return;
+            saleTimer = 0.6f;
+            if (interiorPlot == null) { pendingSales.Clear(); return; }
+            saleLane = (saleLane + 1) % 3;
+            var start = new Vector2(-300f + saleLane * 260f, -90f + saleLane * 80f);
+            StartCoroutine(Popup(pendingSales.Dequeue(), start, new Color(0.55f, 1f, 0.55f), 30));
         }
 
         IEnumerator Popup(string text, Vector2 start, Color color, int size)
